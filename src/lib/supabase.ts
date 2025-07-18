@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { auth } from './firebase';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -8,29 +7,15 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Helper function to get authenticated Supabase client
-export const getAuthenticatedSupabase = async () => {
-  const user = auth.currentUser;
-  if (!user) {
-    throw new Error('Usuário não autenticado');
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
   }
-  
-  const token = await user.getIdToken();
-  
-  return createClient(supabaseUrl, supabaseKey, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-  });
-};
+});
 
 export const uploadProvaData = async (data: any[]) => {
-  const authenticatedSupabase = await getAuthenticatedSupabase();
-  const { data: result, error } = await authenticatedSupabase
+  const { data: result, error } = await supabase
     .from('prova_resultados')
     .insert(data);
   
@@ -39,19 +24,6 @@ export const uploadProvaData = async (data: any[]) => {
 };
 
 export const fetchProvaData = async (filters: any = {}) => {
-  const authenticatedSupabase = await getAuthenticatedSupabase();
-  
-  // Debug: buscar algumas unidades do banco para comparação
-  const { data: sampleUnidades } = await authenticatedSupabase
-    .from('prova_resultados')
-    .select('unidade')
-    .limit(10);
-  
-  if (sampleUnidades) {
-    const uniqueUnidades = [...new Set(sampleUnidades.map(item => item.unidade))];
-    uniqueUnidades.forEach(unidade => console.log(`"${unidade}"`));
-  }
-
   // Função para buscar dados com filtros específicos
   const searchWithFilters = async (searchFilters: any) => {
     const allData: any[] = [];
@@ -60,7 +32,7 @@ export const fetchProvaData = async (filters: any = {}) => {
     let hasMore = true;
 
     while (hasMore) {
-      let query = authenticatedSupabase
+      let query = supabase
         .from('prova_resultados')
         .select('*')
         .range(page * pageSize, (page + 1) * pageSize - 1);
@@ -114,7 +86,7 @@ export const fetchProvaData = async (filters: any = {}) => {
         if (result.length === 0) {
           // Estratégia 4: Busca com LIKE (parcial)
           
-          let query = authenticatedSupabase
+          let query = supabase
             .from('prova_resultados')
             .select('*')
             .ilike('unidade', `%${withoutProfis}%`);
@@ -143,8 +115,7 @@ export const fetchProvaData = async (filters: any = {}) => {
 };
 
 export const getUserProfile = async (userId: string) => {
-  const authenticatedSupabase = await getAuthenticatedSupabase();
-  const { data, error } = await authenticatedSupabase
+  const { data, error } = await supabase
     .from('user_profiles')
     .select('*')
     .eq('id', userId)
@@ -155,8 +126,7 @@ export const getUserProfile = async (userId: string) => {
 };
 
 export const createUserProfile = async (profile: any) => {
-  const authenticatedSupabase = await getAuthenticatedSupabase();
-  const { data, error } = await authenticatedSupabase
+  const { data, error } = await supabase
     .from('user_profiles')
     .insert(profile);
   

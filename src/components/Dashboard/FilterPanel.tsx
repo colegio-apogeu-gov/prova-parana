@@ -27,7 +27,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         <h3 className="text-lg font-medium text-gray-900">Filtros</h3>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-4">
+      <div className="grid md:grid-cols-5 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Unidade
+          </label>
+          <input
+            type="text"
+            value={userProfile?.unidade || ''}
+            disabled
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+          />
+        </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Ano Escolar
@@ -71,18 +82,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             <option value="1">1º Semestre</option>
             <option value="2">2º Semestre</option>
           </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Unidade
-          </label>
-          <input
-            type="text"
-            value={userProfile?.unidade || ''}
-            disabled
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-          />
         </div>
       </div>
     </div>
