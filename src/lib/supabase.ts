@@ -145,3 +145,30 @@ export const getPerformanceInsights = async (filters: any = {}) => {
     performance_habilidades: []
   };
 }
+
+export const searchStudents = async (searchTerm: string, filters: any = {}) => {
+  if (!searchTerm || searchTerm.length < 1) {
+    return [];
+  }
+
+  let query = supabase
+    .from('prova_resultados')
+    .select('nome_aluno')
+    .ilike('nome_aluno', `${searchTerm}%`)
+    .limit(10);
+
+  // Apply additional filters
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value && key !== 'aluno') {
+      query = query.eq(key, value);
+    }
+  });
+
+  const { data, error } = await query;
+  
+  if (error) throw error;
+  
+  // Return unique student names
+  const uniqueNames = [...new Set(data?.map(item => item.nome_aluno) || [])];
+  return uniqueNames;
+}

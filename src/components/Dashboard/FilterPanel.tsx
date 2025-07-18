@@ -1,6 +1,8 @@
 import React from 'react';
+import { useState, useEffect } from 'react';
 import { Filter } from 'lucide-react';
 import { DashboardFilters } from '../../types';
+import { searchStudents } from '../../lib/supabase';
 
 interface FilterPanelProps {
   filters: DashboardFilters;
@@ -13,11 +15,47 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   onFiltersChange, 
   userProfile 
 }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (searchTerm.length > 0) {
+      const fetchSuggestions = async () => {
+        try {
+          const students = await searchStudents(searchTerm, filters);
+          setSuggestions(students);
+        } catch (error) {
+          console.error('Erro ao buscar alunos:', error);
+          setSuggestions([]);
+        }
+      };
+      
+      const timeoutId = setTimeout(fetchSuggestions, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setSuggestions([]);
+    }
+  }, [searchTerm, filters]);
+
+  useEffect(() => {
+    if (filters.aluno) {
+      setSearchTerm(filters.aluno);
+    } else {
+      setSearchTerm('');
+    }
+  }, [filters.aluno]);
+
   const updateFilter = (key: keyof DashboardFilters, value: string) => {
     onFiltersChange({
       ...filters,
       [key]: value || undefined
     });
+  };
+
+  const handleStudentSelect = (student: string) => {
+    updateFilter('aluno', student);
+    setSearchTerm(student);
+    setSuggestions([]);
   };
 
   return (
@@ -28,6 +66,46 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
       </div>
 
       <div className="grid md:grid-cols-5 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Aluno
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Digite o nome do aluno..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {searchTerm && suggestions.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                {suggestions.map((student, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleStudentSelect(student)}
+                    className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                  >
+                    {student}
+                  </button>
+                ))}
+              </div>
+            )}
+            {filters.aluno && (
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                  {filters.aluno}
+                </span>
+                <button
+                  onClick={() => updateFilter('aluno', '')}
+                  className="text-red-500 hover:text-red-700 text-sm"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Unidade
