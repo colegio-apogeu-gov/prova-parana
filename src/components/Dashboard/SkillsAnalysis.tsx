@@ -24,7 +24,7 @@ const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({ insights }) => {
           <Target className="w-5 h-5 text-orange-600" />
         </div>
         <h3 className="text-lg font-semibold text-gray-900">
-          Performance por Habilidade
+          Performance por Descritor
         </h3>
       </div>
 

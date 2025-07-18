@@ -37,6 +37,7 @@ export interface DashboardFilters {
   ano_escolar?: string;
   componente?: string;
   semestre?: string;
+  aluno?: string;
 }
 
 export interface PerformanceInsight {

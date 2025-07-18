@@ -72,7 +72,7 @@ function App() {
   }
 
   if (!user) {
-    return <LoginForm onUserProfileUpdate={setUserProfile} />;
+    return <LoginForm onLogin={setUser} />;
   }
 
   return (
