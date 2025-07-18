@@ -25,40 +25,41 @@ export const uploadProvaData = async (data: any[]) => {
 
 export const fetchProvaData = async (filters: any = {}) => {
   // Função para buscar dados com filtros específicos
-  const searchWithFilters = async (searchFilters: any) => {
-    const allData: any[] = [];
-    const pageSize = 1000;
-    let page = 0;
-    let hasMore = true;
+const searchWithFilters = async (searchFilters: any) => {
+  const allData: any[] = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
 
-    while (hasMore) {
-      let query = supabase
-        .from('prova_resultados')
-        .select('*')
-        .range(page * pageSize, (page + 1) * pageSize - 1);
-      
-      // Apply filters
-      Object.entries(searchFilters).forEach(([key, value]) => {
-        if (value) {
-          query = query.eq(key, value);
-        }
-      });
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        allData.push(...data);
-        hasMore = data.length === pageSize;
-        page++;
-      } else {
-        hasMore = false;
-      }
-    }
+  while (hasMore) {
+    let query = supabase
+      .from('prova_resultados')
+      .select('*')
+      .range(page * pageSize, (page + 1) * pageSize - 1);
     
-    return allData;
-  };
+    // Aplicar filtros válidos
+    Object.entries(searchFilters).forEach(([key, value]) => {
+      if (value && key !== 'aluno') {
+        query = query.eq(key, value);
+      }
+    });
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      allData.push(...data);
+      hasMore = data.length === pageSize;
+      page++;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return allData;
+};
+
 
   // Se há filtro de unidade, tenta múltiplas estratégias
   if (filters.unidade && typeof filters.unidade === 'string') {
@@ -147,28 +148,35 @@ export const getPerformanceInsights = async (filters: any = {}) => {
 }
 
 export const searchStudents = async (searchTerm: string, filters: any = {}) => {
-  if (!searchTerm || searchTerm.length < 1) {
-    return [];
-  }
+  if (!searchTerm || searchTerm.length < 1) return [];
 
   let query = supabase
     .from('prova_resultados')
     .select('nome_aluno')
-    .ilike('nome_aluno', `${searchTerm}%`)
+    .ilike('nome_aluno', `%${searchTerm}%`)
     .limit(10);
 
-  // Apply additional filters
-  Object.entries(filters).forEach(([key, value]) => {
+  // Limpeza no filtro da unidade
+  const filtrosLimpos = { ...filters };
+
+  if (filtrosLimpos.unidade && typeof filtrosLimpos.unidade === 'string') {
+    filtrosLimpos.unidade = filtrosLimpos.unidade
+      .replace(/,/g, '')               // remove vírgulas
+      .replace(/-/g, ' ')              // troca hífen por espaço
+      .replace(/\s+/g, ' ')            // normaliza espaços duplos
+      .replace(/\s*PROFIS\s*$/i, '')   // remove "PROFIS" no final
+      .trim();
+  }
+
+  Object.entries(filtrosLimpos).forEach(([key, value]) => {
     if (value && key !== 'aluno') {
       query = query.eq(key, value);
     }
   });
 
   const { data, error } = await query;
-  
   if (error) throw error;
-  
-  // Return unique student names
+
   const uniqueNames = [...new Set(data?.map(item => item.nome_aluno) || [])];
   return uniqueNames;
-}
+};

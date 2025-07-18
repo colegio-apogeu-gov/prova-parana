@@ -38,12 +38,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   }, [searchTerm, filters]);
 
   useEffect(() => {
-    if (filters.aluno) {
-      setSearchTerm(filters.aluno);
+    if (filters.nome_aluno) {
+      setSearchTerm(filters.nome_aluno);
     } else {
       setSearchTerm('');
     }
-  }, [filters.aluno]);
+  }, [filters.nome_aluno]);
 
   const updateFilter = (key: keyof DashboardFilters, value: string) => {
     onFiltersChange({
@@ -53,7 +53,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   };
 
   const handleStudentSelect = (student: string) => {
-    updateFilter('aluno', student);
+    updateFilter('nome_aluno', student)
     setSearchTerm(student);
     setSuggestions([]);
   };
@@ -91,13 +91,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 ))}
               </div>
             )}
-            {filters.aluno && (
+            {filters.nome_aluno && (
               <div className="mt-1 flex items-center gap-2">
                 <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                  {filters.aluno}
+                  {filters.nome_aluno}
                 </span>
                 <button
-                  onClick={() => updateFilter('aluno', '')}
+                  onClick={() => updateFilter('nome_aluno', '')}
                   className="text-red-500 hover:text-red-700 text-sm"
                 >
                   ✕
