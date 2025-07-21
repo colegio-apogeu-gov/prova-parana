@@ -51,10 +51,18 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile }) => {
       data.filter(item => item.avaliado).map(item => `${item.nome_aluno}-${item.turma}`)
     );
 
-    const levelDistribution = data.reduce((acc, item) => {
+    // Contar níveis de aprendizagem por aluno único (considerando componente e semestre)
+    const studentLevels = new Map<string, string>();
+    
+    data.forEach(item => {
       if (item.nivel_aprendizagem && item.avaliado) {
-        acc[item.nivel_aprendizagem] = (acc[item.nivel_aprendizagem] || 0) + 1;
+        const studentKey = `${item.nome_aluno}-${item.turma}-${item.componente}-${item.semestre}`;
+        studentLevels.set(studentKey, item.nivel_aprendizagem);
       }
+    });
+    
+    const levelDistribution = Array.from(studentLevels.values()).reduce((acc, nivel) => {
+      acc[nivel] = (acc[nivel] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
@@ -63,6 +71,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile }) => {
         if (!acc[item.habilidade_id]) {
           acc[item.habilidade_id] = {
             habilidade_id: item.habilidade_id,
+            habilidade_codigo: item.habilidade_codigo,
             descricao: item.descricao_habilidade,
             total_acertos: 0,
             total_questoes: 0,
@@ -78,6 +87,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile }) => {
 
     const performanceHabilidades = Object.values(skillsPerformance).map((skill: any) => ({
       habilidade_id: skill.habilidade_id,
+      habilidade_codigo: skill.habilidade_codigo,
       descricao: skill.descricao,
       media_acertos: skill.total_acertos / skill.count,
       total_questoes: skill.total_questoes / skill.count,
@@ -91,7 +101,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile }) => {
       distribuicao_niveis: Object.entries(levelDistribution).map(([nivel, quantidade]) => ({
         nivel,
         quantidade,
-        percentual: (quantidade / evaluatedStudents.size) * 100
+        percentual: studentLevels.size > 0 ? (quantidade / studentLevels.size) * 100 : 0
       })),
       performance_habilidades: performanceHabilidades
     });

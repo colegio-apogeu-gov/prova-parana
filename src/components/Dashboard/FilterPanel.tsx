@@ -2,7 +2,7 @@ import React from 'react';
 import { useState, useEffect } from 'react';
 import { Filter } from 'lucide-react';
 import { DashboardFilters } from '../../types';
-import { searchStudents } from '../../lib/supabase';
+import { searchStudents, getFilterOptions } from '../../lib/supabase';
 
 interface FilterPanelProps {
   filters: DashboardFilters;
@@ -17,6 +17,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [filterOptions, setFilterOptions] = useState<{
+    niveis: string[];
+    habilidades: Array<{ codigo: string; id: string; descricao: string }>;
+  }>({
+    niveis: [],
+    habilidades: []
+  });
 
   useEffect(() => {
     if (searchTerm.length > 0) {
@@ -37,6 +44,22 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     }
   }, [searchTerm, filters]);
 
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      try {
+        const options = await getFilterOptions({
+          ...filters,
+          unidade: userProfile?.unidade
+        });
+        setFilterOptions(options);
+      } catch (error) {
+        console.error('Erro ao buscar opções de filtro:', error);
+        setFilterOptions({ niveis: [], habilidades: [] });
+      }
+    };
+
+    fetchFilterOptions();
+  }, [filters, userProfile]);
   useEffect(() => {
     if (filters.nome_aluno) {
       setSearchTerm(filters.nome_aluno);
@@ -65,7 +88,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         <h3 className="text-lg font-medium text-gray-900">Filtros</h3>
       </div>
 
-      <div className="grid md:grid-cols-5 gap-4">
+      <div className="grid md:grid-cols-7 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Aluno
@@ -162,6 +185,41 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           </select>
         </div>
       </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Nível de Aprendizagem
+          </label>
+          <select
+            value={filters.nivel_aprendizagem || ''}
+            onChange={(e) => updateFilter('nivel_aprendizagem', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">Todos</option>
+            {filterOptions.niveis.map((nivel) => (
+              <option key={nivel} value={nivel}>
+                {nivel}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Habilidade
+          </label>
+          <select
+            value={filters.habilidade_codigo || ''}
+            onChange={(e) => updateFilter('habilidade_codigo', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">Todas</option>
+            {filterOptions.habilidades.map((habilidade) => (
+              <option key={habilidade.codigo} value={habilidade.codigo}>
+                {habilidade.codigo} - {habilidade.id}
+              </option>
+            ))}
+          </select>
+        </div>
     </div>
   );
 };
