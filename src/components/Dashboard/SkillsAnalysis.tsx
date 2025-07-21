@@ -11,6 +11,8 @@ const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({ insights }) => {
     .sort((a, b) => a.percentual_medio - b.percentual_medio)
     .slice(0, 10);
 
+  console.log(sortedSkills)
+
   const getPerformanceColor = (percentual: number) => {
     if (percentual >= 70) return 'bg-green-500';
     if (percentual >= 50) return 'bg-yellow-500';
@@ -35,7 +37,7 @@ const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({ insights }) => {
               <div className="flex justify-between items-start mb-2">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">
-                    {skill.habilidade_id}
+                    {skill.habilidade_codigo} - {skill.habilidade_id}
                   </p>
                   <p className="text-xs text-gray-600 line-clamp-2">
                     {skill.descricao}

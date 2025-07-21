@@ -165,7 +165,7 @@ const UploadForm: React.FC<UploadFormProps> = ({ userProfile }) => {
       const nomeAluno = String(row['Estudante'] || row['Nome'] || row['ESTUDANTE'] || '').trim();
       const escola = String(row['Escola'] || row['ESCOLA'] || '').trim();
       const turma = String(row['Código da Turma'] || row['Turma'] || row['CÓDIGO DA TURMA'] || '').trim();
-      const nivelAprendizagem = String(row['Nível de Aprendizagem'] || row['Nivel'] || row['NÍVEL DE APRENDIZAGEM'] || '').trim();
+      const nivelAprendizagem = String(row['Níveis de Aprendizagem'] || row['Nível de Aprendizagem'] || row['Nivel'] || row['NÍVEL DE APRENDIZAGEM'] || row['NÍVEIS DE APRENDIZAGEM'] || '').trim();
       
       // Pula linhas sem nome de aluno ou escola
       if (!nomeAluno || !escola) return;

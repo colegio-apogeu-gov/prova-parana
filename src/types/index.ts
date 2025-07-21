@@ -37,7 +37,9 @@ export interface DashboardFilters {
   ano_escolar?: string;
   componente?: string;
   semestre?: string;
-  aluno?: string;
+  nome_aluno?: string;
+  nivel_aprendizagem?: string;
+  habilidade_codigo?: string;
 }
 
 export interface PerformanceInsight {
@@ -51,6 +53,7 @@ export interface PerformanceInsight {
   }>;
   performance_habilidades: Array<{
     habilidade_id: string;
+    habilidade_codigo: string;
     descricao: string;
     media_acertos: number;
     total_questoes: number;

@@ -169,7 +169,7 @@ export const searchStudents = async (searchTerm: string, filters: any = {}) => {
   }
 
   Object.entries(filtrosLimpos).forEach(([key, value]) => {
-    if (value && key !== 'aluno') {
+    if (value && key !== 'nome_aluno') {
       query = query.eq(key, value);
     }
   });
@@ -179,4 +179,79 @@ export const searchStudents = async (searchTerm: string, filters: any = {}) => {
 
   const uniqueNames = [...new Set(data?.map(item => item.nome_aluno) || [])];
   return uniqueNames;
+};
+
+export const getFilterOptions = async (filters: any = {}) => {
+  try {
+    // Busca níveis de aprendizagem únicos
+    let niveisQuery = supabase
+      .from('prova_resultados')
+      .select('nivel_aprendizagem')
+      .not('nivel_aprendizagem', 'is', null)
+      .not('nivel_aprendizagem', 'eq', '');
+
+    // Busca habilidades únicas
+    let habilidadesQuery = supabase
+      .from('prova_resultados')
+      .select('habilidade_codigo, habilidade_id, descricao_habilidade')
+      .not('habilidade_codigo', 'is', null)
+      .not('habilidade_codigo', 'eq', '');
+
+    // Aplica filtros existentes (exceto os que estamos buscando)
+    const filtrosLimpos = { ...filters };
+    if (filtrosLimpos.unidade && typeof filtrosLimpos.unidade === 'string') {
+      filtrosLimpos.unidade = filtrosLimpos.unidade
+        .replace(/,/g, '')
+        .replace(/-/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/\s*PROFIS\s*$/i, '')
+        .trim();
+    }
+
+    Object.entries(filtrosLimpos).forEach(([key, value]) => {
+      if (value && key !== 'nivel_aprendizagem' && key !== 'habilidade_codigo') {
+        niveisQuery = niveisQuery.eq(key, value);
+        habilidadesQuery = habilidadesQuery.eq(key, value);
+      }
+    });
+
+    const [niveisResult, habilidadesResult] = await Promise.all([
+      niveisQuery,
+      habilidadesQuery
+    ]);
+
+    if (niveisResult.error) throw niveisResult.error;
+    if (habilidadesResult.error) throw habilidadesResult.error;
+
+    // Processa níveis únicos
+    const niveisUnicos = [...new Set(
+      niveisResult.data?.map(item => item.nivel_aprendizagem).filter(Boolean) || []
+    )].sort();
+
+    // Processa habilidades únicas
+    const habilidadesMap = new Map();
+    habilidadesResult.data?.forEach(item => {
+      if (item.habilidade_codigo) {
+        habilidadesMap.set(item.habilidade_codigo, {
+          codigo: item.habilidade_codigo,
+          id: item.habilidade_id,
+          descricao: item.descricao_habilidade
+        });
+      }
+    });
+
+    const habilidadesUnicas = Array.from(habilidadesMap.values())
+      .sort((a, b) => a.codigo.localeCompare(b.codigo));
+
+    return {
+      niveis: niveisUnicos,
+      habilidades: habilidadesUnicas
+    };
+  } catch (error) {
+    console.error('Erro ao buscar opções de filtro:', error);
+    return {
+      niveis: [],
+      habilidades: []
+    };
+  }
 };
