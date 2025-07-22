@@ -61,6 +61,14 @@ export interface PerformanceInsight {
   }>;
 }
 
+export interface LinkQuestao {
+  id: string;
+  link: string;
+  habilidade_codigo: string;
+  componente: 'LP' | 'MT';
+  created_at: string;
+}
+
 // School units
 export const UNIDADES_ESCOLARES = [
   'ANITA CANET, C E-EF M P',

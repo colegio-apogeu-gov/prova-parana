@@ -7,14 +7,15 @@ import LoginForm from './components/Auth/LoginForm';
 import Navbar from './components/Navigation/Navbar';
 import Dashboard from './components/Dashboard/Dashboard';
 import UploadForm from './components/Upload/UploadForm';
+import CadastrarAtividades from './components/CadastrarAtividades/CadastrarAtividades';
 import { UserProfile } from './types';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'upload'>(() => {
-    return (localStorage.getItem('activeTab') as 'dashboard' | 'upload') || 'dashboard';
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'upload' | 'atividades'>(() => {
+    return (localStorage.getItem('activeTab') as 'dashboard' | 'upload' | 'atividades') || 'dashboard';
   });
 
   useEffect(() => {
@@ -88,8 +89,10 @@ function App() {
       <main className="container mx-auto px-4 py-8">
         {activeTab === 'dashboard' ? (
           <Dashboard userProfile={userProfile} />
-        ) : (
+        ) : activeTab === 'upload' ? (
           <UploadForm userProfile={userProfile} />
+        ) : (
+          <CadastrarAtividades />
         )}
       </main>
     </div>
