@@ -255,3 +255,66 @@ export const getFilterOptions = async (filters: any = {}) => {
     };
   }
 };
+
+// Links questões functions
+export const getLinksQuestoes = async () => {
+  const { data, error } = await supabase
+    .from('links_questoes')
+    .select('*')
+    .order('habilidade_codigo');
+  
+  if (error) throw error;
+  return data || [];
+};
+
+export const createLinkQuestao = async (linkData: {
+  link: string;
+  habilidade_codigo: string;
+  componente: string;
+}) => {
+  const { data, error } = await supabase
+    .from('links_questoes')
+    .insert(linkData)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const updateLinkQuestao = async (id: string, linkData: {
+  link: string;
+  habilidade_codigo: string;
+  componente: string;
+}) => {
+  const { data, error } = await supabase
+    .from('links_questoes')
+    .update(linkData)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const deleteLinkQuestao = async (id: string) => {
+  const { error } = await supabase
+    .from('links_questoes')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
+};
+
+export const getLinkByHabilidadeComponente = async (habilidadeCodigo: string, componente: string) => {
+  const { data, error } = await supabase
+    .from('links_questoes')
+    .select('link')
+    .eq('habilidade_codigo', habilidadeCodigo)
+    .eq('componente', componente)
+    .single();
+  
+  if (error && error.code !== 'PGRST116') throw error;
+  return data?.link || null;
+};

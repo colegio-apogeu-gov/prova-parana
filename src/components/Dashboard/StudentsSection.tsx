@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Users, ChevronDown, ChevronRight, BookOpen } from 'lucide-react';
-import { fetchProvaData } from '../../lib/supabase';
+import { Users, ChevronDown, ChevronRight, BookOpen, ExternalLink } from 'lucide-react';
+import { fetchProvaData, getLinkByHabilidadeComponente } from '../../lib/supabase';
 import { DashboardFilters } from '../../types';
 
 interface StudentsSectionProps {
@@ -19,6 +19,7 @@ interface StudentData {
       total_questoes: number;
       habilidades: Array<{
         habilidade_id: string;
+        habilidade_codigo: string;
         acertos: number;
         total: number;
       }>;
@@ -31,6 +32,7 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
   const [loading, setLoading] = useState(true);
   const [expandedStudents, setExpandedStudents] = useState<Set<string>>(new Set());
   const [expandedComponents, setExpandedComponents] = useState<Set<string>>(new Set());
+  const [linksCache, setLinksCache] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     loadStudentsData();
@@ -74,6 +76,7 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
           groupedData[studentKey].componentes[componentKey].total_questoes += item.total;
           groupedData[studentKey].componentes[componentKey].habilidades.push({
             habilidade_id: item.habilidade_id,
+            habilidade_codigo: item.habilidade_codigo,
             acertos: item.acertos,
             total: item.total
           });
@@ -90,6 +93,34 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
       setStudentsData([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getQuestionLink = async (habilidadeCodigo: string, componente: string) => {
+    const cacheKey = `${habilidadeCodigo}-${componente}`;
+    
+    if (linksCache.has(cacheKey)) {
+      return linksCache.get(cacheKey);
+    }
+
+    try {
+      const link = await getLinkByHabilidadeComponente(habilidadeCodigo, componente);
+      const newCache = new Map(linksCache);
+      newCache.set(cacheKey, link || '');
+      setLinksCache(newCache);
+      return link;
+    } catch (error) {
+      console.error('Erro ao buscar link:', error);
+      return null;
+    }
+  };
+
+  const handleQuestionLinkClick = async (habilidadeCodigo: string, componente: string) => {
+    const link = await getQuestionLink(habilidadeCodigo, componente);
+    if (link) {
+      window.open(link, '_blank', 'noopener,noreferrer');
+    } else {
+      alert('Link não encontrado para esta habilidade');
     }
   };
 
@@ -197,7 +228,8 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
                                         {habilidade.habilidade_id}
                                       </p>
                                     </div>
-                                    <div className="text-right">
+                                    <div className="flex items-center gap-3">
+                                      <div className="text-right">
                                       <p className="text-sm text-gray-600">
                                         {habilidade.acertos} / {habilidade.total}
                                       </p>
@@ -205,6 +237,16 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
                                         <p className="text-xs text-blue-600">
                                           {((habilidade.acertos / habilidade.total) * 100).toFixed(1)}%
                                         </p>
+                                      )}
+                                      </div>
+                                      {habilidade.total > 0 && ((habilidade.acertos / habilidade.total) * 100) < 100 && (
+                                        <button
+                                          onClick={() => handleQuestionLinkClick(habilidade.habilidade_codigo, componentKey)}
+                                          className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 transition-colors"
+                                          title="Ver questão"
+                                        >
+                                          <ExternalLink className="w-4 h-4" />
+                                        </button>
                                       )}
                                     </div>
                                   </div>
