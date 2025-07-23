@@ -8,14 +8,15 @@ import Navbar from './components/Navigation/Navbar';
 import Dashboard from './components/Dashboard/Dashboard';
 import UploadForm from './components/Upload/UploadForm';
 import CadastrarAtividades from './components/CadastrarAtividades/CadastrarAtividades';
+import Graficos from './components/Graficos/Graficos';
 import { UserProfile } from './types';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'upload' | 'atividades'>(() => {
-    return (localStorage.getItem('activeTab') as 'dashboard' | 'upload' | 'atividades') || 'dashboard';
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'upload' | 'atividades' | 'graficos'>(() => {
+    return (localStorage.getItem('activeTab') as 'dashboard' | 'upload' | 'atividades' | 'graficos') || 'dashboard';
   });
 
   useEffect(() => {
@@ -91,6 +92,8 @@ function App() {
           <Dashboard userProfile={userProfile} />
         ) : activeTab === 'upload' ? (
           <UploadForm userProfile={userProfile} />
+        ) : activeTab === 'graficos' ? (
+          <Graficos userProfile={userProfile} />
         ) : (
           <CadastrarAtividades />
         )}
