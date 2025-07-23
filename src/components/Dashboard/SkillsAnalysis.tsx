@@ -11,8 +11,6 @@ const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({ insights }) => {
     .sort((a, b) => a.percentual_medio - b.percentual_medio)
     .slice(0, 10);
 
-  console.log(sortedSkills)
-
   const getPerformanceColor = (percentual: number) => {
     if (percentual >= 70) return 'bg-green-500';
     if (percentual >= 50) return 'bg-yellow-500';
