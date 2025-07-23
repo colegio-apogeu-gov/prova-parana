@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { auth } from '../../lib/firebase';
 import { createUserProfile } from '../../lib/supabase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { UNIDADES_ESCOLARES } from '../../types';
+import { UNIDADES_ESCOLARES, UNIDADE_MAPEADA } from '../../types';
 import { User, Lock, School } from 'lucide-react';
 
 interface LoginFormProps {
@@ -114,7 +114,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
               >
                 <option value="">Selecione sua unidade</option>
                 {UNIDADES_ESCOLARES.map((escola) => (
-                  <option key={escola} value={escola}>
+                  <option key={escola} value={UNIDADE_MAPEADA[escola]}>
                     {escola}
                   </option>
                 ))}

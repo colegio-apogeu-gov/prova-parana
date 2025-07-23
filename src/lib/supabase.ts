@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { UNIDADE_MAPEADA } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -65,12 +66,14 @@ const searchWithFilters = async (searchFilters: any) => {
   // Se há filtro de unidade, tenta múltiplas estratégias
   if (filters.unidade && typeof filters.unidade === 'string') {
     const originalUnidade = filters.unidade;
+    const unidadeCorrigida = UNIDADE_MAPEADA[originalUnidade as keyof typeof UNIDADE_MAPEADA] || originalUnidade;
+    filters.unidade = unidadeCorrigida;
 
     let result = await searchWithFilters(filters);
     
     if (result.length === 0) {
       // Estratégia 2: Remove vírgulas e normaliza hífens
-      const cleanValue = originalUnidade
+      const cleanValue = unidadeCorrigida
         .replace(/,/g, '') // Remove vírgulas
         .replace(/-/g, ' ') // Substitui hífens por espaços
         .replace(/\s+/g, ' ') // Normaliza espaços múltiplos para um só
