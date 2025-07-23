@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Users, TrendingUp, Filter } from 'lucide-react';
-import { fetchProvaData } from '../../lib/supabase';
+import { fetchProvaData, getFilterOptions } from '../../lib/supabase';
 import { DashboardFilters, ProvaResultado, PerformanceInsight } from '../../types';
 import FilterPanel from './FilterPanel';
 import StatsCards from './StatsCards';
@@ -18,6 +18,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile }) => {
     unidade: userProfile?.unidade 
   });
   const [loading, setLoading] = useState(true);
+  const [filtersLoading, setFiltersLoading] = useState(true);
+  const [studentsLoading, setStudentsLoading] = useState(true);
   const [insights, setInsights] = useState<PerformanceInsight>({
     total_alunos: 0,
     alunos_avaliados: 0,
@@ -27,19 +29,38 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile }) => {
   });
 
   useEffect(() => {
-    loadData();
+    loadAllData();
   }, [filters]);
 
-  const loadData = async () => {
+  const loadAllData = async () => {
     setLoading(true);
+    setFiltersLoading(true);
+    setStudentsLoading(true);
+    
     try {
-      const result = await fetchProvaData(filters);
-      setData(result || []);
-      processInsights(result || []);
+      // Carrega dados principais e opções de filtro em paralelo
+      const [provaData, filterOptions] = await Promise.all([
+        fetchProvaData(filters),
+        getFilterOptions({
+          ...filters,
+          unidade: userProfile?.unidade
+        })
+      ]);
+      
+      setData(provaData || []);
+      processInsights(provaData || []);
+      setFiltersLoading(false);
+      
+      // Simula carregamento adicional para garantir que todos os componentes estejam prontos
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setStudentsLoading(false);
+      
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       setData([]);
       processInsights([]);
+      setFiltersLoading(false);
+      setStudentsLoading(false);
     } finally {
       setLoading(false);
     }
@@ -107,6 +128,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile }) => {
     });
   };
 
+  // Verifica se todos os dados estão carregados
+  const allDataLoaded = !loading && !filtersLoading && !studentsLoading;
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -124,18 +147,32 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile }) => {
         </div>
       </div>
 
-      <FilterPanel 
-        filters={filters} 
-        onFiltersChange={setFilters}
-        userProfile={userProfile}
-      />
-
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      {!allDataLoaded ? (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-6"></div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Carregando Dashboard</h3>
+            <div className="space-y-2 text-sm text-gray-600">
+              <p className={loading ? "text-blue-600" : "text-green-600"}>
+                {loading ? "⏳ Carregando dados principais..." : "✅ Dados principais carregados"}
+              </p>
+              <p className={filtersLoading ? "text-blue-600" : "text-green-600"}>
+                {filtersLoading ? "⏳ Carregando opções de filtro..." : "✅ Filtros carregados"}
+              </p>
+              <p className={studentsLoading ? "text-blue-600" : "text-green-600"}>
+                {studentsLoading ? "⏳ Preparando seção de alunos..." : "✅ Seção de alunos pronta"}
+              </p>
+            </div>
+          </div>
         </div>
       ) : (
         <>
+          <FilterPanel 
+            filters={filters} 
+            onFiltersChange={setFilters}
+            userProfile={userProfile}
+          />
+          
           <StatsCards insights={insights} />
           
           <div className="grid lg:grid-cols-2 gap-6">

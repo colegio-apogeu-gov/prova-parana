@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Users, ChevronDown, ChevronRight, BookOpen, ExternalLink } from 'lucide-react';
+import { Users, ChevronDown, ChevronRight, BookOpen, ExternalLink, Brain, Download } from 'lucide-react';
 import { fetchProvaData, getLinkByHabilidadeComponente } from '../../lib/supabase';
 import { DashboardFilters } from '../../types';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import jsPDF from 'jspdf';
 
 interface StudentsSectionProps {
   filters: DashboardFilters;
@@ -33,6 +35,7 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
   const [expandedStudents, setExpandedStudents] = useState<Set<string>>(new Set());
   const [expandedComponents, setExpandedComponents] = useState<Set<string>>(new Set());
   const [linksCache, setLinksCache] = useState<Map<string, string>>(new Map());
+  const [generatingInsights, setGeneratingInsights] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadStudentsData();
@@ -143,6 +146,263 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
     }
     setExpandedComponents(newExpanded);
   };
+
+  const generateInsights = async (student: StudentData) => {
+    const studentKey = student.nome_aluno;
+    setGeneratingInsights(prev => new Set(prev).add(studentKey));
+
+    try {
+      // Coleta habilidades com desempenho abaixo de 100%
+      const weakSkills: Array<{
+        componente: string;
+        habilidade_id: string;
+        habilidade_codigo: string;
+        descricao_habilidade: string;
+        percentual: number;
+      }> = [];
+
+      Object.entries(student.componentes).forEach(([componentKey, componentData]) => {
+        componentData.habilidades.forEach(habilidade => {
+          if (habilidade.total > 0) {
+            const percentual = (habilidade.acertos / habilidade.total) * 100;
+            if (percentual < 100) {
+              weakSkills.push({
+                componente: componentKey === 'LP' ? 'Língua Portuguesa' : 'Matemática',
+                habilidade_id: habilidade.habilidade_id,
+                habilidade_codigo: habilidade.habilidade_codigo,
+                descricao_habilidade: '', // Será preenchido pela API
+                percentual
+              });
+            }
+          }
+        });
+      });
+
+      if (weakSkills.length === 0) {
+        alert('Este aluno não possui habilidades com desempenho abaixo de 100%.');
+        return;
+      }
+
+      // Prepara prompt para o Gemini
+      const prompt = `
+Analise o desempenho do aluno ${student.nome_aluno} da ${student.unidade} no ${student.semestre}º semestre.
+
+O aluno teve dificuldades nas seguintes habilidades:
+${weakSkills.map(skill => 
+  `- ${skill.habilidade_id} (${skill.componente}): ${skill.percentual.toFixed(1)}% de acertos`
+).join('\n')}
+
+Por favor, forneça:
+1. Uma análise geral do perfil de aprendizagem do aluno
+2. Identificação dos principais pontos de melhoria
+3. Estratégias pedagógicas específicas para cada habilidade com dificuldade
+4. Sugestões de atividades práticas para reforço
+5. Cronograma de estudos recomendado
+
+Seja específico e prático nas recomendações, considerando que este é um relatório para educadores.
+      `;
+
+      // Simula chamada para Gemini (substitua pela API real)
+      const insights = await simulateGeminiAnalysis(prompt, weakSkills);
+      
+      // Gera PDF
+      generatePDF(student, weakSkills, insights);
+
+    } catch (error) {
+      console.error('Erro ao gerar insights:', error);
+      alert('Erro ao gerar insights. Tente novamente.');
+    } finally {
+      setGeneratingInsights(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(studentKey);
+        return newSet;
+      });
+    }
+  };
+
+const simulateGeminiAnalysis = async (prompt: string, weakSkills: any[]) => {
+  try {
+    const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const generatedText = response.text();
+
+    if (!generatedText) {
+      throw new Error("Resposta vazia da API do Gemini");
+    }
+
+    return parseGeminiResponse(generatedText, weakSkills);
+
+  } catch (error) {
+    console.error("Erro ao chamar API do Gemini:", error);
+    return {
+      analiseGeral: `O aluno apresenta dificuldades em ${weakSkills.length} habilidade(s), indicando necessidade de reforço específico nas áreas identificadas.`,
+      pontosMelhoria: weakSkills.map(skill =>
+        `${skill.habilidade_id}: Necessita de atenção especial com ${skill.percentual.toFixed(1)}% de aproveitamento`
+      ),
+      estrategias: [
+        "Implementar atividades de reforço direcionadas",
+        "Utilizar metodologias ativas de aprendizagem",
+        "Promover exercícios práticos contextualizados",
+        "Acompanhamento individualizado do progresso"
+      ],
+      atividades: [
+        "Exercícios de fixação específicos para cada habilidade",
+        "Jogos educativos relacionados aos conteúdos",
+        "Projetos práticos que integrem as habilidades",
+        "Avaliações formativas regulares"
+      ],
+      cronograma: "Recomenda-se dedicar 30 minutos diários para cada habilidade com dificuldade, distribuindo as atividades ao longo de 4 semanas."
+    };
+  }
+};
+
+  const parseGeminiResponse = (text: string, weakSkills: any[]) => {
+    // Tenta extrair seções estruturadas da resposta do Gemini
+    const sections = {
+      analiseGeral: '',
+      pontosMelhoria: [] as string[],
+      estrategias: [] as string[],
+      atividades: [] as string[],
+      cronograma: ''
+    };
+
+    // Parse básico da resposta - pode ser melhorado conforme o formato da resposta
+    const lines = text.split('\n').filter(line => line.trim());
+    
+    let currentSection = '';
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      
+      if (trimmedLine.toLowerCase().includes('análise geral') || trimmedLine.toLowerCase().includes('analise geral')) {
+        currentSection = 'analiseGeral';
+        continue;
+      } else if (trimmedLine.toLowerCase().includes('pontos de melhoria') || trimmedLine.toLowerCase().includes('melhorias')) {
+        currentSection = 'pontosMelhoria';
+        continue;
+      } else if (trimmedLine.toLowerCase().includes('estratégias') || trimmedLine.toLowerCase().includes('estrategias')) {
+        currentSection = 'estrategias';
+        continue;
+      } else if (trimmedLine.toLowerCase().includes('atividades')) {
+        currentSection = 'atividades';
+        continue;
+      } else if (trimmedLine.toLowerCase().includes('cronograma')) {
+        currentSection = 'cronograma';
+        continue;
+      }
+
+      // Adiciona conteúdo à seção atual
+      if (currentSection && trimmedLine) {
+        if (currentSection === 'analiseGeral' || currentSection === 'cronograma') {
+          sections[currentSection] += (sections[currentSection] ? ' ' : '') + trimmedLine;
+        } else {
+          // Para listas, adiciona como item separado
+          if (trimmedLine.startsWith('-') || trimmedLine.startsWith('•') || trimmedLine.match(/^\d+\./)) {
+            sections[currentSection as keyof typeof sections].push(trimmedLine.replace(/^[-•\d.]\s*/, ''));
+          } else if (!trimmedLine.includes(':')) {
+            sections[currentSection as keyof typeof sections].push(trimmedLine);
+          }
+        }
+      }
+    }
+
+    // Fallback se não conseguiu parsear adequadamente
+    if (!sections.analiseGeral) {
+      sections.analiseGeral = text.substring(0, 200) + '...';
+    }
+    
+    if (sections.pontosMelhoria.length === 0) {
+      sections.pontosMelhoria = weakSkills.map(skill => 
+        `${skill.habilidade_id}: Necessita de atenção especial com ${skill.percentual.toFixed(1)}% de aproveitamento`
+      );
+    }
+
+    if (sections.estrategias.length === 0) {
+      sections.estrategias = ['Implementar atividades de reforço direcionadas', 'Utilizar metodologias ativas de aprendizagem'];
+    }
+
+    if (sections.atividades.length === 0) {
+      sections.atividades = ['Exercícios de fixação específicos', 'Jogos educativos relacionados aos conteúdos'];
+    }
+
+    if (!sections.cronograma) {
+      sections.cronograma = 'Recomenda-se dedicar 30 minutos diários para cada habilidade com dificuldade.';
+    }
+
+    return sections;
+  };
+
+const generatePDF = (student: StudentData, weakSkills: any[], insights: any) => {
+  const pdf = new jsPDF();
+  const pageWidth = pdf.internal.pageSize.width;
+  const pageHeight = pdf.internal.pageSize.height;
+  let yPosition = 20;
+
+  const addText = (text: string | string[], x: number, y: number, lineHeight = 6) => {
+    const lines = Array.isArray(text) ? text : pdf.splitTextToSize(text, pageWidth - 40);
+    lines.forEach(line => {
+      if (yPosition >= pageHeight - 20) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+      pdf.text(line, x, yPosition);
+      yPosition += lineHeight;
+    });
+    yPosition += 4;
+  };
+
+  const addTitle = (title: string) => {
+    if (yPosition >= pageHeight - 20) {
+      pdf.addPage();
+      yPosition = 20;
+    }
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(title, 20, yPosition);
+    yPosition += 8;
+    pdf.setFont('helvetica', 'normal');
+  };
+
+  // Título
+  pdf.setFontSize(18);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Relatório de Insights Pedagógicos', pageWidth / 2, yPosition, { align: 'center' });
+  yPosition += 15;
+
+  // Dados do aluno
+  pdf.setFontSize(12);
+  pdf.setFont('helvetica', 'normal');
+  addText(`Aluno: ${student.nome_aluno}`, 20, yPosition);
+  addText(`Unidade: ${student.unidade}`, 20, yPosition);
+  addText(`Semestre: ${student.semestre}º`, 20, yPosition);
+  addText(`Data: ${new Date().toLocaleDateString('pt-BR')}`, 20, yPosition);
+
+  // Habilidades
+  addTitle('Habilidades com Desempenho Abaixo de 100%:');
+  weakSkills.forEach(skill => {
+    addText(`• ${skill.habilidade_id} (${skill.componente}): ${skill.percentual.toFixed(1)}%`, 25, yPosition);
+  });
+
+  // Análise Geral
+  addTitle('Análise Geral:');
+  addText(insights.analiseGeral, 20, yPosition);
+
+  // Estratégias
+  addTitle('Estratégias Recomendadas:');
+  insights.estrategias.forEach((e: string) => addText(`• ${e}`, 25, yPosition));
+
+  // Atividades
+  addTitle('Atividades Sugeridas:');
+  insights.atividades.forEach((a: string) => addText(`• ${a}`, 25, yPosition));
+
+  // Cronograma
+  addTitle('Cronograma Recomendado:');
+  addText(insights.cronograma, 20, yPosition);
+
+  // Salvar PDF
+  pdf.save(`insights-${student.nome_aluno.replace(/\s+/g, '-')}.pdf`);
+};
 
   if (loading) {
     return (
@@ -257,6 +517,27 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
                         </div>
                       );
                     })}
+                  </div>
+                  
+                  {/* Botão Gerar Insights */}
+                  <div className="mt-4 pt-4 border-t border-gray-200 flex justify-center">
+                    <button
+                      onClick={() => generateInsights(student)}
+                      disabled={generatingInsights.has(student.nome_aluno)}
+                      className="bg-purple-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                    >
+                      {generatingInsights.has(student.nome_aluno) ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Gerando...
+                        </>
+                      ) : (
+                        <>
+                          <Brain className="w-4 h-4" />
+                          Gerar Insights
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
               )}
