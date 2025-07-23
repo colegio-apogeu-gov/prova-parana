@@ -35,6 +35,7 @@ const searchWithFilters = async (searchFilters: any) => {
     let query = supabase
       .from('prova_resultados')
       .select('*')
+      .order('nome_aluno', { ascending: true })
       .range(page * pageSize, (page + 1) * pageSize - 1);
     
     // Aplicar filtros válidos
