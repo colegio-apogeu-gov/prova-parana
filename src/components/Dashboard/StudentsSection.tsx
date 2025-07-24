@@ -22,6 +22,7 @@ interface StudentData {
       habilidades: Array<{
         habilidade_id: string;
         habilidade_codigo: string;
+        descricao: string;
         acertos: number;
         total: number;
       }>;
@@ -80,6 +81,7 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
           groupedData[studentKey].componentes[componentKey].habilidades.push({
             habilidade_id: item.habilidade_id,
             habilidade_codigo: item.habilidade_codigo,
+            descricao: item.descricao_habilidade,
             acertos: item.acertos,
             total: item.total
           });
@@ -485,7 +487,10 @@ const generatePDF = (student: StudentData, weakSkills: any[], insights: any) => 
                                   <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
                                     <div>
                                       <p className="text-sm font-medium text-gray-900">
-                                        {habilidade.habilidade_id}
+                                        {habilidade.habilidade_codigo} - {habilidade.habilidade_id}
+                                      </p>
+                                      <p className="text-sm text-gray-600">
+                                        {habilidade.descricao}
                                       </p>
                                     </div>
                                     <div className="flex items-center gap-3">
