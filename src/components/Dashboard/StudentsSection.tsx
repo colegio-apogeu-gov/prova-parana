@@ -544,6 +544,10 @@ const generatePDF = (student: StudentData, weakSkills: any[], insights: any) => 
                       )}
                     </button>
                   </div>
+                                      <p className="mt-2 text-xs text-gray-500 text-center max-w-xl mx-auto">
+  <strong>Importante:</strong> este relatório é gerado com apoio de inteligência artificial.
+  Ele representa uma sugestão baseada em dados, mas deve ser lido com análise crítica e adaptado conforme a realidade de cada aluno.
+</p>
                 </div>
               )}
             </div>

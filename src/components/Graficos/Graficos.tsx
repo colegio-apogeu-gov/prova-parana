@@ -154,7 +154,7 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile }) => {
         <SemesterComparisonChart data={processedData} />
         
         <ParticipationChart data={data} />
-        <PerformanceTrendsChart data={processedData} />
+        <PerformanceTrendsChart data={data} />
       </div>
     </div>
   );

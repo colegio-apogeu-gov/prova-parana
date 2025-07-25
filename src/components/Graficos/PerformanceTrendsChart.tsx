@@ -7,48 +7,56 @@ interface PerformanceTrendsChartProps {
 }
 
 const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = ({ data }) => {
-  const trendsData = React.useMemo(() => {
-    // Agrupa por faixas de performance
-    const ranges = {
-      'Excelente (90-100%)': 0,
-      'Bom (70-89%)': 0,
-      'Regular (50-69%)': 0,
-      'Insuficiente (0-49%)': 0
-    };
+const trendsData = React.useMemo(() => {
+  // Coletamos todos os registros (sem filtro antecipado)
+  const todosOsItens = data.filter(item => item.avaliado);
 
-    const uniqueStudents = new Set<string>();
-    
-    data.forEach(item => {
-      if (item.avaliado) {
-        const studentKey = `${item.nome_aluno}-${item.turma}-${item.componente}-${item.semestre}`;
-        if (!uniqueStudents.has(studentKey)) {
-          uniqueStudents.add(studentKey);
-          
-          if (item.percentual >= 90) {
-            ranges['Excelente (90-100%)']++;
-          } else if (item.percentual >= 70) {
-            ranges['Bom (70-89%)']++;
-          } else if (item.percentual >= 50) {
-            ranges['Regular (50-69%)']++;
-          } else {
-            ranges['Insuficiente (0-49%)']++;
-          }
-        }
-      }
-    });
+  // Agora sim: agrupamos por aluno ao final
+  const alunoMap: Record<string, number[]> = {};
 
-    const total = Object.values(ranges).reduce((a, b) => a + b, 0);
-    
-    return Object.entries(ranges).map(([range, count]) => ({
-      range,
-      count,
-      percentage: total > 0 ? (count / total) * 100 : 0
-    }));
-  }, [data]);
+  todosOsItens.forEach(item => {
+    const studentKey = `${item.nome_aluno}-${item.turma}-${item.componente}-${item.semestre}`;
+    if (!alunoMap[studentKey]) {
+      alunoMap[studentKey] = [];
+    }
+    alunoMap[studentKey].push(item.percentual);
+  });
+
+  // Inicializa os contadores por faixa
+  const ranges = {
+    'Excelente (90-100%)': 0,
+    'Regular (50-89%)': 0,
+    'Insuficiente (0-49%)': 0
+  };
+
+  // Calcula a média por aluno e classifica
+  Object.values(alunoMap).forEach(percentuais => {
+    const media = percentuais.reduce((a, b) => a + b, 0) / percentuais.length;
+    if (media >= 90) {
+      ranges['Excelente (90-100%)']++;
+    } else if (media >= 50) {
+      ranges['Regular (50-89%)']++;
+    } else {
+      ranges['Insuficiente (0-49%)']++;
+    }
+  });
+
+  const total = Object.values(ranges).reduce((a, b) => a + b, 0);
+
+  return Object.entries(ranges).map(([range, count]) => ({
+    range,
+    count,
+    percentage: total > 0 ? (count / total) * 100 : 0
+  }));
+}, [data]);
+
+
+
+
 
   const getColorClass = (range: string) => {
     if (range.includes('Excelente')) return 'bg-gradient-to-r from-green-400 to-green-600';
-    if (range.includes('Bom')) return 'bg-gradient-to-r from-blue-400 to-blue-600';
+    //if (range.includes('Bom')) return 'bg-gradient-to-r from-blue-400 to-blue-600';
     if (range.includes('Regular')) return 'bg-gradient-to-r from-yellow-400 to-yellow-600';
     return 'bg-gradient-to-r from-red-400 to-red-600';
   };
