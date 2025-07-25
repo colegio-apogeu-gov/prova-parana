@@ -51,6 +51,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           ...filters,
           unidade: userProfile?.unidade
         });
+        console.log(options)
         setFilterOptions(options);
       } catch (error) {
         console.error('Erro ao buscar opções de filtro:', error);
@@ -215,7 +216,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             <option value="">Todas</option>
             {filterOptions.habilidades.map((habilidade) => (
               <option key={habilidade.codigo} value={habilidade.codigo}>
-                {habilidade.codigo} - {habilidade.id}
+                {habilidade.codigo} - {habilidade.id} - {habilidade.descricao}
               </option>
             ))}
           </select>
