@@ -7,6 +7,7 @@ import StatsCards from './StatsCards';
 import PerformanceChart from './PerformanceChart';
 import SkillsAnalysis from './SkillsAnalysis';
 import StudentsSection from './StudentsSection';
+import ClassroomSection from './ClassroomSection';
 
 interface DashboardProps {
   userProfile: { unidade: string } | null;
@@ -179,6 +180,11 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile }) => {
             <PerformanceChart insights={insights} />
             <SkillsAnalysis insights={insights} />
           </div>
+          
+          <ClassroomSection 
+            filters={filters}
+            userProfile={userProfile}
+          />
           
           <StudentsSection 
             filters={filters}
