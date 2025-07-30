@@ -69,6 +69,21 @@ export interface LinkQuestao {
   created_at: string;
 }
 
+export interface SalaDeAula {
+  id: string;
+  nome: string;
+  unidade: string;
+  created_at: string;
+}
+
+export interface SalaDeAulaAluno {
+  id: string;
+  sala_id: string;
+  nome_aluno: string;
+  turma: string;
+  created_at: string;
+}
+
 // School units
 export const UNIDADES_ESCOLARES = [
   'ANITA CANET, C E-EF M P',

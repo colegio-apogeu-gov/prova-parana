@@ -322,3 +322,111 @@ export const getLinkByHabilidadeComponente = async (habilidadeCodigo: string, co
   if (error && error.code !== 'PGRST116') throw error;
   return data?.link || null;
 };
+
+// Sala de Aula functions
+export const getSalasDeAula = async (unidade: string) => {
+  const { data, error } = await supabase
+    .from('sala_de_aula')
+    .select(`
+      *,
+      sala_de_aula_alunos (
+        id,
+        nome_aluno,
+        turma
+      )
+    `)
+    .eq('unidade', unidade)
+    .order('created_at', { ascending: false });
+  
+  if (error) throw error;
+  return data || [];
+};
+
+export const createSalaDeAula = async (salaData: {
+  nome: string;
+  unidade: string;
+  alunos: Array<{ nome_aluno: string; turma: string }>;
+}) => {
+  // Create classroom
+  const { data: sala, error: salaError } = await supabase
+    .from('sala_de_aula')
+    .insert({
+      nome: salaData.nome,
+      unidade: salaData.unidade
+    })
+    .select()
+    .single();
+  
+  if (salaError) throw salaError;
+  
+  // Add students to classroom
+  if (salaData.alunos.length > 0) {
+    const alunosData = salaData.alunos.map(aluno => ({
+      sala_id: sala.id,
+      nome_aluno: aluno.nome_aluno,
+      turma: aluno.turma
+    }));
+    
+    const { error: alunosError } = await supabase
+      .from('sala_de_aula_alunos')
+      .insert(alunosData);
+    
+    if (alunosError) throw alunosError;
+  }
+  
+  return sala;
+};
+
+export const addAlunoToSala = async (salaId: string, aluno: { nome_aluno: string; turma: string }) => {
+  const { data, error } = await supabase
+    .from('sala_de_aula_alunos')
+    .insert({
+      sala_id: salaId,
+      nome_aluno: aluno.nome_aluno,
+      turma: aluno.turma
+    })
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const removeAlunoFromSala = async (alunoId: string) => {
+  const { error } = await supabase
+    .from('sala_de_aula_alunos')
+    .delete()
+    .eq('id', alunoId);
+  
+  if (error) throw error;
+};
+
+export const deleteSalaDeAula = async (salaId: string) => {
+  const { error } = await supabase
+    .from('sala_de_aula')
+    .delete()
+    .eq('id', salaId);
+  
+  if (error) throw error;
+};
+
+export const getAlunosDisponiveis = async (filters: any = {}) => {
+  const data = await fetchProvaData(filters);
+  
+  // Get unique students with their turma
+  const uniqueStudents = new Map<string, { nome_aluno: string; turma: string }>();
+  
+  data.forEach(item => {
+    const key = `${item.nome_aluno}-${item.turma}`;
+    if (!uniqueStudents.has(key)) {
+      uniqueStudents.set(key, {
+        nome_aluno: item.nome_aluno,
+        turma: item.turma
+      });
+    }
+  });
+  
+  return Array.from(uniqueStudents.values()).sort((a, b) => 
+    a.nome_aluno.localeCompare(b.nome_aluno)
+  );
+};
