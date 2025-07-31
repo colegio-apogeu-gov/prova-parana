@@ -51,7 +51,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           ...filters,
           unidade: userProfile?.unidade
         });
-        console.log(options)
         setFilterOptions(options);
       } catch (error) {
         console.error('Erro ao buscar opções de filtro:', error);
@@ -59,6 +58,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
       }
     };
 
+    
     fetchFilterOptions();
   }, [filters, userProfile]);
   useEffect(() => {
@@ -68,6 +68,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
       setSearchTerm('');
     }
   }, [filters.nome_aluno]);
+  
 
   const updateFilter = (key: keyof DashboardFilters, value: string) => {
     onFiltersChange({
