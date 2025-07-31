@@ -859,6 +859,10 @@ Seja específico e prático nas recomendações, considerando que este é um rel
                                   </>
                                 )}
                               </button>
+                                                          <p className="mt-2 text-xs text-gray-500 text-center max-w-xl mx-auto px-3">
+                              <strong>Importante:</strong> este relatório é gerado com apoio de inteligência artificial.
+                              Ele representa uma sugestão baseada em dados, mas deve ser lido com análise crítica e adaptado conforme a realidade de cada aluno.
+                            </p>
                             </div>
                           )}
                           
