@@ -15,9 +15,19 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ userProfile }) => {
   const [data, setData] = useState<ProvaResultado[]>([]);
-  const [filters, setFilters] = useState<DashboardFilters>({ 
-    unidade: userProfile?.unidade 
-  });
+const [filters, setFilters] = useState<DashboardFilters>(() => ({
+  unidade: userProfile?.unidade || ''
+}));
+
+// Sincroniza o valor de unidade com userProfile sempre que ele mudar
+useEffect(() => {
+  if (userProfile?.unidade && filters.unidade !== userProfile.unidade) {
+    setFilters(prev => ({
+      ...prev,
+      unidade: userProfile.unidade
+    }));
+  }
+}, [userProfile, filters.unidade]);
   const [loading, setLoading] = useState(true);
   const [filtersLoading, setFiltersLoading] = useState(true);
   const [studentsLoading, setStudentsLoading] = useState(true);

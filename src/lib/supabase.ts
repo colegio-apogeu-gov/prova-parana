@@ -127,6 +127,13 @@ export const getUserProfile = async (userId: string) => {
     .single();
   
   if (error) throw error;
+
+  // Normaliza o campo "unidade"
+
+  const originalUnidade = data.unidade;
+  const unidadeCorrigida = UNIDADE_MAPEADA[originalUnidade as keyof typeof UNIDADE_MAPEADA] || originalUnidade;
+  data.unidade = unidadeCorrigida;
+
   return data;
 };
 
@@ -203,14 +210,6 @@ export const getFilterOptions = async (filters: any = {}) => {
 
     // Aplica filtros existentes (exceto os que estamos buscando)
     const filtrosLimpos = { ...filters };
-    if (filtrosLimpos.unidade && typeof filtrosLimpos.unidade === 'string') {
-      filtrosLimpos.unidade = filtrosLimpos.unidade
-        .replace(/,/g, '')
-        .replace(/-/g, ' ')
-        .replace(/\s+/g, ' ')
-        .replace(/\s*PROFIS\s*$/i, '')
-        .trim();
-    }
 
     Object.entries(filtrosLimpos).forEach(([key, value]) => {
       if (value && key !== 'nivel_aprendizagem' && key !== 'habilidade_codigo') {
