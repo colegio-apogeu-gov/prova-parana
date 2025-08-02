@@ -208,12 +208,18 @@ export const getFilterOptions = async (filters: any = {}) => {
       .not('habilidade_codigo', 'is', null)
       .not('habilidade_codigo', 'eq', '');
 
-    // Aplica filtros existentes (exceto os que estamos buscando)
     const filtrosLimpos = { ...filters };
 
+    // Aplica filtros para a busca de níveis (exceto ele mesmo)
     Object.entries(filtrosLimpos).forEach(([key, value]) => {
-      if (value && key !== 'nivel_aprendizagem' && key !== 'habilidade_codigo') {
+      if (value && key !== 'nivel_aprendizagem') {
         niveisQuery = niveisQuery.eq(key, value);
+      }
+    });
+
+    // Aplica filtros à busca de habilidades, incluindo o nível, se houver
+    Object.entries(filtrosLimpos).forEach(([key, value]) => {
+      if (value && key !== 'habilidade_codigo') {
         habilidadesQuery = habilidadesQuery.eq(key, value);
       }
     });
@@ -226,12 +232,10 @@ export const getFilterOptions = async (filters: any = {}) => {
     if (niveisResult.error) throw niveisResult.error;
     if (habilidadesResult.error) throw habilidadesResult.error;
 
-    // Processa níveis únicos
     const niveisUnicos = [...new Set(
       niveisResult.data?.map(item => item.nivel_aprendizagem).filter(Boolean) || []
     )].sort();
 
-    // Processa habilidades únicas
     const habilidadesMap = new Map();
     habilidadesResult.data?.forEach(item => {
       if (item.habilidade_codigo) {
@@ -258,6 +262,7 @@ export const getFilterOptions = async (filters: any = {}) => {
     };
   }
 };
+
 
 // Links questões functions
 export const getLinksQuestoes = async () => {
