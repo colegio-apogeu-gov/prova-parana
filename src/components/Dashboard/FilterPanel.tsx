@@ -1,5 +1,4 @@
-import React from 'react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Filter } from 'lucide-react';
 import { DashboardFilters } from '../../types';
 import { searchStudents, getFilterOptions } from '../../lib/supabase';
@@ -10,16 +9,16 @@ interface FilterPanelProps {
   userProfile: { unidade: string } | null;
 }
 
-const FilterPanel: React.FC<FilterPanelProps> = ({ 
-  filters, 
-  onFiltersChange, 
-  userProfile 
+const FilterPanel: React.FC<FilterPanelProps> = ({
+  filters,
+  onFiltersChange,
+  userProfile
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [filterOptions, setFilterOptions] = useState<{
     niveis: string[];
-    habilidades: Array<{ codigo: string; id: string; descricao: string }>;
+    habilidades: Array<{ codigo: string; id: string; descricao: string; nivel_aprendizagem?: string }>;
   }>({
     niveis: [],
     habilidades: []
@@ -36,7 +35,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           setSuggestions([]);
         }
       };
-      
+
       const timeoutId = setTimeout(fetchSuggestions, 300);
       return () => clearTimeout(timeoutId);
     } else {
@@ -58,9 +57,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
       }
     };
 
-    
     fetchFilterOptions();
   }, [filters, userProfile]);
+
   useEffect(() => {
     if (filters.nome_aluno) {
       setSearchTerm(filters.nome_aluno);
@@ -68,20 +67,35 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
       setSearchTerm('');
     }
   }, [filters.nome_aluno]);
-  
 
   const updateFilter = (key: keyof DashboardFilters, value: string) => {
-    onFiltersChange({
-      ...filters,
-      [key]: value || undefined
-    });
+    // 🔄 Limpa o filtro de habilidade quando nível muda
+    if (key === 'nivel_aprendizagem') {
+      onFiltersChange({
+        ...filters,
+        [key]: value || undefined,
+        habilidade_codigo: undefined
+      });
+    } else {
+      onFiltersChange({
+        ...filters,
+        [key]: value || undefined
+      });
+    }
   };
 
   const handleStudentSelect = (student: string) => {
-    updateFilter('nome_aluno', student)
+    updateFilter('nome_aluno', student);
     setSearchTerm(student);
     setSuggestions([]);
   };
+
+  const nivelSelecionado = filters.nivel_aprendizagem && filters.nivel_aprendizagem !== '';
+
+const habilidadesFiltradas = nivelSelecionado
+  ? filterOptions.habilidades
+  : [];
+
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -91,6 +105,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
       </div>
 
       <div className="grid md:grid-cols-7 gap-4">
+        {/* Aluno */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Aluno
@@ -131,6 +146,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             )}
           </div>
         </div>
+
+        {/* Unidade */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Unidade
@@ -142,6 +159,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
           />
         </div>
+
+        {/* Ano Escolar */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Ano Escolar
@@ -157,6 +176,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           </select>
         </div>
 
+        {/* Componente */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Componente
@@ -172,6 +192,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           </select>
         </div>
 
+        {/* Semestre */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Semestre
@@ -186,7 +207,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             <option value="2">2º Semestre</option>
           </select>
         </div>
-      </div>
+
+        {/* Nível de Aprendizagem */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Nível de Aprendizagem
@@ -196,7 +218,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             onChange={(e) => updateFilter('nivel_aprendizagem', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            <option value="">Todos</option>
+            <option value="">Selecione um nível de aprendizagem</option>
             {filterOptions.niveis.map((nivel) => (
               <option key={nivel} value={nivel}>
                 {nivel}
@@ -205,23 +227,27 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Habilidade
-          </label>
-          <select
-            value={filters.habilidade_codigo || ''}
-            onChange={(e) => updateFilter('habilidade_codigo', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Todas</option>
-            {filterOptions.habilidades.map((habilidade) => (
-              <option key={habilidade.codigo} value={habilidade.codigo}>
-                {habilidade.codigo} - {habilidade.id} - {habilidade.descricao}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Habilidade (condicional) */}
+        {nivelSelecionado && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Habilidade
+            </label>
+            <select
+              value={filters.habilidade_codigo || ''}
+              onChange={(e) => updateFilter('habilidade_codigo', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Todas</option>
+              {habilidadesFiltradas.map((habilidade) => (
+                <option key={habilidade.codigo} value={habilidade.codigo}>
+                  {habilidade.codigo} - {habilidade.id} - {habilidade.descricao}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
