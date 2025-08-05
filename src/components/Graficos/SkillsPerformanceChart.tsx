@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award } from 'lucide-react';
+import { Award, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProvaResultado } from '../../types';
 
 interface SkillsPerformanceChartProps {
@@ -7,6 +7,9 @@ interface SkillsPerformanceChartProps {
 }
 
 const SkillsPerformanceChart: React.FC<SkillsPerformanceChartProps> = ({ data }) => {
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 10;
+
   const skillsData = React.useMemo(() => {
     const skills: Record<string, { 
       total_acertos: number; 
@@ -14,36 +17,61 @@ const SkillsPerformanceChart: React.FC<SkillsPerformanceChartProps> = ({ data })
       count: number;
       habilidade_codigo: string;
       descricao_habilidade: string;
+      componente: string;
     }> = {};
     
     data.forEach(item => {
       if (item.avaliado && item.habilidade_id) {
-        if (!skills[item.habilidade_id]) {
-          skills[item.habilidade_id] = { 
+        const skillKey = `${item.habilidade_id}-${item.componente}`;
+        if (!skills[skillKey]) {
+          skills[skillKey] = { 
             total_acertos: 0, 
             total_questoes: 0, 
             count: 0,
             habilidade_codigo: item.habilidade_codigo,
-            descricao_habilidade: item.descricao_habilidade
+            descricao_habilidade: item.descricao_habilidade,
+            componente: item.componente
           };
         }
-        skills[item.habilidade_id].total_acertos += item.acertos;
-        skills[item.habilidade_id].total_questoes += item.total;
-        skills[item.habilidade_id].count += 1;
+        skills[skillKey].total_acertos += item.acertos;
+        skills[skillKey].total_questoes += item.total;
+        skills[skillKey].count += 1;
       }
     });
 
     return Object.entries(skills)
-      .map(([skill, data]) => ({
-        skill,
+      .map(([skillKey, data]) => ({
+        skill: skillKey.split('-')[0], // Extrai apenas o habilidade_id
         habilidade_codigo: data.habilidade_codigo,
         descricao: data.descricao_habilidade,
+        componente: data.componente === 'LP' ? 'Língua Portuguesa' : 'Matemática',
         average: data.total_questoes > 0 ? (data.total_acertos / data.total_questoes) * 100 : 0,
         count: data.count
       }))
       .sort((a, b) => a.average - b.average)
-      .slice(0, 10); // Top 10 piores habilidades
+      ; // Todas as habilidades ordenadas da menor para maior performance
   }, [data]);
+
+  const totalPages = Math.ceil(skillsData.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentSkills = skillsData.slice(startIndex, endIndex);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const goToPrevious = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNext = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
 
   const getPerformanceColor = (average: number) => {
     if (average >= 70) return 'bg-gradient-to-r from-green-400 to-green-600';
@@ -58,17 +86,17 @@ const SkillsPerformanceChart: React.FC<SkillsPerformanceChartProps> = ({ data })
           <Award className="w-5 h-5 text-red-600" />
         </div>
         <h3 className="text-lg font-semibold text-gray-900">
-          Habilidades com Menor Performance
+          Habilidades
         </h3>
       </div>
 
       <div className="space-y-3">
-        {skillsData.map((item, index) => (
+        {currentSkills.map((item, index) => (
           <div key={index} className="p-3 bg-gray-50 rounded-lg">
             <div className="flex justify-between items-start mb-2">
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-900">
-                  {item.habilidade_codigo} - {item.skill}
+                  {item.habilidade_codigo} - {item.skill} ({item.componente})
                 </p>
                 <p className="text-xs text-gray-600 line-clamp-2">
                   {item.descricao}
@@ -87,6 +115,61 @@ const SkillsPerformanceChart: React.FC<SkillsPerformanceChartProps> = ({ data })
           </div>
         ))}
       </div>
+
+      {/* Paginação */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Mostrando {startIndex + 1}-{Math.min(endIndex, skillsData.length)} de {skillsData.length} habilidades
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={goToPrevious}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNumber;
+                if (totalPages <= 5) {
+                  pageNumber = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNumber = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNumber = totalPages - 4 + i;
+                } else {
+                  pageNumber = currentPage - 2 + i;
+                }
+                
+                return (
+                  <button
+                    key={pageNumber}
+                    onClick={() => goToPage(pageNumber)}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium ${
+                      currentPage === pageNumber
+                        ? 'bg-red-600 text-white'
+                        : 'border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNumber}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button
+              onClick={goToNext}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {skillsData.length === 0 && (
         <div className="text-center py-8 text-gray-500">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PieChart, BarChart3, TrendingUp, Users, Target, BookOpen, Award, Calendar } from 'lucide-react';
-import { fetchProvaData } from '../../lib/supabase';
+import { fetchProvaData, fetchAllProvaData } from '../../lib/supabase';
 import { ProvaResultado } from '../../types';
 import PerformanceByGradeChart from './PerformanceByGradeChart';
 import ComponentComparisonChart from './ComponentComparisonChart';
@@ -38,7 +38,8 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile }) => {
         )
       };
       
-      const result = await fetchProvaData(filters);
+      // Busca TODOS os dados sem limitação para gráficos
+      const result = await fetchAllProvaData(filters);
       setData(result || []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
