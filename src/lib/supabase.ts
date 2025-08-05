@@ -26,41 +26,41 @@ export const uploadProvaData = async (data: any[]) => {
 
 export const fetchProvaData = async (filters: any = {}) => {
   // Função para buscar dados com filtros específicos
-const searchWithFilters = async (searchFilters: any) => {
-  const allData: any[] = [];
-  const pageSize = 1000;
-  let page = 0;
-  let hasMore = true;
+  const searchWithFilters = async (searchFilters: any) => {
+    const allData: any[] = [];
+    const pageSize = 1000;
+    let page = 0;
+    let hasMore = true;
 
-  while (hasMore) {
-    let query = supabase
-      .from('prova_resultados')
-      .select('*')
-      .order('nome_aluno', { ascending: true })
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-    
-    // Aplicar filtros válidos
-    Object.entries(searchFilters).forEach(([key, value]) => {
-      if (value && key !== 'aluno') {
-        query = query.eq(key, value);
+    while (hasMore) {
+      let query = supabase
+        .from('prova_resultados')
+        .select('*')
+        .order('nome_aluno', { ascending: true })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      
+      // Aplicar filtros válidos
+      Object.entries(searchFilters).forEach(([key, value]) => {
+        if (value && key !== 'aluno') {
+          query = query.eq(key, value);
+        }
+      });
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allData.push(...data);
+        hasMore = data.length === pageSize;
+        page++;
+      } else {
+        hasMore = false;
       }
-    });
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-
-    if (data && data.length > 0) {
-      allData.push(...data);
-      hasMore = data.length === pageSize;
-      page++;
-    } else {
-      hasMore = false;
     }
-  }
 
-  return allData;
-};
+    return allData;
+  };
 
 
   // Se há filtro de unidade, tenta múltiplas estratégias
@@ -434,3 +434,183 @@ export const getAlunosDisponiveis = async (filters: any = {}) => {
     a.nome_aluno.localeCompare(b.nome_aluno)
   );
 };
+
+// Função específica para buscar TODOS os dados sem limitação (para gráficos)
+export const fetchAllProvaData = async (filters: any = {}) => {
+  const allData: any[] = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+
+  // Se há filtro de unidade, tenta múltiplas estratégias
+  if (filters.unidade && typeof filters.unidade === 'string') {
+    const originalUnidade = filters.unidade;
+    const unidadeCorrigida = UNIDADE_MAPEADA[originalUnidade as keyof typeof UNIDADE_MAPEADA] || originalUnidade;
+    filters.unidade = unidadeCorrigida;
+
+    // Busca com paginação completa
+    while (hasMore) {
+      let query = supabase
+        .from('prova_resultados')
+        .select('*')
+        .order('habilidade_id', { ascending: true })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      
+      // Aplicar filtros válidos
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && key !== 'aluno') {
+          query = query.eq(key, value);
+        }
+      });
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allData.push(...data);
+        hasMore = data.length === pageSize;
+        page++;
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    // Se não encontrou dados, tenta estratégias alternativas
+    if (allData.length === 0) {
+      // Estratégia 2: Remove vírgulas e normaliza hífens
+      const cleanValue = unidadeCorrigida
+        .replace(/,/g, '') // Remove vírgulas
+        .replace(/-/g, ' ') // Substitui hífens por espaços
+        .replace(/\s+/g, ' ') // Normaliza espaços múltiplos para um só
+        .trim();
+      
+      const cleanFilters = { ...filters, unidade: cleanValue };
+      
+      page = 0;
+      hasMore = true;
+      while (hasMore) {
+        let query = supabase
+          .from('prova_resultados')
+          .select('*')
+          .order('habilidade_id', { ascending: true })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+        
+        Object.entries(cleanFilters).forEach(([key, value]) => {
+          if (value && key !== 'aluno') {
+            query = query.eq(key, value);
+          }
+        });
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allData.push(...data);
+          hasMore = data.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      // Estratégia 3: Remove "PROFIS" do final
+      if (allData.length === 0) {
+        const withoutProfis = cleanValue.replace(/\s*PROFIS\s*$/i, '').trim();
+        const noProfisFilters = { ...filters, unidade: withoutProfis };
+        
+        page = 0;
+        hasMore = true;
+        while (hasMore) {
+          let query = supabase
+            .from('prova_resultados')
+            .select('*')
+            .order('habilidade_id', { ascending: true })
+            .range(page * pageSize, (page + 1) * pageSize - 1);
+          
+          Object.entries(noProfisFilters).forEach(([key, value]) => {
+            if (value && key !== 'unidade') {
+              query = query.eq(key, value);
+            }
+          });
+          
+          if (noProfisFilters.unidade) {
+            query = query.eq('unidade', noProfisFilters.unidade);
+          }
+
+          const { data, error } = await query;
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            allData.push(...data);
+            hasMore = data.length === pageSize;
+            page++;
+          } else {
+            hasMore = false;
+          }
+        }
+        
+        // Estratégia 4: Busca com LIKE (parcial)
+        if (allData.length === 0) {
+          page = 0;
+          hasMore = true;
+          while (hasMore) {
+            let query = supabase
+              .from('prova_resultados')
+              .select('*')
+              .ilike('unidade', `%${withoutProfis}%`)
+              .order('habilidade_id', { ascending: true })
+              .range(page * pageSize, (page + 1) * pageSize - 1);
+            
+            // Aplica outros filtros
+            Object.entries(filters).forEach(([key, value]) => {
+              if (value && key !== 'unidade') {
+                query = query.eq(key, value);
+              }
+            });
+            
+            const { data, error } = await query;
+            if (error) throw error;
+            
+            if (data && data.length > 0) {
+              allData.push(...data);
+              hasMore = data.length === pageSize;
+              page++;
+            } else {
+              hasMore = false;
+            }
+          }
+        }
+      }
+    }
+    
+    return allData;
+  } else {
+    // Sem filtro de unidade, busca normal com paginação completa
+    while (hasMore) {
+      let query = supabase
+        .from('prova_resultados')
+        .select('*')
+        .order('habilidade_id', { ascending: true })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && key !== 'aluno') {
+          query = query.eq(key, value);
+        }
+      });
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allData.push(...data);
+        hasMore = data.length === pageSize;
+        page++;
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    return allData;
+  }
+}
