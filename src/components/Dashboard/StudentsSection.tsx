@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, ChevronDown, ChevronRight, BookOpen, ExternalLink, Brain, Download } from 'lucide-react';
+import { Users, ChevronDown, ChevronRight, BookOpen, ExternalLink, Brain } from 'lucide-react';
 import { fetchProvaData, getLinkByHabilidadeComponente } from '../../lib/supabase';
 import { DashboardFilters } from '../../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -30,6 +30,47 @@ interface StudentData {
   };
 }
 
+/** Tipos internos para estruturar a saída do LLM e de fallback */
+type WeakSkill = {
+  componente: string;
+  habilidade_id: string;
+  habilidade_codigo: string;
+  descricao_habilidade: string;
+  percentual: number; // 0-100
+};
+
+type AtividadePorHabilidade = {
+  habilidade_id: string;
+  componente: string;
+  descricao_habilidade: string;
+  sugestoes: string[];
+};
+
+type CronoItem = {
+  semana: number;
+  foco: string; // “LP – H23: …”
+  objetivo: string; // objetivo da semana
+  tarefas: string[]; // tarefas práticas
+};
+
+type InsightsEstruturados = {
+  analiseGeral: string;
+  pontosMelhoria: string[];
+  estrategias: string[];
+  /** atividades específicas por habilidade, no formato solicitado */
+  atividadesPorHabilidade: AtividadePorHabilidade[];
+  /** cronograma de 4 semanas, do mais fácil→mais difícil */
+  cronograma: CronoItem[];
+  /** bloco formal de intervenção pedagógica */
+  modeloIntervencao: {
+    objetivoGeral: string;
+    metasCurtoPrazo: string[];
+    rotinaIntervencao: string[];
+    acompanhamentoRegistro: string[];
+    responsabilidades: string[];
+  };
+};
+
 const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile }) => {
   const [studentsData, setStudentsData] = useState<StudentData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,12 +91,10 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
         unidade: userProfile?.unidade
       });
 
-      // Group data by student
       const groupedData: { [key: string]: StudentData } = {};
 
       data.forEach((item: any) => {
         const studentKey = item.nome_aluno;
-        
         if (!groupedData[studentKey]) {
           groupedData[studentKey] = {
             nome_aluno: item.nome_aluno,
@@ -103,10 +142,7 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
 
   const getQuestionLink = async (habilidadeCodigo: string, componente: string) => {
     const cacheKey = `${habilidadeCodigo}-${componente}`;
-    
-    if (linksCache.has(cacheKey)) {
-      return linksCache.get(cacheKey);
-    }
+    if (linksCache.has(cacheKey)) return linksCache.get(cacheKey);
 
     try {
       const link = await getLinkByHabilidadeComponente(habilidadeCodigo, componente);
@@ -131,22 +167,107 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
 
   const toggleStudentExpansion = (studentName: string) => {
     const newExpanded = new Set(expandedStudents);
-    if (newExpanded.has(studentName)) {
-      newExpanded.delete(studentName);
-    } else {
-      newExpanded.add(studentName);
-    }
+    newExpanded.has(studentName) ? newExpanded.delete(studentName) : newExpanded.add(studentName);
     setExpandedStudents(newExpanded);
   };
 
   const toggleComponentExpansion = (key: string) => {
     const newExpanded = new Set(expandedComponents);
-    if (newExpanded.has(key)) {
-      newExpanded.delete(key);
-    } else {
-      newExpanded.add(key);
-    }
+    newExpanded.has(key) ? newExpanded.delete(key) : newExpanded.add(key);
     setExpandedComponents(newExpanded);
+  };
+
+  /** Utilitário: gera cronograma (4 semanas) ordenando do mais fácil→mais difícil (maior %→menor %) */
+  const buildStudyPlan = (weakSkills: WeakSkill[]): CronoItem[] => {
+    const ordered = [...weakSkills].sort((a, b) => b.percentual - a.percentual);
+    const weeks = 4;
+    const plan: CronoItem[] = [];
+    // distribui ciclicamente as habilidades entre as semanas (mantendo a ordem fácil→difícil)
+    ordered.forEach((skill, idx) => {
+      const semana = (idx % weeks) + 1;
+      const foco = `${skill.componente} – ${skill.habilidade_id}: ${skill.descricao_habilidade}`;
+      const objetivo = `Elevar o desempenho em ${skill.habilidade_id} para ≥ 80% por meio de prática guiada e revisão de erros.`;
+      const tarefas = [
+        `Fazer a lista de atividades do componente ${skill.componente} – ${skill.habilidade_id}, que trata sobre ${skill.descricao_habilidade}.`,
+        `Refazer itens com erro e registrar onde ocorreu a falha (leitura do enunciado, passo de cálculo, conceito).`,
+        `Praticar 10 questões similares (gradativas) e medir tempo e acerto.`
+      ];
+      plan.push({ semana, foco, objetivo, tarefas });
+    });
+
+    // Agrupa por semana mantendo ordem
+    const byWeek: Record<number, CronoItem> = {};
+    for (let s = 1; s <= weeks; s++) {
+      const itens = plan.filter(p => p.semana === s);
+      byWeek[s] = {
+        semana: s,
+        foco: itens.map(i => i.foco).join(' | '),
+        objetivo: `Consolidar conteúdos planejados da semana ${s}.`,
+        tarefas: itens.flatMap(i => i.tarefas)
+      };
+    }
+    return [byWeek[1], byWeek[2], byWeek[3], byWeek[4]];
+  };
+
+  /** Utilitário: monta atividades no formato solicitado por habilidade */
+  const buildActivitiesPerSkill = (weakSkills: WeakSkill[]): AtividadePorHabilidade[] => {
+    return weakSkills.map(skill => ({
+      habilidade_id: skill.habilidade_id,
+      componente: skill.componente,
+      descricao_habilidade: skill.descricao_habilidade,
+      sugestoes: [
+        `Fazer a lista de atividades do componente ${skill.componente} – ${skill.habilidade_id}, que trata sobre ${skill.descricao_habilidade}.`,
+        `Resolver novamente as questões erradas, explicando em voz alta cada passo da solução.`,
+        `Aplicar um mini-desafio prático contextualizado envolvendo ${skill.descricao_habilidade}.`
+      ]
+    }));
+  };
+
+  /** Prompt estruturado para o Gemini, pedindo JSON estrito. */
+  const buildLLMPrompt = (student: StudentData, weakSkills: WeakSkill[]) => {
+    const skillsTxt = weakSkills.map(s =>
+      `{"componente":"${s.componente}","habilidade_id":"${s.habilidade_id}","habilidade_codigo":"${s.habilidade_codigo}","descricao_habilidade":"${s.descricao_habilidade.replace(/"/g, "'")}","percentual":${s.percentual.toFixed(1)}}`
+    ).join(",\n");
+
+    return `
+Analise o desempenho do aluno "${student.nome_aluno}" da unidade "${student.unidade}" no "${student.semestre}º" semestre.
+
+DADOS_FRACAS:
+[${skillsTxt}]
+
+TAREFA:
+1) Produza um objeto JSON **válido** e **apenas o JSON**, com as chaves:
+{
+  "analiseGeral": string,
+  "pontosMelhoria": string[],
+  "estrategias": string[],
+  "atividadesPorHabilidade": [{
+    "habilidade_id": string,
+    "componente": string,
+    "descricao_habilidade": string,
+    "sugestoes": string[]  // inclua pelo menos uma no formato "Fazer a lista de atividades do componente {componente} – {habilidade_id}, que trata sobre {descricao_habilidade}."
+  }],
+  "cronograma": [{
+    "semana": number,      // 1..4, ordene do mais fácil→mais difícil (maior %→menor %)
+    "foco": string,        // exemplo: "Língua Portuguesa – H23: Inferência de informações implícitas"
+    "objetivo": string,
+    "tarefas": string[]
+  }],
+  "modeloIntervencao": {
+    "objetivoGeral": string,
+    "metasCurtoPrazo": string[],
+    "rotinaIntervencao": string[],
+    "acompanhamentoRegistro": string[],
+    "responsabilidades": string[]
+  }
+}
+
+REGRAS:
+- O cronograma deve partir das habilidades com maior percentual (mais fáceis de recuperar) para as de menor percentual (mais difíceis).
+- As "sugestoes" precisam conter pelo menos UMA frase exatamente neste formato:
+  "Fazer a lista de atividades do componente {componente} – {habilidade_id}, que trata sobre {descricao_habilidade}."
+- Responda **somente** com o JSON.
+`;
   };
 
   const generateInsights = async (student: StudentData) => {
@@ -154,15 +275,8 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
     setGeneratingInsights(prev => new Set(prev).add(studentKey));
 
     try {
-      // Coleta habilidades com desempenho abaixo de 100%
-      const weakSkills: Array<{
-        componente: string;
-        habilidade_id: string;
-        habilidade_codigo: string;
-        descricao_habilidade: string;
-        percentual: number;
-      }> = [];
-
+      // Coleta habilidades com desempenho < 100%
+      const weakSkills: WeakSkill[] = [];
       Object.entries(student.componentes).forEach(([componentKey, componentData]) => {
         componentData.habilidades.forEach(habilidade => {
           if (habilidade.total > 0) {
@@ -172,7 +286,7 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
                 componente: componentKey === 'LP' ? 'Língua Portuguesa' : 'Matemática',
                 habilidade_id: habilidade.habilidade_id,
                 habilidade_codigo: habilidade.habilidade_codigo,
-                descricao_habilidade: '', // Será preenchido pela API
+                descricao_habilidade: habilidade.descricao,
                 percentual
               });
             }
@@ -185,29 +299,13 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
         return;
       }
 
-      // Prepara prompt para o Gemini
-      const prompt = `
-Analise o desempenho do aluno ${student.nome_aluno} da ${student.unidade} no ${student.semestre}º semestre.
+      // Prompt estruturado
+      const prompt = buildLLMPrompt(student, weakSkills);
 
-O aluno teve dificuldades nas seguintes habilidades:
-${weakSkills.map(skill => 
-  `- ${skill.habilidade_id} (${skill.componente}): ${skill.percentual.toFixed(1)}% de acertos`
-).join('\n')}
+      // Chama LLM com parser robusto + fallback local
+      const insights = await simulateGeminiAnalysis(prompt, weakSkills, student);
 
-Por favor, forneça:
-1. Uma análise geral do perfil de aprendizagem do aluno
-2. Identificação dos principais pontos de melhoria
-3. Estratégias pedagógicas específicas para cada habilidade com dificuldade
-4. Sugestões de atividades práticas para reforço
-5. Cronograma de estudos recomendado
-
-Seja específico e prático nas recomendações, considerando que este é um relatório para educadores.
-      `;
-
-      // Simula chamada para Gemini (substitua pela API real)
-      const insights = await simulateGeminiAnalysis(prompt, weakSkills);
-      
-      // Gera PDF
+      // Gera PDF com todas as seções
       generatePDF(student, weakSkills, insights);
 
     } catch (error) {
@@ -222,189 +320,174 @@ Seja específico e prático nas recomendações, considerando que este é um rel
     }
   };
 
-const simulateGeminiAnalysis = async (prompt: string, weakSkills: any[]) => {
-  try {
-    const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const simulateGeminiAnalysis = async (prompt: string, weakSkills: WeakSkill[], student: StudentData): Promise<InsightsEstruturados> => {
+    try {
+      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const generatedText = (response?.text?.() ?? "").trim();
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const generatedText = response.text();
-
-    if (!generatedText) {
-      throw new Error("Resposta vazia da API do Gemini");
-    }
-
-    return parseGeminiResponse(generatedText, weakSkills);
-
-  } catch (error) {
-    console.error("Erro ao chamar API do Gemini:", error);
-    return {
-      analiseGeral: `O aluno apresenta dificuldades em ${weakSkills.length} habilidade(s), indicando necessidade de reforço específico nas áreas identificadas.`,
-      pontosMelhoria: weakSkills.map(skill =>
-        `${skill.habilidade_id}: Necessita de atenção especial com ${skill.percentual.toFixed(1)}% de aproveitamento`
-      ),
-      estrategias: [
-        "Implementar atividades de reforço direcionadas",
-        "Utilizar metodologias ativas de aprendizagem",
-        "Promover exercícios práticos contextualizados",
-        "Acompanhamento individualizado do progresso"
-      ],
-      atividades: [
-        "Exercícios de fixação específicos para cada habilidade",
-        "Jogos educativos relacionados aos conteúdos",
-        "Projetos práticos que integrem as habilidades",
-        "Avaliações formativas regulares"
-      ],
-      cronograma: "Recomenda-se dedicar 30 minutos diários para cada habilidade com dificuldade, distribuindo as atividades ao longo de 4 semanas."
-    };
-  }
-};
-
-  const parseGeminiResponse = (text: string, weakSkills: any[]) => {
-    // Tenta extrair seções estruturadas da resposta do Gemini
-    const sections = {
-      analiseGeral: '',
-      pontosMelhoria: [] as string[],
-      estrategias: [] as string[],
-      atividades: [] as string[],
-      cronograma: ''
-    };
-
-    // Parse básico da resposta - pode ser melhorado conforme o formato da resposta
-    const lines = text.split('\n').filter(line => line.trim());
-    
-    let currentSection = '';
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      
-      if (trimmedLine.toLowerCase().includes('análise geral') || trimmedLine.toLowerCase().includes('analise geral')) {
-        currentSection = 'analiseGeral';
-        continue;
-      } else if (trimmedLine.toLowerCase().includes('pontos de melhoria') || trimmedLine.toLowerCase().includes('melhorias')) {
-        currentSection = 'pontosMelhoria';
-        continue;
-      } else if (trimmedLine.toLowerCase().includes('estratégias') || trimmedLine.toLowerCase().includes('estrategias')) {
-        currentSection = 'estrategias';
-        continue;
-      } else if (trimmedLine.toLowerCase().includes('atividades')) {
-        currentSection = 'atividades';
-        continue;
-      } else if (trimmedLine.toLowerCase().includes('cronograma')) {
-        currentSection = 'cronograma';
-        continue;
+      if (generatedText) {
+        const parsed = parseGeminiResponse(generatedText);
+        if (parsed) return parsed;
       }
-
-      // Adiciona conteúdo à seção atual
-      if (currentSection && trimmedLine) {
-        if (currentSection === 'analiseGeral' || currentSection === 'cronograma') {
-          sections[currentSection] += (sections[currentSection] ? ' ' : '') + trimmedLine;
-        } else {
-          // Para listas, adiciona como item separado
-          if (trimmedLine.startsWith('-') || trimmedLine.startsWith('•') || trimmedLine.match(/^\d+\./)) {
-            sections[currentSection as keyof typeof sections].push(trimmedLine.replace(/^[-•\d.]\s*/, ''));
-          } else if (!trimmedLine.includes(':')) {
-            sections[currentSection as keyof typeof sections].push(trimmedLine);
-          }
-        }
-      }
+      // Se não veio JSON válido, usa fallback
+      return fallbackInsights(weakSkills, student);
+    } catch (error) {
+      console.error("Erro ao chamar API do Gemini:", error);
+      return fallbackInsights(weakSkills, student);
     }
-
-    // Fallback se não conseguiu parsear adequadamente
-    if (!sections.analiseGeral) {
-      sections.analiseGeral = text.substring(0, 200) + '...';
-    }
-    
-    if (sections.pontosMelhoria.length === 0) {
-      sections.pontosMelhoria = weakSkills.map(skill => 
-        `${skill.habilidade_id}: Necessita de atenção especial com ${skill.percentual.toFixed(1)}% de aproveitamento`
-      );
-    }
-
-    if (sections.estrategias.length === 0) {
-      sections.estrategias = ['Implementar atividades de reforço direcionadas', 'Utilizar metodologias ativas de aprendizagem'];
-    }
-
-    if (sections.atividades.length === 0) {
-      sections.atividades = ['Exercícios de fixação específicos', 'Jogos educativos relacionados aos conteúdos'];
-    }
-
-    if (!sections.cronograma) {
-      sections.cronograma = 'Recomenda-se dedicar 30 minutos diários para cada habilidade com dificuldade.';
-    }
-
-    return sections;
   };
 
-const generatePDF = (student: StudentData, weakSkills: any[], insights: any) => {
-  const pdf = new jsPDF();
-  const pageWidth = pdf.internal.pageSize.width;
-  const pageHeight = pdf.internal.pageSize.height;
-  let yPosition = 20;
+  const parseGeminiResponse = (text: string): InsightsEstruturados | null => {
+    // tenta extrair JSON puro (pode vir com crases ou markdown)
+    const jsonMatch = text.match(/\{[\s\S]*\}$/);
+    if (!jsonMatch) return null;
+    try {
+      const obj = JSON.parse(jsonMatch[0]);
+      // sanity check de campos mínimos
+      if (!obj?.analiseGeral || !Array.isArray(obj?.cronograma) || !Array.isArray(obj?.atividadesPorHabilidade)) {
+        return null;
+      }
+      return obj as InsightsEstruturados;
+    } catch {
+      return null;
+    }
+  };
 
-  const addText = (text: string | string[], x: number, y: number, lineHeight = 6) => {
-    const lines = Array.isArray(text) ? text : pdf.splitTextToSize(text, pageWidth - 40);
-    lines.forEach(line => {
+  const fallbackInsights = (weakSkills: WeakSkill[], student: StudentData): InsightsEstruturados => {
+    const atividadesPorHabilidade = buildActivitiesPerSkill(weakSkills);
+    const cronograma = buildStudyPlan(weakSkills);
+    const pontos = weakSkills
+      .sort((a, b) => a.percentual - b.percentual)
+      .slice(0, 3)
+      .map(s => `${s.habilidade_id} (${s.componente}) com ${s.percentual.toFixed(1)}%`);
+
+    return {
+      analiseGeral: `O(a) aluno(a) ${student.nome_aluno} apresenta dificuldades distribuídas em ${weakSkills.length} habilidade(s). Recomenda-se começar pelas de maior percentual de acerto, para ganho rápido de confiança, e evoluir gradualmente para as de menor desempenho.`,
+      pontosMelhoria: pontos,
+      estrategias: [
+        "Rotina de prática guiada (curta e frequente), com feedback imediato.",
+        "Uso de exemplos graduados (do simples ao complexo) e retomada de pré-requisitos.",
+        "Registro de erros recorrentes e modelagem de solução passo a passo."
+      ],
+      atividadesPorHabilidade,
+      cronograma,
+      modeloIntervencao: {
+        objetivoGeral: "Aumentar a proficiência nas habilidades com baixo desempenho, garantindo avanços mensuráveis em 4 semanas.",
+        metasCurtoPrazo: [
+          "Elevar cada habilidade trabalhada para ≥ 80% de acerto.",
+          "Reduzir o tempo médio por questão mantendo a precisão."
+        ],
+        rotinaIntervencao: [
+          "3 a 5 sessões semanais de 30–40 minutos.",
+          "Sequência: (1) revisão rápida do conceito; (2) 2–3 exemplos resolvidos; (3) prática independente; (4) correção e feedback."
+        ],
+        acompanhamentoRegistro: [
+          "Planilha simples de acertos/erros por habilidade, com data e tipo de erro.",
+          "Avaliações formativas semanais (mini-quiz de 5 itens)."
+        ],
+        responsabilidades: [
+          "Professor(a): planejar e disponibilizar listas e feedback.",
+          "Aluno(a): cumprir o cronograma e registrar dúvidas.",
+          "Família/Escola: garantir rotina e ambiente de estudo."
+        ]
+      }
+    };
+  };
+
+  /** PDF com Modelo de Intervenção, Cronograma e Atividades por Habilidade */
+  const generatePDF = (student: StudentData, weakSkills: WeakSkill[], insights: InsightsEstruturados) => {
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.width;
+    const pageHeight = pdf.internal.pageSize.height;
+    let yPosition = 20;
+
+    const addText = (text: string | string[], x: number, y: number, lineHeight = 6) => {
+      const lines = Array.isArray(text) ? text : pdf.splitTextToSize(text, pageWidth - 40);
+      lines.forEach(line => {
+        if (yPosition >= pageHeight - 20) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        pdf.text(line, x, yPosition);
+        yPosition += lineHeight;
+      });
+      yPosition += 4;
+    };
+
+    const addTitle = (title: string) => {
       if (yPosition >= pageHeight - 20) {
         pdf.addPage();
         yPosition = 20;
       }
-      pdf.text(line, x, yPosition);
-      yPosition += lineHeight;
-    });
-    yPosition += 4;
-  };
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(title, 20, yPosition);
+      yPosition += 8;
+      pdf.setFont('helvetica', 'normal');
+    };
 
-  const addTitle = (title: string) => {
-    if (yPosition >= pageHeight - 20) {
-      pdf.addPage();
-      yPosition = 20;
-    }
+    // Cabeçalho
+    pdf.setFontSize(18);
     pdf.setFont('helvetica', 'bold');
-    pdf.text(title, 20, yPosition);
-    yPosition += 8;
+    pdf.text('Relatório Pedagógico Estruturado', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 15;
+
+    // Dados do aluno
+    pdf.setFontSize(12);
     pdf.setFont('helvetica', 'normal');
+    addText(`Aluno: ${student.nome_aluno}`, 20, yPosition);
+    addText(`Unidade: ${student.unidade}`, 20, yPosition);
+    addText(`Semestre: ${student.semestre}º`, 20, yPosition);
+    addText(`Data: ${new Date().toLocaleDateString('pt-BR')}`, 20, yPosition);
+
+    // Habilidades com desempenho < 100%
+    addTitle('Habilidades com Desempenho Abaixo de 100% (com % de acertos):');
+    weakSkills
+      .sort((a, b) => b.percentual - a.percentual)
+      .forEach(skill => {
+        addText(`• ${skill.habilidade_codigo} ${skill.habilidade_id} (${skill.componente}) – ${skill.descricao_habilidade}: ${skill.percentual.toFixed(1)}%`, 25, yPosition);
+      });
+
+    // Modelo de Intervenção
+    addTitle('Modelo de Intervenção Pedagógica:');
+    addText(`Objetivo Geral: ${insights.modeloIntervencao.objetivoGeral}`, 20, yPosition);
+    addText('Metas de Curto Prazo:', 20, yPosition);
+    insights.modeloIntervencao.metasCurtoPrazo.forEach(m => addText(`• ${m}`, 25, yPosition));
+    addText('Rotina de Intervenção:', 20, yPosition);
+    insights.modeloIntervencao.rotinaIntervencao.forEach(r => addText(`• ${r}`, 25, yPosition));
+    addText('Acompanhamento e Registro:', 20, yPosition);
+    insights.modeloIntervencao.acompanhamentoRegistro.forEach(a => addText(`• ${a}`, 25, yPosition));
+    addText('Responsabilidades:', 20, yPosition);
+    insights.modeloIntervencao.responsabilidades.forEach(r => addText(`• ${r}`, 25, yPosition));
+
+    // Análise geral e estratégias
+    addTitle('Análise Geral:');
+    addText(insights.analiseGeral, 20, yPosition);
+    addTitle('Estratégias Recomendadas:');
+    insights.estrategias.forEach((e: string) => addText(`• ${e}`, 25, yPosition));
+
+    // Atividades por habilidade (formato solicitado)
+    addTitle('Atividades Sugeridas por Habilidade:');
+    insights.atividadesPorHabilidade.forEach((a) => {
+      addText(`${a.componente} – ${a.habilidade_id}: ${a.descricao_habilidade}`, 20, yPosition);
+      a.sugestoes.forEach(s => addText(`• ${s}`, 25, yPosition));
+    });
+
+    // Cronograma (4 semanas, fácil→difícil)
+    addTitle('Cronograma de Estudos (4 semanas: do mais fácil ao mais difícil):');
+    insights.cronograma.forEach(item => {
+      addText(`Semana ${item.semana} – Foco: ${item.foco}`, 20, yPosition);
+      addText(`Objetivo: ${item.objetivo}`, 25, yPosition);
+      item.tarefas.forEach(t => addText(`• ${t}`, 28, yPosition));
+    });
+
+    // Rodapé
+    addText('Importante: relatório gerado com apoio de IA. Use com análise crítica e adapte à realidade do aluno.', 20, yPosition);
+
+    pdf.save(`insights-${student.nome_aluno.replace(/\s+/g, '-')}.pdf`);
   };
-
-  // Título
-  pdf.setFontSize(18);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('Relatório de Insights Pedagógicos', pageWidth / 2, yPosition, { align: 'center' });
-  yPosition += 15;
-
-  // Dados do aluno
-  pdf.setFontSize(12);
-  pdf.setFont('helvetica', 'normal');
-  addText(`Aluno: ${student.nome_aluno}`, 20, yPosition);
-  addText(`Unidade: ${student.unidade}`, 20, yPosition);
-  addText(`Semestre: ${student.semestre}º`, 20, yPosition);
-  addText(`Data: ${new Date().toLocaleDateString('pt-BR')}`, 20, yPosition);
-
-  // Habilidades
-  addTitle('Habilidades com Desempenho Abaixo de 100%:');
-  weakSkills.forEach(skill => {
-    addText(`• ${skill.habilidade_id} (${skill.componente}): ${skill.percentual.toFixed(1)}%`, 25, yPosition);
-  });
-
-  // Análise Geral
-  addTitle('Análise Geral:');
-  addText(insights.analiseGeral, 20, yPosition);
-
-  // Estratégias
-  addTitle('Estratégias Recomendadas:');
-  insights.estrategias.forEach((e: string) => addText(`• ${e}`, 25, yPosition));
-
-  // Atividades
-  addTitle('Atividades Sugeridas:');
-  insights.atividades.forEach((a: string) => addText(`• ${a}`, 25, yPosition));
-
-  // Cronograma
-  addTitle('Cronograma Recomendado:');
-  addText(insights.cronograma, 20, yPosition);
-
-  // Salvar PDF
-  pdf.save(`insights-${student.nome_aluno.replace(/\s+/g, '-')}.pdf`);
-};
 
   if (loading) {
     return (
@@ -495,14 +578,14 @@ const generatePDF = (student: StudentData, weakSkills: any[], insights: any) => 
                                     </div>
                                     <div className="flex items-center gap-3">
                                       <div className="text-right">
-                                      <p className="text-sm text-gray-600">
-                                        {habilidade.acertos} / {habilidade.total}
-                                      </p>
-                                      {habilidade.total > 0 && (
-                                        <p className="text-xs text-blue-600">
-                                          {((habilidade.acertos / habilidade.total) * 100).toFixed(1)}%
+                                        <p className="text-sm text-gray-600">
+                                          {habilidade.acertos} / {habilidade.total}
                                         </p>
-                                      )}
+                                        {habilidade.total > 0 && (
+                                          <p className="text-xs text-blue-600">
+                                            {((habilidade.acertos / habilidade.total) * 100).toFixed(1)}%
+                                          </p>
+                                        )}
                                       </div>
                                       {habilidade.total > 0 && ((habilidade.acertos / habilidade.total) * 100) < 100 && (
                                         <button
@@ -544,10 +627,10 @@ const generatePDF = (student: StudentData, weakSkills: any[], insights: any) => 
                       )}
                     </button>
                   </div>
-                                      <p className="mt-2 text-xs text-gray-500 text-center max-w-xl mx-auto">
-  <strong>Importante:</strong> este relatório é gerado com apoio de inteligência artificial.
-  Ele representa uma sugestão baseada em dados, mas deve ser lido com análise crítica e adaptado conforme a realidade de cada aluno.
-</p>
+                  <p className="mt-2 text-xs text-gray-500 text-center max-w-xl mx-auto">
+                    <strong>Importante:</strong> este relatório é gerado com apoio de inteligência artificial.
+                    Ele representa uma sugestão baseada em dados, mas deve ser lido com análise crítica e adaptado conforme a realidade de cada aluno.
+                  </p>
                 </div>
               )}
             </div>
