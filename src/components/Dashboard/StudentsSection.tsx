@@ -37,7 +37,155 @@ type WeakSkill = {
   habilidade_codigo: string;
   descricao_habilidade: string;
   percentual: number; // 0-100
+  ano_escolar_resultados?: string;
+  gradeMin?: number;
 };
+
+/** Extrai um "nível" para ordenar do mais fácil→mais difícil.
+ * Regras:
+ * - Se houver anos do EF: usa o MENOR (ex.: "3º ANO 4º ANO" -> 3).
+ * - Se mencionar ENSINO MÉDIO (mesmo com ruído como "MºDIO"):
+ *      tenta mapear 1º/2º/3º EM para níveis 10/11/12; se não achar série, usa 12.
+ * - Se não identificar nada, retorna +∞ (vai para o fim).
+ */
+const extractLowestGrade = (s?: string) => {
+  if (!s) return Number.POSITIVE_INFINITY;
+  const src = s.toUpperCase();
+
+  // 1) EF: capturar todos os "Nº"
+  const anosEF = [...src.matchAll(/(\d+)\s*º/g)].map(m => parseInt(m[1], 10)).filter(n => n >= 1 && n <= 9);
+  if (anosEF.length) {
+    return Math.min(...anosEF);
+  }
+
+  // 2) EM: detectar "ENSINO M?DIO" com tolerância a acentos/ruídos
+  const isEM = /ENSINO\s*M[ÉE]?[[DÐ]IO|ENSINO\s*MºDIO/.test(src);
+  if (isEM) {
+    // tentar identificar 1º/2º/3º do EM
+    const emSerie = src.match(/(\d+)\s*º/);
+    if (emSerie) {
+      const n = parseInt(emSerie[1], 10);
+      if (n >= 1 && n <= 3) return 9 + n; // 1EM=10, 2EM=11, 3EM=12
+    }
+    // Sem série explícita: considere como mais difícil do que EF
+    return 12;
+  }
+
+  return Number.POSITIVE_INFINITY;
+};
+
+/** Ordenação: menor ano primeiro; empate → maior percentual primeiro */
+const compareByGradeThenPercent = (a: WeakSkill, b: WeakSkill) => {
+  const ga = a.gradeMin ?? Number.POSITIVE_INFINITY;
+  const gb = b.gradeMin ?? Number.POSITIVE_INFINITY;
+  if (ga !== gb) return ga - gb;
+  return (b.percentual ?? 0) - (a.percentual ?? 0);
+};
+
+/** Normaliza string para matching de palavras-chave (caixa alta, sem acentos). */
+const norm = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+/** Gera atividades dinâmicas conforme descrição, componente e dificuldade. */
+const suggestActivities = (skill: WeakSkill): string[] => {
+  const desc = norm(skill.descricao_habilidade || '');
+  const comp = norm(skill.componente || '');
+  const pct = skill.percentual ?? 0;
+  const nivel = skill.gradeMin ?? Number.POSITIVE_INFINITY;
+  const isEM = (skill.ano_escolar_resultados || '').toUpperCase().includes('ENSINO') && (skill.ano_escolar_resultados || '').toUpperCase().includes('M');
+  const areaLP = comp.includes('PORTUGUES') || comp.includes('LINGUA') || comp.includes('LÍNGUA') || comp.includes('LP');
+  const areaMAT = comp.includes('MATEM');
+
+  // Faixas de dificuldade
+  const faixa = pct < 40 ? 'alta' : pct < 70 ? 'media' : 'leve';
+
+  const base = [];
+  // Ajustes por faixa
+  if (faixa === 'alta') {
+    base.push(
+      'Reensino rápido do conceito em 3–5 minutos com exemplo concreto (quadro/figura).',
+      'Resolver 2 exemplos guiados passo a passo, verbalizando cada etapa.',
+      'Praticar 5 itens de baixa complexidade focando no erro mais comum e registrar onde ocorreu (leitura, cálculo, conceito).'
+    );
+  } else if (faixa === 'media') {
+    base.push(
+      'Revisar o conceito com 2 exemplos resolvidos e um contraexemplo.',
+      'Prática escalonada (fácil→médio): 6–8 itens com correção imediata.',
+      'Autoexplicação curta após cada item: “o que usei e por quê?”.'
+    );
+  } else {
+    base.push(
+      'Consolidação com 5–8 itens intercalando formatos diferentes.',
+      'Explicar para um colega (ou em voz alta) a ideia central do item.',
+      'Registrar 2 dicas pessoais para evitar o erro recorrente.'
+    );
+  }
+
+  // Sugestões específicas por palavra-chave
+  const sug = [] as string[];
+
+  if (areaLP) {
+    if (/INFER|IMPLICIT/.test(desc)) {
+      sug.push('Leitura por pistas: sublinhar marcas linguísticas que sustentem a inferência e preencher um quadro “Pistas → Conclusão”.');
+    }
+    if (/TESE|ARGUMENT/.test(desc)) {
+      sug.push('Mapa de argumentos: identificar tese, argumentos e evidências; reescrever um argumento fraco tornando-o mais específico.');
+    }
+    if (/ASSUNTO|TEMA|IDEIA PRINCIPAL|TITULO/.test(desc)) {
+      sug.push('Localizar assunto/tema: criar um título alternativo e justificar com 2 palavras‑chave do texto.');
+    }
+    if (/COES|COER|CONECT|REFER/.test(desc)) {
+      sug.push('Revisão de coesão: substituir conectivos e ajustar pronomes de referência em um trecho curto, explicando a escolha.');
+    }
+    if (/VOCAB|SINON|ANTON|SENTIDO|CONOT|DENOT/.test(desc)) {
+      sug.push('Vocabulário em contexto: montar pares “palavra → sentido no texto → sinônimo possível” e testar em nova frase.');
+    }
+    if (/GRAFI|ORTOG|PONTU/.test(desc)) {
+      sug.push('Reescrita focada: reescrever 3 frases ajustando acentuação e pontuação; justificar uma mudança feita.');
+    }
+    if (isEM) {
+      sug.push('Contextualizar com gêneros do EM: selecionar um artigo/reportagem e aplicar a habilidade no texto atual (síntese crítica de 5 linhas).');
+    }
+  }
+
+  if (areaMAT) {
+    if (/ADIC|SUBTR|MULTI|DIVI|OPERAC/.test(desc)) {
+      sug.push('Rotina operacional: 10 itens curtos mistos (±, ×, ÷), enfatizando estimativa antes do cálculo.');
+    }
+    if (/FRAC|DECIM|PORCENT|RAZAO|PROPOR/.test(desc)) {
+      sug.push('Representação múltipla: mesma situação em fração, decimal e porcentagem; construir uma tabela de proporção para comparar.');
+    }
+    if (/EQUAC|1.?GRAU|INCOGN/.test(desc)) {
+      sug.push('Passos de equação: isolar a incógnita destacando operação inversa; resolver 4 itens e checar substituindo o valor.');
+    }
+    if (/PROBLEM|SITUAC/.test(desc)) {
+      sug.push('Leitura de problema: sublinhar dados, montar tabela “dados → pergunta → estratégia”, resolver e conferir unidade de medida.');
+    }
+    if (/GRAFIC|TABELA|DIAGR/.test(desc)) {
+      sug.push('Leitura de dados: identificar eixos, unidade e tendência; responder 3 perguntas de interpretação direta e 2 de comparação.');
+    }
+    if (/ANG|TRIANG|PERIM|AREA|VOLUME|POLIG|MEDID/.test(desc)) {
+      sug.push('Geometria ativa: desenhar/medir uma figura, calcular grandezas e explicar por que a fórmula se aplica.');
+    }
+    if (/MMC|MDC|MULTIP|DIVISOR|FATOR/.test(desc)) {
+      sug.push('Fatoração guiada: árvore de fatores e verificação; aplicar em um problema de vida real (ex.: sincronizar ciclos).');
+    }
+    if (Number.isFinite(nivel) && nivel <= 5 && /DIVI|MULTI|TABU|OPERAC/.test(desc)) {
+      sug.push('Refinar pré-requisito: 5 min de treino de tabuada/estratégias de decomposição antes dos itens principais.');
+    }
+    if (isEM) {
+      sug.push('Modelagem: traduzir um enunciado em expressão/equação e verificar solução com gráfico simples (se aplicável).');
+    }
+  }
+
+  const final = [...new Set([...sug, ...base])].slice(0, 5);
+  return final.length ? final : base.slice(0, 3);
+};
+
+
 
 type AtividadePorHabilidade = {
   habilidade_id: string;
@@ -122,7 +270,8 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
             habilidade_codigo: item.habilidade_codigo,
             descricao: item.descricao_habilidade,
             acertos: item.acertos,
-            total: item.total
+            total: item.total,
+            ano_escolar_resultados: item.ano_escolar_resultados
           });
         }
       });
@@ -179,13 +328,20 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
 
   /** Utilitário: gera cronograma (4 semanas) ordenando do mais fácil→mais difícil (maior %→menor %) */
   const buildStudyPlan = (weakSkills: WeakSkill[]): CronoItem[] => {
-    const ordered = [...weakSkills].sort((a, b) => b.percentual - a.percentual);
+    const ordered = [...weakSkills].sort(compareByGradeThenPercent);
     const weeks = 4;
     const plan: CronoItem[] = [];
     // distribui ciclicamente as habilidades entre as semanas (mantendo a ordem fácil→difícil)
     ordered.forEach((skill, idx) => {
       const semana = (idx % weeks) + 1;
-      const foco = `${skill.componente} – ${skill.habilidade_id}: ${skill.descricao_habilidade}`;
+      let anoText = '';
+      if (skill.ano_escolar_resultados && skill.ano_escolar_resultados.trim()) {
+        anoText = ` [Ano(s): ${skill.ano_escolar_resultados}]`;
+      } else if (Number.isFinite(skill.gradeMin)) {
+        const n = Number(skill.gradeMin);
+        anoText = n <= 9 ? ` [Ano: ${n}º]` : ' [Ensino Médio]';
+      }
+      const foco = `${skill.componente} – ${skill.habilidade_id}: ${skill.descricao_habilidade}${anoText}`;
       const objetivo = `Elevar o desempenho em ${skill.habilidade_id} para ≥ 80% por meio de prática guiada e revisão de erros.`;
       const tarefas = [
         `Fazer a lista de atividades do componente ${skill.componente} – ${skill.habilidade_id}, que trata sobre ${skill.descricao_habilidade}.`,
@@ -215,18 +371,14 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
       habilidade_id: skill.habilidade_id,
       componente: skill.componente,
       descricao_habilidade: skill.descricao_habilidade,
-      sugestoes: [
-        `Fazer a lista de atividades do componente ${skill.componente} – ${skill.habilidade_id}, que trata sobre ${skill.descricao_habilidade}.`,
-        `Resolver novamente as questões erradas, explicando em voz alta cada passo da solução.`,
-        `Aplicar um mini-desafio prático contextualizado envolvendo ${skill.descricao_habilidade}.`
-      ]
+      sugestoes: suggestActivities(skill)
     }));
   };
 
   /** Prompt estruturado para o Gemini, pedindo JSON estrito. */
   const buildLLMPrompt = (student: StudentData, weakSkills: WeakSkill[]) => {
     const skillsTxt = weakSkills.map(s =>
-      `{"componente":"${s.componente}","habilidade_id":"${s.habilidade_id}","habilidade_codigo":"${s.habilidade_codigo}","descricao_habilidade":"${s.descricao_habilidade.replace(/"/g, "'")}","percentual":${s.percentual.toFixed(1)}}`
+      `{"componente":"${s.componente}","habilidade_id":"${s.habilidade_id}","habilidade_codigo":"${s.habilidade_codigo}","descricao_habilidade":"${s.descricao_habilidade.replace(/"/g, "'")}","percentual":${s.percentual.toFixed(1)},"ano_escolar_resultados":"${s.ano_escolar_resultados ?? ""}","gradeMin":${s.gradeMin ?? -1}}`
     ).join(",\n");
 
     return `
@@ -249,7 +401,7 @@ TAREFA:
   }],
   "cronograma": [{
     "semana": number,      // 1..4, ordene do mais fácil→mais difícil (maior %→menor %)
-    "foco": string,        // exemplo: "Língua Portuguesa – H23: Inferência de informações implícitas"
+    "foco": string,        // exemplo: "Língua Portuguesa – H23: Inferência de informações implícitas [Ano(s): 6º E 7º ANO]"
     "objetivo": string,
     "tarefas": string[]
   }],
@@ -262,11 +414,36 @@ TAREFA:
   }
 }
 
+
 REGRAS:
-- O cronograma deve partir das habilidades com maior percentual (mais fáceis de recuperar) para as de menor percentual (mais difíceis).
-- As "sugestoes" precisam conter pelo menos UMA frase exatamente neste formato:
-  "Fazer a lista de atividades do componente {componente} – {habilidade_id}, que trata sobre {descricao_habilidade}."
-- Responda **somente** com o JSON.
+- **Ordem de dificuldade**: organize **do mais fácil → mais difícil** com base em 'ano_escolar_resultados'/'gradeMin' (menor ano primeiro; EF < EM). Em EMPATE, use **maior percentual** primeiro.
+- No foco do cronograma, inclua os anos da habilidade ao final entre colchetes, ex.: [Ano(s): 6º E 7º ANO]; se não houver 'ano_escolar_resultados', use [Ano: {gradeMin}º] (EF) ou [Ensino Médio].
+- **Atividades SUGERIDAS (dinâmicas)**: para cada habilidade, gere **3 a 5** sugestões **específicas** e **executáveis**, variando conforme:
+  • **Dificuldade (percentual)**: 
+    - <40% → reensino rápido, exemplos guiados, itens fáceis e registro do erro.
+    - 40–69% → revisão com exemplos e contraexemplos, prática escalonada, autoexplicação curta.
+    - 70–99% → consolidação com variação de formatos e explicações em voz alta.
+  • **Componente e palavras‑chave na 'descricao_habilidade'** (use correspondência sem acentos/maiúsculas):
+    - **LP**: 
+      - Inferência/implícito → “pistas → conclusão”; localizar marcas linguísticas.
+      - Tese/argumentação → mapa de tese‑argumentos‑evidências; fortalecer argumento fraco.
+      - Assunto/tema/ideia principal → criar título alternativo e justificar com palavras‑chave.
+      - Coesão/coerência/conectivos/referência → reescrita trocando conectivos e pronomes, justificando escolhas.
+      - Vocabulário/ortografia/pontuação → quadro “palavra → sentido no texto → sinônimo”; reescrita com ajustes.
+      - **EM**: contextualizar com gêneros do EM (artigo/reportagem) e síntese crítica curta.
+    - **Matemática**:
+      - Operações básicas → rotina mista com estimativa antes do cálculo.
+      - Frações/decimais/porcentagem/razão e proporção → representações múltiplas e tabela proporcional.
+      - Equações 1º grau → passos com operação inversa e verificação por substituição.
+      - Problemas/situações → tabela “dados → pergunta → estratégia”; conferir unidade.
+      - Gráficos/tabelas/diagramas → identificar eixos/unidade/tendência, responder leitura direta e comparação.
+      - Geometria (ângulo/perímetro/área/volume) → construir/desenhar, medir e justificar fórmula.
+      - MMC/MDC/múltiplos/divisores → fatoração guiada e aplicação prática.
+      - **Pré‑requisito EF baixo (≤5º)** → 5 min de treino de tabuada/decomposição antes da prática.
+      - **EM**: modelagem (expressão/equação) e, se aplicável, verificação gráfica simples.
+- **Sem frases “engessadas”**: evite modelos genéricos ou repetitivos; personalize cada sugestão ao **conteúdo** da habilidade.
+- **JSON estrito**: responda **apenas** com JSON válido. Não inclua comentários, explicações externas nem markdown.
+
 `;
   };
 
@@ -287,12 +464,16 @@ REGRAS:
                 habilidade_id: habilidade.habilidade_id,
                 habilidade_codigo: habilidade.habilidade_codigo,
                 descricao_habilidade: habilidade.descricao,
-                percentual
+                percentual,
+                ano_escolar_resultados: habilidade.ano_escolar_resultados,
+                gradeMin: extractLowestGrade(habilidade.ano_escolar_resultados)
               });
             }
           }
         });
       });
+
+      weakSkills.sort(compareByGradeThenPercent);
 
       if (weakSkills.length === 0) {
         alert('Este aluno não possui habilidades com desempenho abaixo de 100%.');
@@ -359,13 +540,22 @@ REGRAS:
   const fallbackInsights = (weakSkills: WeakSkill[], student: StudentData): InsightsEstruturados => {
     const atividadesPorHabilidade = buildActivitiesPerSkill(weakSkills);
     const cronograma = buildStudyPlan(weakSkills);
-    const pontos = weakSkills
-      .sort((a, b) => a.percentual - b.percentual)
+    const sequenciaAnos = Array.from(
+      new Set(
+        weakSkills
+          .map(w => w.gradeMin)
+          .filter(n => Number.isFinite(n))
+          .sort((a,b) => (a! - b!))
+          .map(n => `${n}º`)
+      )
+    ).join(' → ');
+    const pontos = [...weakSkills]
+      .sort((a, b) => (a.gradeMin ?? 999) - (b.gradeMin ?? 999) || (b.percentual - a.percentual))
       .slice(0, 3)
-      .map(s => `${s.habilidade_id} (${s.componente}) com ${s.percentual.toFixed(1)}%`);
+      .map(s => `${s.habilidade_id} (${s.componente}, ${s.ano_escolar_resultados ?? '—'}) com ${s.percentual.toFixed(1)}%`);
 
     return {
-      analiseGeral: `O(a) aluno(a) ${student.nome_aluno} apresenta dificuldades distribuídas em ${weakSkills.length} habilidade(s). Recomenda-se começar pelas de maior percentual de acerto, para ganho rápido de confiança, e evoluir gradualmente para as de menor desempenho.`,
+      analiseGeral: `O(a) aluno(a) ${student.nome_aluno} apresenta dificuldades distribuídas em ${weakSkills.length} habilidade(s). Recomenda-se começar pelas habilidades de seriação de anos mais iniciais e evoluindo para os anos finais (Conteúdo mais fácil para o mais difícil de acordo com a BNCC).`,
       pontosMelhoria: pontos,
       estrategias: [
         "Rotina de prática guiada (curta e frequente), com feedback imediato.",
@@ -466,17 +656,8 @@ REGRAS:
     addTitle('Análise Geral:');
     addText(insights.analiseGeral, 20, yPosition);
     addTitle('Estratégias Recomendadas:');
-    insights.estrategias.forEach((e: string) => addText(`• ${e}`, 25, yPosition));
-
-    // Atividades por habilidade (formato solicitado)
-    addTitle('Atividades Sugeridas por Habilidade:');
-    insights.atividadesPorHabilidade.forEach((a) => {
-      addText(`${a.componente} – ${a.habilidade_id}: ${a.descricao_habilidade}`, 20, yPosition);
-      a.sugestoes.forEach(s => addText(`• ${s}`, 25, yPosition));
-    });
-
-    // Cronograma (4 semanas, fácil→difícil)
-    addTitle('Cronograma de Estudos (4 semanas: do mais fácil ao mais difícil):');
+    insights.estrategias.forEach((e: string) => addText(`• ${e}`, 25, yPosition));// Cronograma (4 semanas, fácil→difícil)
+    addTitle('Cronograma de Estudos (4 semanas: do mais fácil ao mais difícil de acordo com a BNCC):');
     insights.cronograma.forEach(item => {
       addText(`Semana ${item.semana} – Foco: ${item.foco}`, 20, yPosition);
       addText(`Objetivo: ${item.objetivo}`, 25, yPosition);
