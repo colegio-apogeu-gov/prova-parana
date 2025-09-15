@@ -4,9 +4,11 @@ import { auth } from './lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { getUserProfile } from './lib/supabase';
 import LoginForm from './components/Auth/LoginForm';
+import SystemSelection from './components/SystemSelection/SystemSelection';
 import Navbar from './components/Navigation/Navbar';
 import Dashboard from './components/Dashboard/Dashboard';
 import UploadForm from './components/Upload/UploadForm';
+import UploadFormParceiro from './components/Upload/UploadFormParceiro';
 import CadastrarAtividades from './components/CadastrarAtividades/CadastrarAtividades';
 import Graficos from './components/Graficos/Graficos';
 import { UserProfile } from './types';
@@ -15,6 +17,9 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedSystem, setSelectedSystem] = useState<'prova-parana' | 'parceiro' | null>(() => {
+    return (localStorage.getItem('selectedSystem') as 'prova-parana' | 'parceiro') || null;
+  });
   const [activeTab, setActiveTab] = useState<'dashboard' | 'upload' | 'atividades' | 'graficos'>(() => {
     return (localStorage.getItem('activeTab') as 'dashboard' | 'upload' | 'atividades' | 'graficos') || 'dashboard';
   });
@@ -51,15 +56,33 @@ function App() {
     localStorage.setItem('activeTab', activeTab);
   }, [activeTab]);
 
+  useEffect(() => {
+    if (selectedSystem) {
+      localStorage.setItem('selectedSystem', selectedSystem);
+    }
+  }, [selectedSystem]);
+
   const handleLogout = async () => {
     try {
       await auth.signOut();
       localStorage.removeItem('activeTab');
+      localStorage.removeItem('selectedSystem');
       setUser(null);
       setUserProfile(null);
+      setSelectedSystem(null);
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
     }
+  };
+
+  const handleSystemSelect = (system: 'prova-parana' | 'parceiro') => {
+    setSelectedSystem(system);
+    setActiveTab('dashboard'); // Reset to dashboard when switching systems
+  };
+
+  const handleSystemSwitch = () => {
+    setSelectedSystem(null);
+    setActiveTab('dashboard');
   };
 
   if (loading) {
@@ -77,6 +100,10 @@ function App() {
     return <LoginForm onLogin={setUser} />;
   }
 
+  if (!selectedSystem) {
+    return <SystemSelection onSystemSelect={handleSystemSelect} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar 
@@ -85,17 +112,23 @@ function App() {
         onLogout={handleLogout}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        selectedSystem={selectedSystem}
+        onSystemSwitch={handleSystemSwitch}
       />
       
       <main className="container mx-auto px-4 py-8">
         {activeTab === 'dashboard' ? (
-          <Dashboard userProfile={userProfile} />
+          <Dashboard userProfile={userProfile} selectedSystem={selectedSystem} />
         ) : activeTab === 'upload' ? (
-          <UploadForm userProfile={userProfile} />
+          selectedSystem === 'prova-parana' ? (
+            <UploadForm userProfile={userProfile} />
+          ) : (
+            <UploadFormParceiro userProfile={userProfile} />
+          )
         ) : activeTab === 'graficos' ? (
-          <Graficos userProfile={userProfile} />
+          <Graficos userProfile={userProfile} selectedSystem={selectedSystem} />
         ) : (
-          <CadastrarAtividades />
+          <CadastrarAtividades selectedSystem={selectedSystem} />
         )}
       </main>
     </div>

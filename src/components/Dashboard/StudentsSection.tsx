@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Users, ChevronDown, ChevronRight, BookOpen, ExternalLink, Brain } from 'lucide-react';
 import { fetchProvaData, getLinkByHabilidadeComponente } from '../../lib/supabase';
+import { fetchProvaDataParceiro, getLinkByHabilidadeComponenteParceiro } from '../../lib/supabaseParceiro';
 import { DashboardFilters } from '../../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import jsPDF from 'jspdf';
 
+const getLinkFn = (system: 'prova-parana' | 'parceiro') =>
+  system === 'prova-parana'
+    ? getLinkByHabilidadeComponente
+    : getLinkByHabilidadeComponenteParceiro;
+
 interface StudentsSectionProps {
   filters: DashboardFilters;
   userProfile: { unidade: string } | null;
+  selectedSystem: 'prova-parana' | 'parceiro'; // ADICIONE
 }
 
 interface StudentData {
@@ -219,7 +226,8 @@ type InsightsEstruturados = {
   };
 };
 
-const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile }) => {
+// antes: ({ filters, userProfile })
+const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile, selectedSystem }) => {
   const [studentsData, setStudentsData] = useState<StudentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedStudents, setExpandedStudents] = useState<Set<string>>(new Set());
@@ -229,15 +237,19 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
 
   useEffect(() => {
     loadStudentsData();
-  }, [filters]);
+  }, [filters, selectedSystem]);
 
   const loadStudentsData = async () => {
     setLoading(true);
     try {
-      const data = await fetchProvaData({
-        ...filters,
-        unidade: userProfile?.unidade
-      });
+const fetchFn =
+  selectedSystem === 'prova-parana' ? fetchProvaData : fetchProvaDataParceiro;
+
+const data = await fetchFn({
+  ...filters,
+  unidade: userProfile?.unidade
+});
+
 
       const groupedData: { [key: string]: StudentData } = {};
 
@@ -294,7 +306,7 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile 
     if (linksCache.has(cacheKey)) return linksCache.get(cacheKey);
 
     try {
-      const link = await getLinkByHabilidadeComponente(habilidadeCodigo, componente);
+      const link = await getLinkFn(selectedSystem)(habilidadeCodigo, componente);
       const newCache = new Map(linksCache);
       newCache.set(cacheKey, link || '');
       setLinksCache(newCache);

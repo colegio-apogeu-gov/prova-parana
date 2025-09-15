@@ -35,7 +35,7 @@ const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({ insights }) => {
               <div className="flex justify-between items-start mb-2">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">
-                    {skill.habilidade_codigo} - {skill.habilidade_id}
+                    {skill.habilidade_codigo}
                   </p>
                   <p className="text-xs text-gray-600 line-clamp-2">
                     {skill.descricao}
