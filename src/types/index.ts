@@ -18,6 +18,58 @@ export interface ProvaResultado {
   created_at: string;
 }
 
+// Parceiro system types
+export interface ProvaResultadoParceiro {
+  id: string;
+  ano_escolar: '8º ano' | '2º ano';
+  componente: 'MT' | 'LP';
+  semestre: '1' | '2';
+  unidade: string;
+  turma: string;
+  nome_aluno: string;
+  avaliado: boolean;
+  proficiencia: string;
+  padrao_desempenho: string;
+  habilidade_id: string;
+  habilidade_codigo: string;
+  descricao_habilidade: string;
+  acertos: number;
+  total: number;
+  percentual: number;
+  ano_escolar_resultados: string;
+  created_at: string;
+}
+
+export interface LinkQuestaoParceiro {
+  id: string;
+  link: string;
+  habilidade_codigo: string;
+  componente: 'LP' | 'MT';
+  created_at: string;
+}
+
+export interface SalaDeAulaParceiro {
+  id: string;
+  nome: string;
+  unidade: string;
+  created_at: string;
+}
+
+export interface SalaDeAulaAlunoParceiro {
+  id: string;
+  sala_id: string;
+  nome_aluno: string;
+  turma: string;
+  created_at: string;
+}
+
+export interface UploadFormParceiro {
+  ano: '8º ano' | '2º ano';
+  componente: 'MT' | 'LP';
+  semestre: '1' | '2';
+  file: File | null;
+}
+
 export interface UserProfile {
   id: string;
   email: string;

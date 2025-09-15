@@ -3,7 +3,11 @@ import { BookOpen, Plus, Edit2, Trash2, ExternalLink, CheckCircle, AlertCircle }
 import { getLinksQuestoes, createLinkQuestao, updateLinkQuestao, deleteLinkQuestao } from '../../lib/supabase';
 import { LinkQuestao } from '../../types';
 
-const CadastrarAtividades: React.FC = () => {
+interface CadastrarAtividadesProps {
+  selectedSystem: 'prova-parana' | 'parceiro';
+}
+
+const CadastrarAtividades: React.FC<CadastrarAtividadesProps> = ({ selectedSystem }) => {
   const [links, setLinks] = useState<LinkQuestao[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -97,7 +101,9 @@ const CadastrarAtividades: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Cadastrar Atividades</h1>
-            <p className="text-gray-600">Gerencie os links das questões por habilidade</p>
+            <p className="text-gray-600">
+              Gerencie os links das questões por habilidade - {selectedSystem === 'prova-parana' ? 'Prova Paraná' : 'Avaliação Parceiro da Escola'}
+            </p>
           </div>
         </div>
         <button

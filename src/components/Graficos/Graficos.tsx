@@ -13,9 +13,10 @@ import PerformanceTrendsChart from './PerformanceTrendsChart';
 
 interface GraficosProps {
   userProfile: { unidade: string } | null;
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
-const Graficos: React.FC<GraficosProps> = ({ userProfile }) => {
+const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
   const [data, setData] = useState<ProvaResultado[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFilters, setSelectedFilters] = useState({
@@ -90,7 +91,9 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile }) => {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Análise Gráfica</h1>
-            <p className="text-gray-600">Visualizações dos dados da Prova Paraná</p>
+            <p className="text-gray-600">
+              Visualizações dos dados da {selectedSystem === 'prova-parana' ? 'Prova Paraná' : 'Avaliação Parceiro da Escola'}
+            </p>
           </div>
         </div>
         <div className="text-sm text-gray-500">
@@ -111,8 +114,17 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             >
               <option value="">Todos</option>
-              <option value="9º ano">9º ano</option>
-              <option value="3º ano">3º ano</option>
+              {selectedSystem === 'prova-parana' ? (
+                <>
+                  <option value="9º ano">9º ano</option>
+                  <option value="3º ano">3º ano</option>
+                </>
+              ) : (
+                <>
+                  <option value="8º ano">8º ano</option>
+                  <option value="2º ano">2º ano</option>
+                </>
+              )}
             </select>
           </div>
           <div>

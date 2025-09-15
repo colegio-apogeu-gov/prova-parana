@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Users, TrendingUp, Filter } from 'lucide-react';
 import { fetchProvaData, getFilterOptions } from '../../lib/supabase';
+import { fetchProvaDataParceiro, getFilterOptionsParceiro } from '../../lib/supabaseParceiro';
 import { DashboardFilters, ProvaResultado, PerformanceInsight } from '../../types';
 import FilterPanel from './FilterPanel';
 import StatsCards from './StatsCards';
@@ -11,9 +12,10 @@ import ClassroomSection from './ClassroomSection';
 
 interface DashboardProps {
   userProfile: { unidade: string } | null;
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ userProfile }) => {
+const Dashboard: React.FC<DashboardProps> = ({ userProfile, selectedSystem }) => {
   const [data, setData] = useState<ProvaResultado[]>([]);
 const [filters, setFilters] = useState<DashboardFilters>(() => ({
   unidade: userProfile?.unidade || ''
@@ -41,7 +43,7 @@ useEffect(() => {
 
   useEffect(() => {
     loadAllData();
-  }, [filters]);
+  }, [filters, selectedSystem]);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -51,12 +53,12 @@ useEffect(() => {
     try {
       // Carrega dados principais e opções de filtro em paralelo
       const [provaData, filterOptions] = await Promise.all([
-        fetchProvaData(filters),
-        getFilterOptions({
-          ...filters,
-          unidade: userProfile?.unidade
-        })
-      ]);
+  (selectedSystem === 'prova-parana' ? fetchProvaData : fetchProvaDataParceiro)(filters),
+  (selectedSystem === 'prova-parana' ? getFilterOptions : getFilterOptionsParceiro)({
+    ...filters,
+    unidade: userProfile?.unidade
+  })
+]);
       
       setData(provaData || []);
       processInsights(provaData || []);
@@ -150,7 +152,9 @@ useEffect(() => {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600">Análise de Performance - Prova Paraná</p>
+            <p className="text-gray-600">
+              Análise de Performance - {selectedSystem === 'prova-parana' ? 'Prova Paraná' : 'Avaliação Parceiro da Escola'}
+            </p>
           </div>
         </div>
         <div className="text-sm text-gray-500">
@@ -194,11 +198,13 @@ useEffect(() => {
           <ClassroomSection 
             filters={filters}
             userProfile={userProfile}
+            selectedSystem={selectedSystem}
           />
           
           <StudentsSection 
             filters={filters}
             userProfile={userProfile}
+            selectedSystem={selectedSystem}
           />
         </>
       )}

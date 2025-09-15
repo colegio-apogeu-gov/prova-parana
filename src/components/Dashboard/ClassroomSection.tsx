@@ -1,14 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, ChevronDown, ChevronRight, UserPlus, UserMinus, Trash2, X, Search, Brain, ExternalLink, Download } from 'lucide-react';
 import { getSalasDeAula, createSalaDeAula, addAlunoToSala, removeAlunoFromSala, deleteSalaDeAula, getAlunosDisponiveis, fetchProvaData, getLinkByHabilidadeComponente } from '../../lib/supabase';
+import {
+  getSalasDeAulaParceiro,
+  addAlunoToSalaParceiro,
+  removeAlunoFromSalaParceiro,
+  createSalaDeAulaParceiro,
+  fetchProvaDataParceiro,
+  getLinkByHabilidadeComponenteParceiro
+} from '../../lib/supabaseParceiro';
+
 import { SalaDeAula, SalaDeAulaAluno, DashboardFilters } from '../../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import jsPDF from 'jspdf';
 
+const apiMap = (system: 'prova-parana' | 'parceiro') => ({
+  getSalasDeAula: system === 'prova-parana' ? getSalasDeAula : getSalasDeAulaParceiro,
+  addAlunoToSala: system === 'prova-parana' ? addAlunoToSala : addAlunoToSalaParceiro,
+  removeAlunoFromSala: system === 'prova-parana' ? removeAlunoFromSala : removeAlunoFromSalaParceiro,
+  createSalaDeAula: system === 'prova-parana' ? createSalaDeAula : createSalaDeAulaParceiro,
+  fetchProvaData: system === 'prova-parana' ? fetchProvaData : fetchProvaDataParceiro,
+  getLinkByHabilidadeComponente: system === 'prova-parana' ? getLinkByHabilidadeComponente : getLinkByHabilidadeComponenteParceiro,
+});
+
+
 interface ClassroomSectionProps {
   userProfile: { unidade: string } | null;
   filters: DashboardFilters;
+  selectedSystem: 'prova-parana' | 'parceiro'; // ADICIONE
 }
+
 
 interface StudentData {
   nome_aluno: string;
@@ -30,7 +51,8 @@ interface StudentData {
   };
 }
 
-const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filters }) => {
+// antes: ({ userProfile, filters })
+const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filters, selectedSystem }) => {
   const [salas, setSalas] = useState<(SalaDeAula & { sala_de_aula_alunos: SalaDeAulaAluno[] })[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -62,7 +84,7 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
     
     setLoading(true);
     try {
-      const data = await getSalasDeAula(userProfile.unidade);
+      const data = await apiMap(selectedSystem).getSalasDeAula(userProfile.unidade);
       setSalas(data);
     } catch (error) {
       console.error('Erro ao carregar salas:', error);
@@ -105,11 +127,9 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
     if (studentsData[studentKey]) return;
 
     try {
-      const data = await fetchProvaData({
-        ...filters,
+      const data = await apiMap(selectedSystem).fetchProvaData({...filters,
         unidade: userProfile?.unidade,
-        nome_aluno: nomeAluno
-      });
+        nome_aluno: nomeAluno});
 
       const groupedData: StudentData = {
         nome_aluno: nomeAluno,
@@ -158,11 +178,10 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
     if (!userProfile?.unidade) return;
 
     try {
-      await createSalaDeAula({
-        nome: form.nome,
+      await 
+      apiMap(selectedSystem).createSalaDeAula({nome: form.nome,
         unidade: userProfile.unidade,
-        alunos: form.alunos
-      });
+        alunos: form.alunos});
       
       await loadSalas();
       setForm({ nome: '', alunos: [] });
@@ -206,7 +225,7 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
   const handleAddStudent = async (salaId: string, aluno: { nome_aluno: string; turma: string }) => {
     try {
       setAddingStudents(prev => ({ ...prev, [salaId]: true }));
-      await addAlunoToSala(salaId, aluno);
+      await apiMap(selectedSystem).addAlunoToSala(salaId, aluno);
       await loadSalas();
     } catch (error) {
       console.error('Erro ao adicionar aluno:', error);
@@ -219,7 +238,7 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
     if (!confirm('Tem certeza que deseja remover este aluno da sala?')) return;
     
     try {
-      await removeAlunoFromSala(alunoId);
+      await apiMap(selectedSystem).removeAlunoFromSala(alunoId);
       await loadSalas();
     } catch (error) {
       console.error('Erro ao remover aluno:', error);
@@ -245,7 +264,7 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
     }
 
     try {
-      const link = await getLinkByHabilidadeComponente(habilidadeCodigo, componente);
+      const link = await apiMap(selectedSystem).getLinkByHabilidadeComponente(habilidadeCodigo, componente);
       const newCache = new Map(linksCache);
       newCache.set(cacheKey, link || '');
       setLinksCache(newCache);
