@@ -4,64 +4,69 @@ import { ProvaResultado } from '../../types';
 
 interface PerformanceTrendsChartProps {
   data: ProvaResultado[];
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
-const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = ({ data }) => {
-const trendsData = React.useMemo(() => {
-  // Coletamos todos os registros (sem filtro antecipado)
-  const todosOsItens = data.filter(item => item.avaliado);
+const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = ({ data, selectedSystem }) => {
+  const trendsData = React.useMemo(() => {
+    // 🔧 Anos válidos por sistema
+    const GRADES_BY_SYSTEM: Record<'prova-parana' | 'parceiro', string[]> = {
+      'prova-parana': ['9º ano', '3º ano'],
+      parceiro: ['8º ano', '2º ano'],
+    };
 
-  // Agora sim: agrupamos por aluno ao final
-  const alunoMap: Record<string, number[]> = {};
+    const allowedGrades = GRADES_BY_SYSTEM[selectedSystem];
 
-  todosOsItens.forEach(item => {
-    const studentKey = `${item.nome_aluno}-${item.turma}-${item.componente}-${item.semestre}`;
-    if (!alunoMap[studentKey]) {
-      alunoMap[studentKey] = [];
-    }
-    alunoMap[studentKey].push(item.percentual);
-  });
+    // Filtra os itens apenas dos anos do sistema ativo e apenas avaliados
+    const itensFiltrados = data.filter(
+      (item) => item.avaliado && allowedGrades.includes(item.ano_escolar)
+    );
 
-  // Inicializa os contadores por faixa
-  const ranges = {
-    'Excelente (90-100%)': 0,
-    'Regular (50-89%)': 0,
-    'Insuficiente (0-49%)': 0
-  };
+    // Agrupa por aluno/componente/semestre para calcular médias por agrupamento
+    const alunoMap: Record<string, number[]> = {};
+    itensFiltrados.forEach((item) => {
+      const studentKey = `${item.nome_aluno}-${item.turma}-${item.componente}-${item.semestre}`;
+      if (!alunoMap[studentKey]) {
+        alunoMap[studentKey] = [];
+      }
+      alunoMap[studentKey].push(item.percentual);
+    });
 
-  // Calcula a média por aluno e classifica
-  Object.values(alunoMap).forEach(percentuais => {
-    const media = percentuais.reduce((a, b) => a + b, 0) / percentuais.length;
-    if (media >= 90) {
-      ranges['Excelente (90-100%)']++;
-    } else if (media >= 50) {
-      ranges['Regular (50-89%)']++;
-    } else {
-      ranges['Insuficiente (0-49%)']++;
-    }
-  });
+    // Inicializa contadores por faixa
+    const ranges: Record<string, number> = {
+      'Excelente (90-100%)': 0,
+      'Regular (50-89%)': 0,
+      'Insuficiente (0-49%)': 0,
+    };
 
-  const total = Object.values(ranges).reduce((a, b) => a + b, 0);
+    // Calcula a média por agrupamento e classifica nas faixas
+    Object.values(alunoMap).forEach((percentuais) => {
+      const media = percentuais.reduce((a, b) => a + b, 0) / percentuais.length;
+      if (media >= 90) {
+        ranges['Excelente (90-100%)']++;
+      } else if (media >= 50) {
+        ranges['Regular (50-89%)']++;
+      } else {
+        ranges['Insuficiente (0-49%)']++;
+      }
+    });
 
-  return Object.entries(ranges).map(([range, count]) => ({
-    range,
-    count,
-    percentage: total > 0 ? (count / total) * 100 : 0
-  }));
-}, [data]);
+    const total = Object.values(ranges).reduce((a, b) => a + b, 0);
 
-
-
-
+    return Object.entries(ranges).map(([range, count]) => ({
+      range,
+      count,
+      percentage: total > 0 ? (count / total) * 100 : 0,
+    }));
+  }, [data, selectedSystem]); // ✅ depende do sistema
 
   const getColorClass = (range: string) => {
     if (range.includes('Excelente')) return 'bg-gradient-to-r from-green-400 to-green-600';
-    //if (range.includes('Bom')) return 'bg-gradient-to-r from-blue-400 to-blue-600';
     if (range.includes('Regular')) return 'bg-gradient-to-r from-yellow-400 to-yellow-600';
     return 'bg-gradient-to-r from-red-400 to-red-600';
   };
 
-  const maxCount = Math.max(...trendsData.map(item => item.count), 1);
+  const maxCount = Math.max(...trendsData.map((item) => item.count), 1);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -100,7 +105,7 @@ const trendsData = React.useMemo(() => {
         ))}
       </div>
 
-      {trendsData.every(item => item.count === 0) && (
+      {trendsData.every((item) => item.count === 0) && (
         <div className="text-center py-8 text-gray-500">
           <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p>Nenhum dado disponível</p>

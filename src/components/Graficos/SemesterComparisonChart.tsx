@@ -4,26 +4,42 @@ import { ProvaResultado } from '../../types';
 
 interface SemesterComparisonChartProps {
   data: ProvaResultado[];
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
-const SemesterComparisonChart: React.FC<SemesterComparisonChartProps> = ({ data }) => {
+const SemesterComparisonChart: React.FC<SemesterComparisonChartProps> = ({ data, selectedSystem }) => {
   const semesterData = React.useMemo(() => {
+    // 🔧 Anos válidos por sistema
+    const GRADES_BY_SYSTEM: Record<'prova-parana' | 'parceiro', string[]> = {
+      'prova-parana': ['9º ano', '3º ano'],
+      parceiro: ['8º ano', '2º ano'],
+    };
+    const allowedGrades = GRADES_BY_SYSTEM[selectedSystem];
+
+    // Filtra: somente itens avaliados e dos anos do sistema ativo
+    const filtered = data.filter(
+      (item) => item.avaliado && allowedGrades.includes(item.ano_escolar)
+    );
+
     const semesters = { '1': [], '2': [] } as Record<string, number[]>;
-    
-    data.forEach(item => {
-      if (item.avaliado && item.semestre in semesters) {
+
+    filtered.forEach((item) => {
+      if (item.semestre in semesters) {
         semesters[item.semestre].push(item.percentual);
       }
     });
 
     return Object.entries(semesters).map(([semester, percentuals]) => ({
       semester: `${semester}º Semestre`,
-      average: percentuals.length > 0 ? percentuals.reduce((a, b) => a + b, 0) / percentuals.length : 0,
-      count: percentuals.length
+      average:
+        percentuals.length > 0
+          ? percentuals.reduce((a, b) => a + b, 0) / percentuals.length
+          : 0,
+      count: percentuals.length,
     }));
-  }, [data]);
+  }, [data, selectedSystem]); // ✅ reage à troca de sistema
 
-  const maxAverage = Math.max(...semesterData.map(item => item.average), 1);
+  const maxAverage = Math.max(...semesterData.map((item) => item.average), 1);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -38,7 +54,7 @@ const SemesterComparisonChart: React.FC<SemesterComparisonChartProps> = ({ data 
 
       <div className="space-y-4">
         {semesterData.map((item, index) => (
-          <div key={index} className="space-y-2">
+          <div key={item.semester} className="space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-gray-700">
                 {item.semester}
@@ -55,7 +71,9 @@ const SemesterComparisonChart: React.FC<SemesterComparisonChartProps> = ({ data 
             <div className="w-full bg-gray-200 rounded-full h-3">
               <div
                 className={`h-3 rounded-full transition-all duration-300 ${
-                  index === 0 ? 'bg-gradient-to-r from-indigo-400 to-indigo-600' : 'bg-gradient-to-r from-cyan-400 to-cyan-600'
+                  index === 0
+                    ? 'bg-gradient-to-r from-indigo-400 to-indigo-600'
+                    : 'bg-gradient-to-r from-cyan-400 to-cyan-600'
                 }`}
                 style={{ width: `${(item.average / maxAverage) * 100}%` }}
               />

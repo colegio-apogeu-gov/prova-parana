@@ -237,7 +237,7 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile,
 
   useEffect(() => {
     loadStudentsData();
-  }, [filters, selectedSystem]);
+  }, [filters, selectedSystem, userProfile]);
 
   const loadStudentsData = async () => {
     setLoading(true);

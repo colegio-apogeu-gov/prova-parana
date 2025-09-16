@@ -2,25 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { Filter } from 'lucide-react';
 import { DashboardFilters } from '../../types';
 import { searchStudents, getFilterOptions } from '../../lib/supabase';
+import { searchStudentsParceiro, getFilterOptionsParceiro } from '../../lib/supabaseParceiro';
 
 interface FilterPanelProps {
   filters: DashboardFilters;
   onFiltersChange: (filters: DashboardFilters) => void;
   userProfile: { unidade: string } | null;
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
 const FilterPanel: React.FC<FilterPanelProps> = ({
   filters,
   onFiltersChange,
-  userProfile
+  userProfile,
+  selectedSystem
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [filterOptions, setFilterOptions] = useState<{
-    niveis: string[];
+    niveis?: string[];
+    padroes?: string[];
     habilidades: Array<{ codigo: string; id: string; descricao: string; nivel_aprendizagem?: string }>;
   }>({
     niveis: [],
+    padroes: [],
     habilidades: []
   });
 
@@ -28,7 +33,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     if (searchTerm.length > 0) {
       const fetchSuggestions = async () => {
         try {
-          const students = await searchStudents(searchTerm, filters);
+          const searchFn = selectedSystem === 'prova-parana' ? searchStudents : searchStudentsParceiro;
+          const students = await searchFn(searchTerm, filters);
           setSuggestions(students);
         } catch (error) {
           console.error('Erro ao buscar alunos:', error);
@@ -41,24 +47,25 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     } else {
       setSuggestions([]);
     }
-  }, [searchTerm, filters]);
+  }, [searchTerm, filters, selectedSystem]);
 
   useEffect(() => {
     const fetchFilterOptions = async () => {
       try {
-        const options = await getFilterOptions({
+        const getOptionsFn = selectedSystem === 'prova-parana' ? getFilterOptions : getFilterOptionsParceiro;
+        const options = await getOptionsFn({
           ...filters,
           unidade: userProfile?.unidade
         });
         setFilterOptions(options);
       } catch (error) {
         console.error('Erro ao buscar opções de filtro:', error);
-        setFilterOptions({ niveis: [], habilidades: [] });
+        setFilterOptions({ niveis: [], padroes: [], habilidades: [] });
       }
     };
 
     fetchFilterOptions();
-  }, [filters, userProfile]);
+  }, [filters, userProfile, selectedSystem]);
 
   useEffect(() => {
     if (filters.nome_aluno) {
@@ -70,7 +77,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
   const updateFilter = (key: keyof DashboardFilters, value: string) => {
     // 🔄 Limpa o filtro de habilidade quando nível muda
-    if (key === 'nivel_aprendizagem') {
+    if (key === 'nivel_aprendizagem' || key === 'padrao_desempenho') {
       onFiltersChange({
         ...filters,
         [key]: value || undefined,
@@ -90,7 +97,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     setSuggestions([]);
   };
 
-  const nivelSelecionado = filters.nivel_aprendizagem && filters.nivel_aprendizagem !== '';
+  const nivelSelecionado = selectedSystem === 'prova-parana' 
+    ? (filters.nivel_aprendizagem && filters.nivel_aprendizagem !== '')
+    : (filters.padrao_desempenho && filters.padrao_desempenho !== '');
 
 const habilidadesFiltradas = nivelSelecionado
   ? filterOptions.habilidades
@@ -208,45 +217,69 @@ const habilidadesFiltradas = nivelSelecionado
           </select>
         </div>
 
-        {/* Nível de Aprendizagem */}
+        {/* Nível de Aprendizagem ou Padrão de Desempenho */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Nível de Aprendizagem
+            {selectedSystem === 'prova-parana' ? 'Nível de Aprendizagem' : 'Padrão de Desempenho'}
           </label>
           <select
-            value={filters.nivel_aprendizagem || ''}
-            onChange={(e) => updateFilter('nivel_aprendizagem', e.target.value)}
+            value={selectedSystem === 'prova-parana' ? (filters.nivel_aprendizagem || '') : (filters.padrao_desempenho || '')}
+            onChange={(e) => updateFilter(selectedSystem === 'prova-parana' ? 'nivel_aprendizagem' : 'padrao_desempenho', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            <option value="">Selecione um nível de aprendizagem</option>
-            {filterOptions.niveis.map((nivel) => (
-              <option key={nivel} value={nivel}>
-                {nivel}
-              </option>
-            ))}
+            <option value="">{selectedSystem === 'prova-parana' ? 'Selecione um nível de aprendizagem' : 'Selecione um padrão de desempenho'}</option>
+            {selectedSystem === 'prova-parana' 
+              ? filterOptions.niveis?.map((nivel) => (
+                  <option key={nivel} value={nivel}>
+                    {nivel}
+                  </option>
+                ))
+              : filterOptions.padroes?.map((padrao) => (
+                  <option key={padrao} value={padrao}>
+                    {padrao}
+                  </option>
+                ))
+            }
           </select>
         </div>
 
-        {/* Habilidade (condicional) */}
-        {nivelSelecionado && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Habilidade
-            </label>
-            <select
-              value={filters.habilidade_codigo || ''}
-              onChange={(e) => updateFilter('habilidade_codigo', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Todas</option>
-              {habilidadesFiltradas.map((habilidade) => (
-                <option key={habilidade.codigo} value={habilidade.codigo}>
-                  {habilidade.codigo} - {habilidade.id} - {habilidade.descricao}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+{/* Habilidade (condicional) */}
+{nivelSelecionado && (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Habilidade
+    </label>
+    <select
+      value={filters.habilidade_codigo || ''}
+      onChange={(e) => updateFilter('habilidade_codigo', e.target.value)}
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    >
+      <option value="">Todas</option>
+      {selectedSystem === 'prova-parana' ? (
+        <>
+          <option value="9º ano">9º ano</option>
+          <option value="3º ano">3º ano</option>
+        </>
+      ) : (
+        <>
+          <option value="8º ano">8º ano</option>
+          <option value="2º ano">2º ano</option>
+        </>
+      )}
+
+      {/* ✅ Aqui entram as habilidades do backend */}
+      {habilidadesFiltradas.map((habilidade) => (
+        <option
+          key={`${habilidade.codigo}-${habilidade.id}`}
+          value={habilidade.codigo}
+        >
+          {habilidade.codigo} - {habilidade.id} - {habilidade.descricao}
+        </option>
+      ))}
+    </select>
+  </div>
+)}
+
       </div>
     </div>
   );

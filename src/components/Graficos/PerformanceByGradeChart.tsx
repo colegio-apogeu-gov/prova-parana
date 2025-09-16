@@ -4,24 +4,32 @@ import { ProvaResultado } from '../../types';
 
 interface PerformanceByGradeChartProps {
   data: ProvaResultado[];
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
-const PerformanceByGradeChart: React.FC<PerformanceByGradeChartProps> = ({ data }) => {
-  const gradeData = React.useMemo(() => {
-    const grades = { '9º ano': [], '3º ano': [] } as Record<string, number[]>;
-    
-    data.forEach(item => {
-      if (item.avaliado && item.ano_escolar in grades) {
-        grades[item.ano_escolar].push(item.percentual);
-      }
-    });
+const PerformanceByGradeChart: React.FC<PerformanceByGradeChartProps> = ({ data, selectedSystem }) => {
+const gradeData = React.useMemo(() => {
+  const grades =
+    selectedSystem === 'prova-parana'
+      ? { '9º ano': [], '3º ano': [] }
+      : { '8º ano': [], '2º ano': [] };
 
-    return Object.entries(grades).map(([grade, percentuals]) => ({
-      grade,
-      average: percentuals.length > 0 ? percentuals.reduce((a, b) => a + b, 0) / percentuals.length : 0,
-      count: percentuals.length
-    }));
-  }, [data]);
+  data.forEach(item => {
+    if (item.avaliado && item.ano_escolar in grades) {
+      grades[item.ano_escolar].push(item.percentual);
+    }
+  });
+
+  return Object.entries(grades).map(([grade, percentuals]) => ({
+    grade,
+    average:
+      percentuals.length > 0
+        ? percentuals.reduce((a, b) => a + b, 0) / percentuals.length
+        : 0,
+    count: percentuals.length,
+  }));
+}, [data, selectedSystem]);
+
 
   const maxAverage = Math.max(...gradeData.map(item => item.average), 1);
 

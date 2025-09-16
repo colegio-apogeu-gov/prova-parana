@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PieChart, BarChart3, TrendingUp, Users, Target, BookOpen, Award, Calendar } from 'lucide-react';
 import { fetchProvaData, fetchAllProvaData } from '../../lib/supabase';
+import { fetchProvaDataParceiro, fetchAllProvaDataParceiro } from '../../lib/supabaseParceiro';
 import { ProvaResultado } from '../../types';
 import PerformanceByGradeChart from './PerformanceByGradeChart';
 import ComponentComparisonChart from './ComponentComparisonChart';
@@ -40,7 +41,8 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
       };
       
       // Busca TODOS os dados sem limitação para gráficos
-      const result = await fetchAllProvaData(filters);
+      const fetchFn = selectedSystem === 'prova-parana' ? fetchAllProvaData : fetchAllProvaDataParceiro;
+      const result = await fetchFn(filters);
       setData(result || []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -62,7 +64,7 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
     });
     
     return Array.from(uniqueStudents.values());
-  }, [data]);
+  }, [data, selectedSystem]);
 
   const updateFilter = (key: string, value: string) => {
     setSelectedFilters(prev => ({
@@ -160,14 +162,14 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
 
       {/* Grid de Gráficos */}
       <div className="grid lg:grid-cols-2 gap-6">
-        <PerformanceByGradeChart data={processedData} />
-        <ComponentComparisonChart data={processedData} />
-        <LearningLevelsChart data={processedData} />
-        <SkillsPerformanceChart data={data} />
-        <SemesterComparisonChart data={processedData} />
+        <PerformanceByGradeChart data={processedData} selectedSystem={selectedSystem}/>
+        <ComponentComparisonChart data={processedData} selectedSystem={selectedSystem}/>
+        <LearningLevelsChart data={processedData} selectedSystem={selectedSystem} />
+        <SkillsPerformanceChart data={data} selectedSystem={selectedSystem}/>
+        <SemesterComparisonChart data={processedData} selectedSystem={selectedSystem}/>
         
-        <ParticipationChart data={data} />
-        <PerformanceTrendsChart data={data} />
+        <ParticipationChart data={data} selectedSystem={selectedSystem}/>
+        <PerformanceTrendsChart data={data} selectedSystem={selectedSystem}/>
       </div>
     </div>
   );

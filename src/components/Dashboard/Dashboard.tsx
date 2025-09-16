@@ -186,6 +186,7 @@ useEffect(() => {
             filters={filters} 
             onFiltersChange={setFilters}
             userProfile={userProfile}
+            selectedSystem={selectedSystem}
           />
           
           <StatsCards insights={insights} />
