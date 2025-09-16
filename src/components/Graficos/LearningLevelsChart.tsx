@@ -4,19 +4,21 @@ import { ProvaResultado } from '../../types';
 
 interface LearningLevelsChartProps {
   data: ProvaResultado[];
+  selectedSystem?: 'prova-parana' | 'parceiro';
 }
 
-const LearningLevelsChart: React.FC<LearningLevelsChartProps> = ({ data }) => {
+const LearningLevelsChart: React.FC<LearningLevelsChartProps> = ({ data, selectedSystem = 'prova-parana' }) => {
   const levelsData = React.useMemo(() => {
     const levels: Record<string, number> = {};
     const uniqueStudents = new Set<string>();
     
     data.forEach(item => {
-      if (item.avaliado && item.nivel_aprendizagem) {
+      const levelField = selectedSystem === 'prova-parana' ? item.nivel_aprendizagem : (item as any).padrao_desempenho;
+      if (item.avaliado && levelField) {
         const studentKey = `${item.nome_aluno}-${item.turma}-${item.componente}-${item.semestre}`;
         if (!uniqueStudents.has(studentKey)) {
           uniqueStudents.add(studentKey);
-          levels[item.nivel_aprendizagem] = (levels[item.nivel_aprendizagem] || 0) + 1;
+          levels[levelField] = (levels[levelField] || 0) + 1;
         }
       }
     });
@@ -52,7 +54,7 @@ const LearningLevelsChart: React.FC<LearningLevelsChartProps> = ({ data }) => {
           <Target className="w-5 h-5 text-green-600" />
         </div>
         <h3 className="text-lg font-semibold text-gray-900">
-          Distribuição por Nível de Aprendizagem
+          {selectedSystem === 'prova-parana' ? 'Distribuição por Nível de Aprendizagem' : 'Distribuição por Padrão de Desempenho'}
         </h3>
       </div>
 

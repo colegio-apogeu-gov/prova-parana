@@ -4,74 +4,92 @@ import { ProvaResultado } from '../../types';
 
 interface SkillsPerformanceChartProps {
   data: ProvaResultado[];
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
-const SkillsPerformanceChart: React.FC<SkillsPerformanceChartProps> = ({ data }) => {
+const SkillsPerformanceChart: React.FC<SkillsPerformanceChartProps> = ({ data, selectedSystem }) => {
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
 
+  // 🔁 Sempre que o sistema mudar, volte para a página 1
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedSystem]);
+
   const skillsData = React.useMemo(() => {
-    const skills: Record<string, { 
-      total_acertos: number; 
-      total_questoes: number; 
+    // 🎯 Anos válidos por sistema
+    const GRADES_BY_SYSTEM: Record<'prova-parana' | 'parceiro', string[]> = {
+      'prova-parana': ['9º ano', '3º ano'],
+      parceiro: ['8º ano', '2º ano'],
+    };
+    const allowedGrades = GRADES_BY_SYSTEM[selectedSystem];
+
+    // 🏷️ Mapeamento de componentes por sistema (ajuste se o parceiro usar códigos diferentes)
+    const COMPONENTS_BY_SYSTEM: Record<'prova-parana' | 'parceiro', Record<string, string>> = {
+      'prova-parana': { LP: 'Língua Portuguesa', MT: 'Matemática' },
+      parceiro: { LP: 'Língua Portuguesa', MT: 'Matemática' },
+    };
+    const componentLabel = COMPONENTS_BY_SYSTEM[selectedSystem];
+
+    const skills: Record<string, {
+      total_acertos: number;
+      total_questoes: number;
       count: number;
       habilidade_codigo: string;
       descricao_habilidade: string;
       componente: string;
     }> = {};
-    
-    data.forEach(item => {
-      if (item.avaliado && item.habilidade_id) {
-        const skillKey = `${item.habilidade_id}-${item.componente}`;
-        if (!skills[skillKey]) {
-          skills[skillKey] = { 
-            total_acertos: 0, 
-            total_questoes: 0, 
-            count: 0,
-            habilidade_codigo: item.habilidade_codigo,
-            descricao_habilidade: item.descricao_habilidade,
-            componente: item.componente
-          };
-        }
-        skills[skillKey].total_acertos += item.acertos;
-        skills[skillKey].total_questoes += item.total;
-        skills[skillKey].count += 1;
+
+    // Filtra: apenas itens avaliados, dos anos do sistema ativo e com habilidade válida
+    const filtered = data.filter(
+      (item) =>
+        item.avaliado &&
+        !!item.habilidade_id &&
+        allowedGrades.includes(item.ano_escolar)
+    );
+
+    filtered.forEach((item) => {
+      // chave agrega por habilidade + componente (evita misturar habilidades iguais em componentes diferentes)
+      const skillKey = `${item.habilidade_id}__${item.componente}`;
+      if (!skills[skillKey]) {
+        skills[skillKey] = {
+          total_acertos: 0,
+          total_questoes: 0,
+          count: 0,
+          habilidade_codigo: item.habilidade_codigo,
+          descricao_habilidade: item.descricao_habilidade,
+          componente: item.componente,
+        };
       }
+      skills[skillKey].total_acertos += item.acertos;
+      skills[skillKey].total_questoes += item.total;
+      skills[skillKey].count += 1;
     });
 
     return Object.entries(skills)
-      .map(([skillKey, data]) => ({
-        skill: skillKey.split('-')[0], // Extrai apenas o habilidade_id
-        habilidade_codigo: data.habilidade_codigo,
-        descricao: data.descricao_habilidade,
-        componente: data.componente === 'LP' ? 'Língua Portuguesa' : 'Matemática',
-        average: data.total_questoes > 0 ? (data.total_acertos / data.total_questoes) * 100 : 0,
-        count: data.count
-      }))
-      .sort((a, b) => a.average - b.average)
-      ; // Todas as habilidades ordenadas da menor para maior performance
-  }, [data]);
+      .map(([skillKey, s]) => {
+        const [habilidadeId, compCode] = skillKey.split('__');
+        return {
+          skill: habilidadeId,
+          habilidade_codigo: s.habilidade_codigo,
+          descricao: s.descricao_habilidade,
+          componente: componentLabel[compCode] ?? compCode,
+          average: s.total_questoes > 0 ? (s.total_acertos / s.total_questoes) * 100 : 0,
+          count: s.count,
+          code: compCode,
+        };
+      })
+      .sort((a, b) => a.average - b.average); // menor → maior performance
+  }, [data, selectedSystem]);
 
   const totalPages = Math.ceil(skillsData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentSkills = skillsData.slice(startIndex, endIndex);
 
-  const goToPage = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
-  };
-
-  const goToPrevious = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const goToNext = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
+  const goToPage = (page: number) => setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  const goToPrevious = () => currentPage > 1 && setCurrentPage(currentPage - 1);
+  const goToNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
   const getPerformanceColor = (average: number) => {
     if (average >= 70) return 'bg-gradient-to-r from-green-400 to-green-600';
@@ -91,8 +109,8 @@ const SkillsPerformanceChart: React.FC<SkillsPerformanceChartProps> = ({ data })
       </div>
 
       <div className="space-y-3">
-        {currentSkills.map((item, index) => (
-          <div key={index} className="p-3 bg-gray-50 rounded-lg">
+        {currentSkills.map((item) => (
+          <div key={`${item.habilidade_codigo}-${item.code}`} className="p-3 bg-gray-50 rounded-lg">
             <div className="flex justify-between items-start mb-2">
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-900">
@@ -120,7 +138,9 @@ const SkillsPerformanceChart: React.FC<SkillsPerformanceChartProps> = ({ data })
       {totalPages > 1 && (
         <div className="mt-6 flex items-center justify-between">
           <div className="text-sm text-gray-600">
-            Mostrando {startIndex + 1}-{Math.min(endIndex, skillsData.length)} de {skillsData.length} habilidades
+            Mostrando {skillsData.length === 0 ? 0 : startIndex + 1}
+            -
+            {Math.min(endIndex, skillsData.length)} de {skillsData.length} habilidades
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -130,20 +150,15 @@ const SkillsPerformanceChart: React.FC<SkillsPerformanceChartProps> = ({ data })
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            
+
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 let pageNumber;
-                if (totalPages <= 5) {
-                  pageNumber = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNumber = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNumber = totalPages - 4 + i;
-                } else {
-                  pageNumber = currentPage - 2 + i;
-                }
-                
+                if (totalPages <= 5) pageNumber = i + 1;
+                else if (currentPage <= 3) pageNumber = i + 1;
+                else if (currentPage >= totalPages - 2) pageNumber = totalPages - 4 + i;
+                else pageNumber = currentPage - 2 + i;
+
                 return (
                   <button
                     key={pageNumber}
@@ -159,7 +174,7 @@ const SkillsPerformanceChart: React.FC<SkillsPerformanceChartProps> = ({ data })
                 );
               })}
             </div>
-            
+
             <button
               onClick={goToNext}
               disabled={currentPage === totalPages}

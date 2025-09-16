@@ -91,6 +91,7 @@ export interface DashboardFilters {
   semestre?: string;
   nome_aluno?: string;
   nivel_aprendizagem?: string;
+  padrao_desempenho?: string;
   habilidade_codigo?: string;
 }
 

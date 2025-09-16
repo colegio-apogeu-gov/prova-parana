@@ -7,7 +7,8 @@ import {
   removeAlunoFromSalaParceiro,
   createSalaDeAulaParceiro,
   fetchProvaDataParceiro,
-  getLinkByHabilidadeComponenteParceiro
+  getLinkByHabilidadeComponenteParceiro,
+  getAlunosDisponivelParceiro
 } from '../../lib/supabaseParceiro';
 
 import { SalaDeAula, SalaDeAulaAluno, DashboardFilters } from '../../types';
@@ -77,7 +78,7 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
       loadSalas();
       loadAlunosDisponiveis();
     }
-  }, [userProfile]);
+  }, [userProfile, selectedSystem]);
 
   const loadSalas = async () => {
     if (!userProfile?.unidade) return;
@@ -97,7 +98,8 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
     if (!userProfile?.unidade) return;
     
     try {
-      const alunos = await getAlunosDisponiveis({
+      const getAlunosFn = selectedSystem === 'prova-parana' ? getAlunosDisponiveis : getAlunosDisponivelParceiro;
+      const alunos = await getAlunosFn({
         unidade: userProfile.unidade,
         ...filters
       });

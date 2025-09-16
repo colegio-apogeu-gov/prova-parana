@@ -4,17 +4,31 @@ import { ProvaResultado } from '../../types';
 
 interface ParticipationChartProps {
   data: ProvaResultado[];
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
-const ParticipationChart: React.FC<ParticipationChartProps> = ({ data }) => {
+const ParticipationChart: React.FC<ParticipationChartProps> = ({ data, selectedSystem }) => {
   const participationData = React.useMemo(() => {
+    // 🔧 Anos válidos por sistema
+    const GRADES_BY_SYSTEM: Record<'prova-parana' | 'parceiro', string[]> = {
+      'prova-parana': ['9º ano', '3º ano'],
+      parceiro: ['8º ano', '2º ano'],
+    };
+
+    const allowedGrades = GRADES_BY_SYSTEM[selectedSystem];
+
     const uniqueStudents = new Set<string>();
     const evaluatedStudents = new Set<string>();
-    
-    data.forEach(item => {
+
+    // Se quiser considerar só os anos pertinentes ao sistema:
+    const filtered = data.filter(item => allowedGrades.includes(item.ano_escolar));
+
+    filtered.forEach(item => {
+      // 🔑 chave do aluno (ajuste se tiver um ID único)
       const studentKey = `${item.nome_aluno}-${item.turma}`;
+
       uniqueStudents.add(studentKey);
-      
+
       if (item.avaliado) {
         evaluatedStudents.add(studentKey);
       }
@@ -29,9 +43,9 @@ const ParticipationChart: React.FC<ParticipationChartProps> = ({ data }) => {
       totalStudents,
       participatingStudents,
       nonParticipatingStudents,
-      participationRate
+      participationRate,
     };
-  }, [data]);
+  }, [data, selectedSystem]); // ✅ depende do sistema
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -45,7 +59,7 @@ const ParticipationChart: React.FC<ParticipationChartProps> = ({ data }) => {
       </div>
 
       <div className="space-y-6">
-        {/* Taxa de participação principal */}
+        {/* Taxa principal */}
         <div className="text-center">
           <div className="text-4xl font-bold text-cyan-600 mb-2">
             {participationData.participationRate.toFixed(1)}%
@@ -53,7 +67,7 @@ const ParticipationChart: React.FC<ParticipationChartProps> = ({ data }) => {
           <p className="text-gray-600">Taxa de Participação</p>
         </div>
 
-        {/* Breakdown detalhado */}
+        {/* Breakdown */}
         <div className="space-y-4">
           <div className="space-y-2">
             <div className="flex justify-between items-center">
@@ -67,8 +81,10 @@ const ParticipationChart: React.FC<ParticipationChartProps> = ({ data }) => {
             <div className="w-full bg-gray-200 rounded-full h-3">
               <div
                 className="bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full transition-all duration-300"
-                style={{ 
-                  width: `${participationData.totalStudents > 0 ? (participationData.participatingStudents / participationData.totalStudents) * 100 : 0}%` 
+                style={{
+                  width: `${participationData.totalStudents > 0
+                    ? (participationData.participatingStudents / participationData.totalStudents) * 100
+                    : 0}%`
                 }}
               />
             </div>
@@ -86,8 +102,10 @@ const ParticipationChart: React.FC<ParticipationChartProps> = ({ data }) => {
             <div className="w-full bg-gray-200 rounded-full h-3">
               <div
                 className="bg-gradient-to-r from-red-400 to-red-600 h-3 rounded-full transition-all duration-300"
-                style={{ 
-                  width: `${participationData.totalStudents > 0 ? (participationData.nonParticipatingStudents / participationData.totalStudents) * 100 : 0}%` 
+                style={{
+                  width: `${participationData.totalStudents > 0
+                    ? (participationData.nonParticipatingStudents / participationData.totalStudents) * 100
+                    : 0}%`
                 }}
               />
             </div>
