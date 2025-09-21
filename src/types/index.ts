@@ -67,6 +67,7 @@ export interface UploadFormParceiro {
   ano: '8º ano' | '2º ano';
   componente: 'MT' | 'LP';
   semestre: '1' | '2';
+  unidade: string;
   file: File | null;
 }
 
@@ -81,6 +82,7 @@ export interface UploadForm {
   ano: '9º ano' | '3º ano';
   componente: 'MT' | 'LP';
   semestre: '1' | '2';
+  unidade: string;
   file: File | null;
 }
 

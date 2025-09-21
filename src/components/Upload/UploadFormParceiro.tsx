@@ -13,12 +13,32 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
     ano: '8º ano',
     componente: 'LP',
     semestre: '1',
+    unidade: '',
     file: null,
   });
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [previewData, setPreviewData] = useState<any[]>([]);
+
+  const UNIDADES_OPCOES = [
+    'ANITA CANET C E EF M',
+    'ANTONIO TUPY PINHEIRO C E EF M',
+    'COSTA VIANA C E EF M PROFIS N',
+    'CRISTO REI C E EF M',
+    'DECIO DOSSI C E DR EF M PROFIS',
+    'FRANCISCO C MARTINS C E EM PROF',
+    'GODOFREDO MACHADO E E EF',
+    'ISABEL L S SOUZA C E PROFA EF M',
+    'IVO LEAO C E EF M',
+    'JOAO DE OLIVEIRA FRANCO C E EF M',
+    'JOAO MAZZAROTTO C E EF M',
+    'LIANE MARTA DA COSTA C E EF M',
+    'PAULO FREIRE C E PROF E F M N',
+    'SANTO AGOSTINHO C E EF M',
+    'TARSILA DO AMARAL C E EF M',
+    'TEREZA DA S RAMOS C E PROFA EF M'
+  ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -125,7 +145,7 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
     data.forEach((row: any) => {
       // Identifica as colunas principais
       const nomeAluno = String(row['Estudante'] || row['Nome'] || row['ESTUDANTE'] || '').trim();
-      const escola = String(row['Escola'] || row['ESCOLA'] || '').trim();
+      const escola = form.unidade; // Usa o valor selecionado no formulário
       const turma = String(row['Código da Turma'] || row['Turma'] || row['CÓDIGO DA TURMA'] || '').trim();
       const padraoDesempenho = String(row['Padrão de Desempenho'] || row['PADRÃO DE DESEMPENHO'] || '').trim();
       const proficiencia = String(row['Proficiência'] || row['PROFICIÊNCIA'] || '').trim();
@@ -237,6 +257,7 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
             ano: '8º ano',
             componente: 'LP',
             semestre: '1',
+            unidade: '',
             file: null,
           });
           setPreviewData([]);
@@ -272,7 +293,26 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Unidade Escolar
+            </label>
+            <select
+              value={form.unidade}
+              onChange={(e) => setForm({ ...form, unidade: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              required
+            >
+              <option value="">Selecione a unidade</option>
+              {UNIDADES_OPCOES.map((unidade) => (
+                <option key={unidade} value={unidade}>
+                  {unidade}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Semestre
