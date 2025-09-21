@@ -330,76 +330,109 @@ export const searchStudentsParceiro = async (searchTerm: string, filters: any = 
   return uniqueNames;
 };
 
+// Paginação padrão (pageSize = 1000) para qualquer query do Supabase
+const fetchAllPaginated = async <T>(buildQuery: () => any, pageSize = 1000): Promise<T[]> => {
+  const all: T[] = [];
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    // IMPORTANTE: construir uma NOVA query a cada iteração
+    const query = buildQuery().range(page * pageSize, (page + 1) * pageSize - 1);
+    const { data, error } = await query;
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      all.push(...data);
+      hasMore = data.length === pageSize;
+      page++;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return all;
+};
+
+
 export const getFilterOptionsParceiro = async (filters: any = {}) => {
   try {
-    // Busca níveis de aprendizagem únicos
-    let padroesQuery = supabase
-      .from('prova_resultados_parceiro')
-      .select('padrao_desempenho')
-      .not('padrao_desempenho', 'is', null)
-      .not('padrao_desempenho', 'eq', '');
-
-    // Busca habilidades únicas
-    let habilidadesQuery = supabase
-      .from('prova_resultados_parceiro')
-      .select('habilidade_codigo, habilidade_id, descricao_habilidade')
-      .not('habilidade_codigo', 'is', null)
-      .not('habilidade_codigo', 'eq', '');
-
+    // Base "limpa" para filtros
     const filtrosLimpos = { ...filters };
 
-    // Aplica filtros para a busca de padrões (exceto ele mesmo)
-    Object.entries(filtrosLimpos).forEach(([key, value]) => {
-      if (value && key !== 'padrao_desempenho') {
-        padroesQuery = padroesQuery.eq(key, value);
-      }
-    });
+    // ====== PADRÕES (padrao_desempenho) ======
+    const buildPadroesQuery = () => {
+      let q = supabase
+        .from('prova_resultados_parceiro')
+        .select('padrao_desempenho')
+        .in('padrao_desempenho', ['Básico', 'Abaixo do Básico', 'Adequado']);
 
-    // Aplica filtros à busca de habilidades, incluindo o padrão, se houver
-    Object.entries(filtrosLimpos).forEach(([key, value]) => {
-      if (value && key !== 'habilidade_codigo') {
-        habilidadesQuery = habilidadesQuery.eq(key, value);
-      }
-    });
+      // aplica filtros exceto ele mesmo
+      Object.entries(filtrosLimpos).forEach(([key, value]) => {
+        if (value && key !== 'padrao_desempenho') {
+          q = q.eq(key, value as any);
+        }
+      });
+      return q;
+    };
 
-    const [padroesResult, habilidadesResult] = await Promise.all([
-      padroesQuery,
-      habilidadesQuery
-    ]);
-
-    if (padroesResult.error) throw padroesResult.error;
-    if (habilidadesResult.error) throw habilidadesResult.error;
-
+    const padroesRows = await fetchAllPaginated<{ padrao_desempenho: string | null }>(buildPadroesQuery);
     const padroesUnicos = [...new Set(
-      padroesResult.data?.map(item => item.padrao_desempenho).filter(Boolean) || []
+      (padroesRows || []).map(r => r.padrao_desempenho).filter(Boolean) as string[]
     )].sort();
 
-    const habilidadesMap = new Map();
-    habilidadesResult.data?.forEach(item => {
+    // ====== HABILIDADES (habilidade_codigo, habilidade_id, descricao_habilidade) ======
+    const buildHabilidadesQuery = () => {
+      let q = supabase
+        .from('prova_resultados_parceiro')
+        .select('habilidade_codigo, habilidade_id, descricao_habilidade')
+        .not('habilidade_codigo', 'is', null)
+        .not('habilidade_codigo', 'eq', '');
+
+      // aplica filtros (inclui padrao, se vier no filtro)
+      Object.entries(filtrosLimpos).forEach(([key, value]) => {
+        if (value && key !== 'habilidade_codigo') {
+          q = q.eq(key, value as any);
+        }
+      });
+      return q;
+    };
+
+    const habilidadesRows = await fetchAllPaginated<{
+      habilidade_codigo: string | null;
+      habilidade_id: number | null;
+      descricao_habilidade: string | null;
+    }>(buildHabilidadesQuery);
+
+    // map/unique/sort de habilidades
+    const habilidadesMap = new Map<string, { codigo: string; id: number | null; descricao: string | null }>();
+    (habilidadesRows || []).forEach(item => {
       if (item.habilidade_codigo) {
         habilidadesMap.set(item.habilidade_codigo, {
           codigo: item.habilidade_codigo,
-          id: item.habilidade_id,
-          descricao: item.descricao_habilidade
+          id: item.habilidade_id ?? null,
+          descricao: item.descricao_habilidade ?? null
         });
       }
     });
 
-    const habilidadesUnicas = Array.from(habilidadesMap.values())
+    const habilidadesUnicas = Array
+      .from(habilidadesMap.values())
       .sort((a, b) => a.codigo.localeCompare(b.codigo));
 
     return {
       padroes: padroesUnicos,
       habilidades: habilidadesUnicas
     };
-  } catch (error) {
-    console.error('Erro ao buscar opções de filtro:', error);
+  } catch (e) {
+    console.error(e);
     return {
       padroes: [],
       habilidades: []
     };
   }
 };
+
 
 // Links questões functions
 export const getLinksQuestoesParceiro = async () => {

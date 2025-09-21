@@ -11,6 +11,7 @@ import UploadForm from './components/Upload/UploadForm';
 import UploadFormParceiro from './components/Upload/UploadFormParceiro';
 import CadastrarAtividades from './components/CadastrarAtividades/CadastrarAtividades';
 import Graficos from './components/Graficos/Graficos';
+import ComparacaoProvas from './components/ComparacaoProvas/ComparacaoProvas';
 import { UserProfile } from './types';
 
 function App() {
@@ -20,8 +21,8 @@ function App() {
   const [selectedSystem, setSelectedSystem] = useState<'prova-parana' | 'parceiro' | null>(() => {
     return (localStorage.getItem('selectedSystem') as 'prova-parana' | 'parceiro') || null;
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'upload' | 'atividades' | 'graficos'>(() => {
-    return (localStorage.getItem('activeTab') as 'dashboard' | 'upload' | 'atividades' | 'graficos') || 'dashboard';
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao'>(() => {
+    return (localStorage.getItem('activeTab') as 'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao') || 'dashboard';
   });
 
   useEffect(() => {
@@ -127,6 +128,8 @@ function App() {
           )
         ) : activeTab === 'graficos' ? (
           <Graficos userProfile={userProfile} selectedSystem={selectedSystem} />
+        ) : activeTab === 'comparacao' ? (
+          <ComparacaoProvas userProfile={userProfile} />
         ) : (
           <CadastrarAtividades selectedSystem={selectedSystem} />
         )}
