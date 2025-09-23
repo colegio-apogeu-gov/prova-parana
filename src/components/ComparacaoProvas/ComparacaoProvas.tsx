@@ -131,7 +131,7 @@ const ComparacaoProvas: React.FC<ComparacaoProvasProps> = ({ userProfile }) => {
       />
 
       {/* Cards de Resumo */}
-      <div className="grid md:grid-cols-4 gap-6">
+      <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div className="bg-blue-100 p-2 rounded-lg">
@@ -160,33 +160,6 @@ const ComparacaoProvas: React.FC<ComparacaoProvasProps> = ({ userProfile }) => {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div className="bg-purple-100 p-2 rounded-lg">
-              <BarChart3 className="w-6 h-6 text-purple-600" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <p className="text-sm font-medium text-gray-600">Avaliações Prova Paraná</p>
-            <p className="text-2xl font-bold text-purple-600 mt-1">
-              {dataParana.filter(item => item.avaliado).length}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div className="bg-orange-100 p-2 rounded-lg">
-              <BarChart3 className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <p className="text-sm font-medium text-gray-600">Avaliações Parceiro</p>
-            <p className="text-2xl font-bold text-orange-600 mt-1">
-              {dataParceiro.filter(item => item.avaliado).length}
-            </p>
-          </div>
-        </div>
       </div>
 
       {/* Grid de Gráficos Comparativos */}
