@@ -111,7 +111,7 @@ const distributionData = React.useMemo(() => {
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-                  <span className="text-sm text-gray-600">Prova Paraná</span>
+                  <span className="text-sm text-gray-600">Prova Paraná Recomposição</span>
                 </div>
                 <div className="text-right">
                   <span className="text-sm font-semibold text-blue-600">

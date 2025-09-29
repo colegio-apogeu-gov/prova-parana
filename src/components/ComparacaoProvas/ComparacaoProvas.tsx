@@ -97,7 +97,7 @@ const ComparacaoProvas: React.FC<ComparacaoProvasProps> = ({ userProfile }) => {
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600 mx-auto mb-6"></div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">Carregando Comparação</h3>
           <div className="space-y-2 text-sm text-gray-600">
-            <p className="text-purple-600">⏳ Carregando dados da Prova Paraná...</p>
+            <p className="text-purple-600">⏳ Carregando dados da Prova Paraná Recomposição...</p>
             <p className="text-green-600">⏳ Carregando dados do Parceiro da Escola...</p>
           </div>
         </div>
@@ -115,7 +115,7 @@ const ComparacaoProvas: React.FC<ComparacaoProvasProps> = ({ userProfile }) => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Comparação entre Provas</h1>
             <p className="text-gray-600">
-              Análise comparativa entre Prova Paraná e Avaliação Parceiro da Escola
+              Análise comparativa entre Prova Paraná Recomposição e Avaliação Parceiro da Escola
             </p>
           </div>
         </div>
@@ -139,7 +139,7 @@ const ComparacaoProvas: React.FC<ComparacaoProvasProps> = ({ userProfile }) => {
             </div>
           </div>
           <div className="mt-4">
-            <p className="text-sm font-medium text-gray-600">Alunos Prova Paraná</p>
+            <p className="text-sm font-medium text-gray-600">Alunos Prova Paraná Recomposição</p>
             <p className="text-2xl font-bold text-blue-600 mt-1">
               {new Set(dataParana.map(item => `${item.nome_aluno}-${item.turma}`)).size}
             </p>

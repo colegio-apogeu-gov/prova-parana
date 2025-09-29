@@ -77,7 +77,7 @@ const ParticipationComparisonChart: React.FC<ParticipationComparisonChartProps> 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-blue-600 rounded-full"></div>
-              <h4 className="text-sm font-semibold text-gray-700">Prova Paraná</h4>
+              <h4 className="text-sm font-semibold text-gray-700">Prova Paraná Recomposição</h4>
             </div>
             <div className="text-2xl font-bold text-blue-600">
               {participationData.parana.rate.toFixed(1)}%

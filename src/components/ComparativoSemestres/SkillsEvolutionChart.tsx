@@ -127,12 +127,12 @@ const SkillsEvolutionChart: React.FC<SkillsEvolutionChartProps> = ({ data, selec
 
       <div className="space-y-4">
         {currentSkills.map((item, index) => (
-          <div key={`${item.habilidade_codigo}-${item.code}`} className="border border-gray-200 rounded-lg p-4">
+          <div key={`${item.habilidade_codigo}`} className="border border-gray-200 rounded-lg p-4">
             <div className="flex justify-between items-start mb-3">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <p className="text-sm font-medium text-gray-900">
-                    {item.habilidade_codigo} - {item.skill}
+                    {item.habilidade_codigo}
                   </p>
                   <span className={`text-xs px-2 py-1 rounded-full ${
                     item.code === 'LP' 

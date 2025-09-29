@@ -27,7 +27,7 @@ const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => 
               <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
                 <BarChart3 className="w-8 h-8 text-blue-600" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Prova Paraná</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Prova Paraná Recomposição</h2>
               <p className="text-gray-600 mb-6">
                 Sistema oficial de avaliação educacional do estado do Paraná para análise de desempenho dos estudantes.
               </p>

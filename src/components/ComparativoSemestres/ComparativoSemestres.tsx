@@ -76,7 +76,7 @@ const ComparativoSemestres: React.FC<ComparativoSemestresProps> = ({ userProfile
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-600 mx-auto mb-6"></div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">Carregando Comparativo de Semestres</h3>
           <p className="text-sm text-gray-600">
-            Analisando evolução entre semestres - {selectedSystem === 'prova-parana' ? 'Prova Paraná' : 'Avaliação Parceiro da Escola'}
+            Analisando evolução entre semestres - {selectedSystem === 'prova-parana' ? 'Prova Paraná Recomposição' : 'Avaliação Parceiro da Escola'}
           </p>
         </div>
       </div>
@@ -93,7 +93,7 @@ const ComparativoSemestres: React.FC<ComparativoSemestresProps> = ({ userProfile
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Comparativo de Semestres</h1>
             <p className="text-gray-600">
-              Análise de evolução entre 1º e 2º semestre - {selectedSystem === 'prova-parana' ? 'Prova Paraná' : 'Avaliação Parceiro da Escola'}
+              Análise de evolução entre 1º e 2º semestre - {selectedSystem === 'prova-parana' ? 'Prova Paraná Recomposição' : 'Avaliação Parceiro da Escola'}
             </p>
           </div>
         </div>
