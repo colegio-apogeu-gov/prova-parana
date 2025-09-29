@@ -100,14 +100,6 @@ const EvolutionSummaryCards: React.FC<EvolutionSummaryCardsProps> = ({ data, sel
       color: 'gray',
       change: 'stable'
     },
-    {
-      title: 'Evolução Média',
-      value: `${summaryData.averageEvolution >= 0 ? '+' : ''}${summaryData.averageEvolution.toFixed(1)}`,
-      subtitle: 'Pontos de diferença',
-      icon: Target,
-      color: summaryData.averageEvolution > 0 ? 'green' : summaryData.averageEvolution < 0 ? 'red' : 'gray',
-      change: summaryData.averageEvolution > 0 ? 'positive' : summaryData.averageEvolution < 0 ? 'negative' : 'stable'
-    }
   ];
 
   const getColorClasses = (color: string) => {
@@ -122,7 +114,7 @@ const EvolutionSummaryCards: React.FC<EvolutionSummaryCardsProps> = ({ data, sel
   };
 
   return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
+    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
       {cards.map((card, index) => (
         <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">

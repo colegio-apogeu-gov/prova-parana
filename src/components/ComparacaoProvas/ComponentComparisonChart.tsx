@@ -84,7 +84,7 @@ const ComponentComparisonChart: React.FC<ComponentComparisonChartProps> = ({
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-                  <span className="text-sm text-gray-600">Prova Paraná</span>
+                  <span className="text-sm text-gray-600">Prova Paraná Recomposição</span>
                 </div>
                 <div className="text-right">
                   <span className="text-sm font-semibold text-blue-600">
@@ -139,7 +139,7 @@ const ComponentComparisonChart: React.FC<ComponentComparisonChartProps> = ({
                       : 'text-gray-600'
                 }`}>
                   {Math.abs(item.paranaAverage - item.parceiroAverage).toFixed(1)} pontos
-                  {item.paranaAverage > item.parceiroAverage && ' (Prova Paraná)'}
+                  {item.paranaAverage > item.parceiroAverage && ' (Prova Paraná Recomposição)'}
                   {item.parceiroAverage > item.paranaAverage && ' (Parceiro Escola)'}
                 </span>
               </div>

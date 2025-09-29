@@ -62,7 +62,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
           <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
             <School className="w-8 h-8 text-blue-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Prova Paraná</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Prova Paraná Recomposição</h1>
           <p className="text-gray-600 mt-2">Sistema de Gestão Educacional</p>
         </div>
 

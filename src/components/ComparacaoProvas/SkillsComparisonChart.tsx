@@ -161,7 +161,7 @@ const SkillsComparisonChart: React.FC<SkillsComparisonChartProps> = ({
             className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
           >
             <option value="difference">Maior Diferença</option>
-            <option value="parana">Melhor Prova Paraná</option>
+            <option value="parana">Melhor Prova Paraná Recomposição</option>
             <option value="parceiro">Melhor Parceiro Escola</option>
           </select>
         </div>
@@ -209,7 +209,7 @@ const SkillsComparisonChart: React.FC<SkillsComparisonChartProps> = ({
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-                    <span className="text-sm text-gray-600">Prova Paraná</span>
+                    <span className="text-sm text-gray-600">Prova Paraná Recomposição</span>
                   </div>
                   <div className="text-right">
                     <span className="text-sm font-semibold text-blue-600">

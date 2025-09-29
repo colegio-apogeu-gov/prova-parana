@@ -94,7 +94,7 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Análise Gráfica</h1>
             <p className="text-gray-600">
-              Visualizações dos dados da {selectedSystem === 'prova-parana' ? 'Prova Paraná' : 'Avaliação Parceiro da Escola'}
+              Visualizações dos dados da {selectedSystem === 'prova-parana' ? 'Prova Paraná Recomposição' : 'Avaliação Parceiro da Escola'}
             </p>
           </div>
         </div>

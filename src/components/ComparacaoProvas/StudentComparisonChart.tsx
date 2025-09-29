@@ -117,7 +117,7 @@ const StudentComparisonChart: React.FC<StudentComparisonChartProps> = ({
               </div>
               <div>
                 <h4 className="text-lg font-semibold text-blue-900">{comparisonData.parana.nome}</h4>
-                <p className="text-sm text-blue-700">Prova Paraná</p>
+                <p className="text-sm text-blue-700">Prova Paraná Recomposição</p>
               </div>
             </div>
 
@@ -296,7 +296,7 @@ const StudentComparisonChart: React.FC<StudentComparisonChartProps> = ({
                     : 'text-gray-600'
               }`}>
                 {comparisonData.parana.overall > comparisonData.parceiro.overall 
-                  ? `${comparisonData.parana.nome} (Prova Paraná)` 
+                  ? `${comparisonData.parana.nome} (Prova Paraná Recomposição)` 
                   : comparisonData.parceiro.overall > comparisonData.parana.overall 
                     ? `${comparisonData.parceiro.nome} (Parceiro)` 
                     : 'Empate'}
@@ -316,7 +316,7 @@ const StudentComparisonChart: React.FC<StudentComparisonChartProps> = ({
                     : 'text-gray-600'
               }`}>
                 {comparisonData.parana.lp > comparisonData.parceiro.lp 
-                  ? 'Prova Paraná' 
+                  ? 'Prova Paraná Recomposição' 
                   : comparisonData.parceiro.lp > comparisonData.parana.lp 
                     ? 'Parceiro Escola' 
                     : 'Empate'}

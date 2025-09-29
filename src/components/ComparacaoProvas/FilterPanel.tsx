@@ -188,7 +188,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
             <h4 className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2">
               <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-              Prova Paraná
+              Prova Paraná Recomposição
             </h4>
             <div className="space-y-4">
               <div>
