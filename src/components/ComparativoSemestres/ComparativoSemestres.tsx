@@ -10,6 +10,7 @@ import SkillsEvolutionChart from './SkillsEvolutionChart';
 import LevelTransitionChart from './LevelTransitionChart';
 import ComponentEvolutionChart from './ComponentEvolutionChart';
 import EvolutionSummaryCards from './EvolutionSummaryCards';
+import ComparativoSemestralCards from './ComparativoSemestralCards';
 
 interface ComparativoSemestresProps {
   userProfile: { unidade: string } | null;
@@ -125,6 +126,14 @@ const ComparativoSemestres: React.FC<ComparativoSemestresProps> = ({ userProfile
           studentName={filters.aluno}
         />
       )}
+
+          <div className="space-y-2">
+      <h2 className="text-xl font-bold text-gray-900">Alunos (1º x 2º semestre)</h2>
+      <p className="text-sm text-gray-600">
+        Clique no card do aluno para expandir os componentes e ver o match das habilidades.
+      </p>
+      <ComparativoSemestralCards data={data} />
+    </div>
     </div>
   );
 };
