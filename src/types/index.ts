@@ -1,4 +1,8 @@
-// Database types
+// =============================
+// index.ts (consolidado)
+// =============================
+
+// ---------- Database types (Prova Paraná)
 export interface ProvaResultado {
   id: string;
   ano_escolar: '9º ano' | '3º ano';
@@ -18,7 +22,7 @@ export interface ProvaResultado {
   created_at: string;
 }
 
-// Parceiro system types
+// ---------- Parceiro system types
 export interface ProvaResultadoParceiro {
   id: string;
   ano_escolar: '8º ano' | '2º ano';
@@ -139,7 +143,7 @@ export interface SalaDeAulaAluno {
   created_at: string;
 }
 
-// School units
+// ---------- School units
 export const UNIDADES_ESCOLARES = [
   'ANITA CANET, C E-EF M P',
   'ANTONIO TUPY PINHEIRO, C E-EF M PROFIS',
@@ -159,7 +163,7 @@ export const UNIDADES_ESCOLARES = [
   'TEREZA DA S RAMOS, C E PROFA-EF M'
 ] as const;
 
-export const UNIDADE_MAPEADA: Record<typeof UNIDADES_ESCOLARES[number], string> = {
+export const UNIDADE_MAPEADA: Record<(typeof UNIDADES_ESCOLARES)[number], string> = {
   'ANITA CANET, C E-EF M P': 'ANITA CANET C E EF M',
   'ANTONIO TUPY PINHEIRO, C E-EF M PROFIS': 'ANTONIO TUPY PINHEIRO C E EF M',
   'COSTA VIANA, C E-EF M PROFIS N': 'COSTA VIANA C E EF M PROFIS N',
@@ -178,7 +182,7 @@ export const UNIDADE_MAPEADA: Record<typeof UNIDADES_ESCOLARES[number], string> 
   'TEREZA DA S RAMOS, C E PROFA-EF M': 'TEREZA DA S RAMOS C E PROFA EF M'
 };
 
-// Skills mapping
+// ---------- Skills mapping
 export const HABILIDADES_3_ANO = {
   LP: {
     H01: { codigo: 'D016_P', descricao: 'Identificar a finalidade de textos de diferentes gêneros.' },
@@ -217,7 +221,7 @@ export const HABILIDADES_3_ANO = {
     H17: { codigo: 'D110_M', descricao: 'Gráficos de funções trigonométricas' },
     H18: { codigo: 'D133_M', descricao: 'Razões trigonométricas' }
   }
-};
+} as const;
 
 export const HABILIDADES_9_ANO = {
   LP: {
@@ -259,4 +263,194 @@ export const HABILIDADES_9_ANO = {
     H19: { codigo: 'D128_M', descricao: 'Operações com racionais' },
     H20: { codigo: 'D129_M', descricao: 'Equações e inequações do 1º grau' }
   }
-};
+} as const;
+
+// ==================================================
+// utils/semester-compare.ts (inline neste index.ts)
+// ==================================================
+export type ComponenteCodigo = 'MT' | 'LP';
+
+// Tipo base que cobre ambos os sistemas
+export interface BaseResultado {
+  id: string;
+  ano_escolar: string;
+  componente: ComponenteCodigo;     // 'MT' (Matemática) | 'LP' (Língua Portuguesa)
+  semestre: '1' | '2';
+  unidade: string;
+  turma: string;
+  nome_aluno: string;
+  avaliado: boolean;
+  // Campos nucleares p/ match:
+  habilidade_id?: string | null;
+  habilidade_codigo: string;
+  descricao_habilidade?: string;
+  acertos: number;
+  total: number;
+
+  // Campos opcionais:
+  nivel_aprendizagem?: string;
+  padrao_desempenho?: string;
+}
+
+// Interface de saída (para UI)
+export interface HabilidadeMatch {
+  habilidade_codigo: string;
+  descricao?: string;
+  s1: { acertos: number; total: number; pct: number } | null;
+  s2: { acertos: number; total: number; pct: number } | null;
+  deltaPct: number | null; // s2 - s1
+  trend: 'up' | 'down' | 'flat' | 'n/a';
+}
+
+export interface ComponenteResumo {
+  componente: ComponenteCodigo;
+  habilidades: HabilidadeMatch[];
+  mediaS1: number | null;
+  mediaS2: number | null;
+  deltaGeral: number | null;
+  trendGeral: 'up' | 'down' | 'flat' | 'n/a';
+}
+
+export interface AlunoComparativo {
+  aluno: string;
+  componentes: ComponenteResumo[];
+  deltaGeral: number | null;
+  trendGeral: 'up' | 'down' | 'flat' | 'n/a';
+}
+
+// --- helpers
+function pct(acertos: number, total: number) {
+  if (!total || total <= 0) return 0;
+  return (acertos / total) * 100;
+}
+
+function weightedAggregate(
+  rows: { acertos: number; total: number }[]
+): { acertos: number; total: number; pct: number } {
+  const sumAcertos = rows.reduce((s, r) => s + r.acertos, 0);
+  const sumTotal = rows.reduce((s, r) => s + r.total, 0);
+  return { acertos: sumAcertos, total: sumTotal, pct: pct(sumAcertos, sumTotal) };
+}
+
+function trend(delta: number | null): 'up' | 'down' | 'flat' | 'n/a' {
+  if (delta === null) return 'n/a';
+  if (delta > 0.5) return 'up';
+  if (delta < -0.5) return 'down';
+  return 'flat';
+}
+
+function groupBy<T>(arr: T[], key: (x: T) => string): Record<string, T[]> {
+  return arr.reduce((acc, cur) => {
+    const k = key(cur);
+    (acc[k] ||= []).push(cur);
+    return acc;
+  }, {} as Record<string, T[]>);
+}
+
+// Normaliza para garantir tipo base
+export function normalizeResults<T extends BaseResultado>(rows: T[]): BaseResultado[] {
+  return rows.map(r => ({
+    ...r,
+    componente: r.componente as ComponenteCodigo,
+    semestre: r.semestre as '1' | '2',
+    habilidade_codigo: r.habilidade_codigo,
+    acertos: Number(r.acertos ?? 0),
+    total: Number(r.total ?? 0),
+  }));
+}
+
+// Core: constrói comparativos por aluno > componente > match de habilidades
+export function buildAlunoComparativos<T extends BaseResultado>(rows: T[]): AlunoComparativo[] {
+  const data = normalizeResults(rows).filter(
+    r => r.avaliado && (r.semestre === '1' || r.semestre === '2')
+  );
+
+  // aluno + componente
+  const byAlunoComp = groupBy(
+    data,
+    r => `${r.nome_aluno}::${r.componente}`
+  );
+
+  const alunoMap: Record<string, Record<ComponenteCodigo, ComponenteResumo>> = {};
+
+  Object.entries(byAlunoComp).forEach(([alunoCompKey, registros]) => {
+    const [aluno, comp] = alunoCompKey.split('::') as [string, ComponenteCodigo];
+
+    const s1 = registros.filter(r => r.semestre === '1');
+    const s2 = registros.filter(r => r.semestre === '2');
+
+    // Index por habilidade
+    const byHabS1 = groupBy(s1, r => r.habilidade_codigo);
+    const byHabS2 = groupBy(s2, r => r.habilidade_codigo);
+
+    const habilidadesSet = new Set<string>([
+      ...Object.keys(byHabS1),
+      ...Object.keys(byHabS2),
+    ]);
+
+    const habilidades: HabilidadeMatch[] = [];
+    habilidadesSet.forEach(hab => {
+      const s1Agg = byHabS1[hab]
+        ? weightedAggregate(byHabS1[hab].map(r => ({ acertos: r.acertos, total: r.total })))
+        : null;
+
+      const s2Agg = byHabS2[hab]
+        ? weightedAggregate(byHabS2[hab].map(r => ({ acertos: r.acertos, total: r.total })))
+        : null;
+
+      const delta = s1Agg && s2Agg ? (s2Agg.pct - s1Agg.pct) : null;
+      const descr =
+        (byHabS2[hab]?.[0]?.descricao_habilidade) ??
+        (byHabS1[hab]?.[0]?.descricao_habilidade) ??
+        undefined;
+
+      habilidades.push({
+        habilidade_codigo: hab,
+        descricao: descr,
+        s1: s1Agg,
+        s2: s2Agg,
+        deltaPct: delta,
+        trend: trend(delta),
+      });
+    });
+
+    // médias gerais por componente (ponderadas por total)
+    const compS1Agg = s1.length
+      ? weightedAggregate(s1.map(r => ({ acertos: r.acertos, total: r.total })))
+      : null;
+    const compS2Agg = s2.length
+      ? weightedAggregate(s2.map(r => ({ acertos: r.acertos, total: r.total })))
+      : null;
+
+    const deltaGeral = compS1Agg && compS2Agg ? (compS2Agg.pct - compS1Agg.pct) : null;
+
+    const compResumo: ComponenteResumo = {
+      componente: comp,
+      habilidades: habilidades.sort((a, b) => (a.habilidade_codigo > b.habilidade_codigo ? 1 : -1)),
+      mediaS1: compS1Agg?.pct ?? null,
+      mediaS2: compS2Agg?.pct ?? null,
+      deltaGeral,
+      trendGeral: trend(deltaGeral),
+    };
+
+    (alunoMap[aluno] ||= {} as any)[comp] = compResumo;
+  });
+
+  // Monta saída por aluno
+  const comparativos: AlunoComparativo[] = Object.entries(alunoMap).map(([aluno, comps]) => {
+    const compList = Object.values(comps);
+    // delta geral do aluno = média dos deltas por componente (ignorando n/a)
+    const deltas = compList.map(c => c.deltaGeral).filter((d): d is number => d !== null);
+    const deltaGeral =
+      deltas.length ? deltas.reduce((s, x) => s + x, 0) / deltas.length : null;
+
+    return {
+      aluno,
+      componentes: compList.sort((a, b) => (a.componente > b.componente ? 1 : -1)),
+      deltaGeral,
+      trendGeral: trend(deltaGeral),
+    };
+  });
+
+  return comparativos.sort((a, b) => a.aluno.localeCompare(b.aluno));
+}
