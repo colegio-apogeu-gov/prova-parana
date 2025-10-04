@@ -614,3 +614,27 @@ export const fetchAllProvaData = async (filters: any = {}) => {
     return allData;
   }
 }
+
+export const getProficiencyData = async (filters: any = {}) => {
+  try {
+    let query = supabase
+      .from('prova_resultados')
+      .select('nome_aluno, acertos, total, avaliado');
+
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        query = query.eq(key, value);
+      }
+    });
+
+    query = query.eq('avaliado', true);
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Erro ao buscar dados de proficiência:', error);
+    return [];
+  }
+};

@@ -13,6 +13,7 @@ import CadastrarAtividades from './components/CadastrarAtividades/CadastrarAtivi
 import Graficos from './components/Graficos/Graficos';
 import ComparacaoProvas from './components/ComparacaoProvas/ComparacaoProvas';
 import ComparativoSemestres from './components/ComparativoSemestres/ComparativoSemestres';
+import VisaoGeral from './components/VisaoGeral/VisaoGeral';
 import { UserProfile } from './types';
 
 function App() {
@@ -22,8 +23,8 @@ function App() {
   const [selectedSystem, setSelectedSystem] = useState<'prova-parana' | 'parceiro' | null>(() => {
     return (localStorage.getItem('selectedSystem') as 'prova-parana' | 'parceiro') || null;
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres'>(() => {
-    return (localStorage.getItem('activeTab') as 'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres') || 'dashboard';
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'visaogeral'>(() => {
+    return (localStorage.getItem('activeTab') as 'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'visaogeral') || 'dashboard';
   });
 
   useEffect(() => {
@@ -119,7 +120,9 @@ function App() {
       />
       
       <main className="container mx-auto px-4 py-8">
-        {activeTab === 'dashboard' ? (
+        {activeTab === 'visaogeral' ? (
+          <VisaoGeral userProfile={userProfile} selectedSystem={selectedSystem} />
+        ) : activeTab === 'dashboard' ? (
           <Dashboard userProfile={userProfile} selectedSystem={selectedSystem} />
         ) : activeTab === 'upload' ? (
           selectedSystem === 'prova-parana' ? (

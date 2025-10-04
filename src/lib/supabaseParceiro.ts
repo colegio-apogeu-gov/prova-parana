@@ -600,7 +600,31 @@ export const getAlunosDisponivelParceiro = async (filters: any = {}) => {
     }
   });
   
-  return Array.from(uniqueStudents.values()).sort((a, b) => 
+  return Array.from(uniqueStudents.values()).sort((a, b) =>
     a.nome_aluno.localeCompare(b.nome_aluno)
   );
+};
+
+export const getProficiencyDataParceiro = async (filters: any = {}) => {
+  try {
+    let query = supabase
+      .from('prova_resultados_parceiro')
+      .select('nome_aluno, acertos, total, avaliado');
+
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        query = query.eq(key, value);
+      }
+    });
+
+    query = query.eq('avaliado', true);
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Erro ao buscar dados de proficiência:', error);
+    return [];
+  }
 };
