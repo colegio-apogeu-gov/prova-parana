@@ -46,17 +46,6 @@ const Navbar: React.FC<NavbarProps> = ({
 
           <div className="flex items-center space-x-1">
             <button
-              onClick={() => onTabChange('visaogeral')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'visaogeral'
-                  ? `bg-${systemColor}-100 text-${systemColor}-700`
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <Eye className="w-4 h-4" />
-              Visão Geral
-            </button>
-            <button
               onClick={() => onTabChange('dashboard')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'dashboard'
@@ -110,6 +99,18 @@ const Navbar: React.FC<NavbarProps> = ({
             >
               <GitCompare className="w-4 h-4" />
               Comparação Semestres
+            </button>
+
+            <button
+              onClick={() => onTabChange('visaogeral')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'visaogeral'
+                  ? `bg-${systemColor}-100 text-${systemColor}-700`
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <Eye className="w-4 h-4" />
+              Visão Geral
             </button>
             
             {/*<button

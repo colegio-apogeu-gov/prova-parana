@@ -607,22 +607,38 @@ export const getAlunosDisponivelParceiro = async (filters: any = {}) => {
 
 export const getProficiencyDataParceiro = async (filters: any = {}) => {
   try {
-    let query = supabase
-      .from('prova_resultados_parceiro')
-      .select('nome_aluno, acertos, total, avaliado');
+    const allData: any[] = [];
+    const pageSize = 1000;
+    let page = 0;
+    let hasMore = true;
 
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        query = query.eq(key, value);
+    while (hasMore) {
+      let query = supabase
+        .from('prova_resultados_parceiro')
+        .select('nome_aluno, acertos, total, avaliado')
+        .eq('avaliado', true)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          query = query.eq(key, value);
+        }
+      });
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allData.push(...data);
+        hasMore = data.length === pageSize;
+        page++;
+      } else {
+        hasMore = false;
       }
-    });
+    }
 
-    query = query.eq('avaliado', true);
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-    return data || [];
+    return allData;
   } catch (error) {
     console.error('Erro ao buscar dados de proficiência:', error);
     return [];

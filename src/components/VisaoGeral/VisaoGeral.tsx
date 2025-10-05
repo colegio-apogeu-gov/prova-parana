@@ -246,9 +246,28 @@ const VisaoGeral: React.FC<VisaoGeralProps> = ({ userProfile, selectedSystem }) 
             />
             <div className="text-center mt-4">
               <p className="text-sm text-gray-600">Nível de Proficiência</p>
-              <p className="text-lg font-semibold" style={{ color: getProficiencyColor(proficiencyData.unidade2Avaliacao.value) }}>
-                {getProficiencyLevel(proficiencyData.unidade2Avaliacao.value)}
-              </p>
+              <div className="flex items-center justify-center gap-2">
+                <p className="text-lg font-semibold" style={{ color: getProficiencyColor(proficiencyData.unidade2Avaliacao.value) }}>
+                  {getProficiencyLevel(proficiencyData.unidade2Avaliacao.value)}
+                </p>
+                {(() => {
+                  const diff = proficiencyData.unidade2Avaliacao.value - proficiencyData.unidade1Avaliacao.value;
+                  const diffTotal = (proficiencyData.unidade2Avaliacao.adequado + proficiencyData.unidade2Avaliacao.intermediario + proficiencyData.unidade2Avaliacao.defasagem) -
+                                    (proficiencyData.unidade1Avaliacao.adequado + proficiencyData.unidade1Avaliacao.intermediario + proficiencyData.unidade1Avaliacao.defasagem);
+                  if (Math.abs(diff) < 0.1) return null;
+                  const isPositive = diff > 0;
+                  return (
+                    <span className={`text-sm font-semibold flex items-center ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                      ({isPositive ? '+' : ''}{diff.toFixed(1)}%)
+                      {diffTotal !== 0 && (
+                        <span className="ml-1">
+                          ({isPositive ? '+' : ''}{diffTotal} {Math.abs(diffTotal) === 1 ? 'aluno' : 'alunos'})
+                        </span>
+                      )}
+                    </span>
+                  );
+                })()}
+              </div>
             </div>
             <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between text-sm">
@@ -256,21 +275,56 @@ const VisaoGeral: React.FC<VisaoGeralProps> = ({ userProfile, selectedSystem }) 
                   <div className="w-3 h-3 rounded-full bg-red-500"></div>
                   <span className="text-gray-700">Defasagem</span>
                 </div>
-                <span className="font-semibold text-gray-900">{proficiencyData.unidade2Avaliacao.defasagem} alunos</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-900">{proficiencyData.unidade2Avaliacao.defasagem} alunos</span>
+                  {(() => {
+                    const diff = proficiencyData.unidade2Avaliacao.defasagem - proficiencyData.unidade1Avaliacao.defasagem;
+                    if (diff === 0) return null;
+                    const isPositive = diff < 0;
+                    return (
+                      <span className={`text-xs font-semibold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                        ({diff > 0 ? '+' : ''}{diff})
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                   <span className="text-gray-700">Intermediário</span>
                 </div>
-                <span className="font-semibold text-gray-900">{proficiencyData.unidade2Avaliacao.intermediario} alunos</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-900">{proficiencyData.unidade2Avaliacao.intermediario} alunos</span>
+                  {(() => {
+                    const diff = proficiencyData.unidade2Avaliacao.intermediario - proficiencyData.unidade1Avaliacao.intermediario;
+                    if (diff === 0) return null;
+                    return (
+                      <span className={`text-xs font-semibold ${diff > 0 ? 'text-orange-600' : 'text-orange-400'}`}>
+                        ({diff > 0 ? '+' : ''}{diff})
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   <span className="text-gray-700">Adequado</span>
                 </div>
-                <span className="font-semibold text-gray-900">{proficiencyData.unidade2Avaliacao.adequado} alunos</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-900">{proficiencyData.unidade2Avaliacao.adequado} alunos</span>
+                  {(() => {
+                    const diff = proficiencyData.unidade2Avaliacao.adequado - proficiencyData.unidade1Avaliacao.adequado;
+                    if (diff === 0) return null;
+                    const isPositive = diff > 0;
+                    return (
+                      <span className={`text-xs font-semibold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                        ({diff > 0 ? '+' : ''}{diff})
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
           </div>
