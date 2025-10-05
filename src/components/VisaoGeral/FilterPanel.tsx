@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Filter } from 'lucide-react';
 import { UserProfile } from '../../types';
-import { supabase } from '../../lib/supabase';
+import { supabase, getAllUnitsData } from '../../lib/supabase'; // <= importe aqui
 
 interface FilterPanelProps {
   filters: {
     componente: string;
-    regional: string;
+    regional: string;   // <- certifique-se que a prop se chama 'regional'
     unidade: string;
     ano_escolar: string;
   };
@@ -15,14 +15,17 @@ interface FilterPanelProps {
   userProfile: UserProfile | null;
 }
 
+const REGIONAIS_FIXAS = ['CWB', 'SJP', 'GUA'];
+
 const FilterPanel: React.FC<FilterPanelProps> = ({
   filters,
   onFilterChange,
   selectedSystem,
   userProfile
 }) => {
-  const [regionais, setRegionais] = useState<string[]>([]);
+  const [regionais] = useState<string[]>(REGIONAIS_FIXAS);
   const [unidades, setUnidades] = useState<string[]>([]);
+  const [unidadesLoading, setUnidadesLoading] = useState<boolean>(false);
   const [anosEscolares, setAnosEscolares] = useState<string[]>([]);
 
   const isProvaParana = selectedSystem === 'prova-parana';
@@ -30,32 +33,39 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
   useEffect(() => {
     loadFilterOptions();
-  }, [selectedSystem]);
+    // Recarrega unidades quando a regional mudar (para listar somente as daquela regional)
+    // Se preferir carregar SEMPRE todas (e filtrar no client), remova 'filters.regional' das deps
+  }, [selectedSystem, filters.regional]);
 
   const loadFilterOptions = async () => {
     try {
-      const [regionaisData, unidadesData, anosData] = await Promise.all([
-        supabase.from(tableName).select('regional').not('regional', 'is', null),
-        supabase.from(tableName).select('unidade').not('unidade', 'is', null),
-        supabase.from(tableName).select('ano_escolar').not('ano_escolar', 'is', null)
-      ]);
+      setUnidadesLoading(true);
 
-      if (regionaisData.data) {
-        const uniqueRegionais = [...new Set(regionaisData.data.map((r: any) => r.regional))].sort();
-        setRegionais(uniqueRegionais);
-      }
+      // 1) Unidades via getAllUnitsData (passando regional se selecionada)
+      const unidadesFiltros: any = {};
+      if (filters.regional) unidadesFiltros.regional = filters.regional;
 
-      if (unidadesData.data) {
-        const uniqueUnidades = [...new Set(unidadesData.data.map((u: any) => u.unidade))].sort();
-        setUnidades(uniqueUnidades);
-      }
+      const allUnits = await getAllUnitsData(unidadesFiltros, tableName);
+      // allUnits já deve estar DISTINCT + ordenado (conforme sua implementação)
+      setUnidades(allUnits);
 
-      if (anosData.data) {
-        const uniqueAnos = [...new Set(anosData.data.map((a: any) => a.ano_escolar))].sort();
-        setAnosEscolares(uniqueAnos);
-      }
+      // 2) Anos (pode manter sua lógica atual)
+      const { data: anosData, error: anosErr } = await supabase
+        .from(tableName)
+        .select('ano_escolar')
+        .not('ano_escolar', 'is', null);
+      if (anosErr) throw anosErr;
+
+      const uniqueAnos = [...new Set((anosData ?? []).map((a: any) => a.ano_escolar))]
+        .filter(Boolean)
+        .sort((a: string, b: string) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+      setAnosEscolares(uniqueAnos);
     } catch (error) {
       console.error('Erro ao carregar opções de filtro:', error);
+      setUnidades([]);
+      setAnosEscolares([]);
+    } finally {
+      setUnidadesLoading(false);
     }
   };
 
@@ -74,10 +84,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Componente */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Componente
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Componente</label>
           <select
             value={filters.componente}
             onChange={(e) => handleFilterChange('componente', e.target.value)}
@@ -89,10 +98,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           </select>
         </div>
 
+        {/* Regional (fixa) */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Regional
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Regional</label>
           <select
             value={filters.regional}
             onChange={(e) => handleFilterChange('regional', e.target.value)}
@@ -100,35 +108,32 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           >
             <option value="">Todas</option>
             {regionais.map((regional) => (
-              <option key={regional} value={regional}>
-                {regional}
-              </option>
+              <option key={regional} value={regional}>{regional}</option>
             ))}
           </select>
         </div>
 
+        {/* Unidade (carregada via getAllUnitsData) */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Unidade
+            Unidade {unidadesLoading ? '(carregando...)' : ''}
           </label>
           <select
             value={filters.unidade}
             onChange={(e) => handleFilterChange('unidade', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={unidadesLoading}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-60"
           >
             <option value="">Todas</option>
             {unidades.map((unidade) => (
-              <option key={unidade} value={unidade}>
-                {unidade}
-              </option>
+              <option key={unidade} value={unidade}>{unidade}</option>
             ))}
           </select>
         </div>
 
+        {/* Ano Escolar */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Ano Escolar
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Ano Escolar</label>
           <select
             value={filters.ano_escolar}
             onChange={(e) => handleFilterChange('ano_escolar', e.target.value)}
@@ -136,9 +141,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           >
             <option value="">Todos</option>
             {anosEscolares.map((ano) => (
-              <option key={ano} value={ano}>
-                {ano}
-              </option>
+              <option key={ano} value={ano}>{ano}</option>
             ))}
           </select>
         </div>

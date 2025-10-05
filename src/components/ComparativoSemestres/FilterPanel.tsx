@@ -9,13 +9,15 @@ interface FilterPanelProps {
   onFiltersChange: (filters: SemesterFilters) => void;
   userProfile: { unidade: string } | null;
   selectedSystem: 'prova-parana' | 'parceiro';
+  salasDeAula: any[];
 }
 
 const FilterPanel: React.FC<FilterPanelProps> = ({
   filters,
   onFiltersChange,
   userProfile,
-  selectedSystem
+  selectedSystem,
+  salasDeAula
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -112,6 +114,25 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             disabled
             className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
           />
+        </div>
+
+        {/* Sala de Aula */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Sala de Aula
+          </label>
+          <select
+            value={filters.sala_id || ''}
+            onChange={(e) => updateFilter('sala_id', e.target.value)}
+            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-${systemColor}-500 focus:border-transparent`}
+          >
+            <option value="">Todas</option>
+            {salasDeAula.map((sala) => (
+              <option key={sala.id} value={sala.id}>
+                {sala.nome}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Ano Escolar */}

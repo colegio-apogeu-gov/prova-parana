@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, TrendingUp, TrendingDown, Minus, Users, Target, BookOpen } from 'lucide-react';
-import { fetchAllProvaData } from '../../lib/supabase';
-import { fetchAllProvaDataParceiro } from '../../lib/supabaseParceiro';
+import { fetchAllProvaData, getSalasDeAula } from '../../lib/supabase';
+import { fetchAllProvaDataParceiro, getSalasDeAulaParceiro } from '../../lib/supabaseParceiro';
 import { ProvaResultado, ProvaResultadoParceiro } from '../../types';
 import FilterPanel from './FilterPanel';
 import SemesterPerformanceChart from './SemesterPerformanceChart';
@@ -24,11 +24,13 @@ export interface SemesterFilters {
   aluno?: string;
   nivel_aprendizagem?: string;
   padrao_desempenho?: string;
+  sala_id?: string;
 }
 
 const ComparativoSemestres: React.FC<ComparativoSemestresProps> = ({ userProfile, selectedSystem }) => {
   const [data, setData] = useState<(ProvaResultado | ProvaResultadoParceiro)[]>([]);
   const [loading, setLoading] = useState(true);
+  const [salasDeAula, setSalasDeAula] = useState<any[]>([]);
   const [filters, setFilters] = useState<SemesterFilters>(() => ({
     unidade: userProfile?.unidade || ''
   }));
@@ -43,8 +45,25 @@ const ComparativoSemestres: React.FC<ComparativoSemestresProps> = ({ userProfile
   }, [userProfile, filters.unidade]);
 
   useEffect(() => {
+    loadSalasDeAula();
+  }, [userProfile, selectedSystem]);
+
+  useEffect(() => {
     loadData();
   }, [filters, selectedSystem]);
+
+  const loadSalasDeAula = async () => {
+    if (!userProfile?.unidade) return;
+
+    try {
+      const fetchSalasFn = selectedSystem === 'prova-parana' ? getSalasDeAula : getSalasDeAulaParceiro;
+      const salas = await fetchSalasFn(userProfile.unidade);
+      setSalasDeAula(salas || []);
+    } catch (error) {
+      console.error('Erro ao carregar salas de aula:', error);
+      setSalasDeAula([]);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -55,13 +74,28 @@ const ComparativoSemestres: React.FC<ComparativoSemestresProps> = ({ userProfile
         ano_escolar: filters.ano_escolar,
         componente: filters.componente,
         nome_aluno: filters.aluno,
-        ...(selectedSystem === 'prova-parana' 
+        ...(selectedSystem === 'prova-parana'
           ? { nivel_aprendizagem: filters.nivel_aprendizagem }
           : { padrao_desempenho: filters.padrao_desempenho }
         )
       });
-      
-      setData(result || []);
+
+      let filteredData = result || [];
+
+      if (filters.sala_id && filteredData.length > 0) {
+        const sala = salasDeAula.find(s => s.id === filters.sala_id);
+        if (sala) {
+          const alunosSala = new Set(
+            (selectedSystem === 'prova-parana'
+              ? sala.sala_de_aula_alunos
+              : sala.sala_de_aula_alunos_parceiros
+            )?.map((a: any) => a.nome_aluno) || []
+          );
+          filteredData = filteredData.filter(item => alunosSala.has(item.nome_aluno));
+        }
+      }
+
+      setData(filteredData);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       setData([]);
@@ -103,11 +137,12 @@ const ComparativoSemestres: React.FC<ComparativoSemestresProps> = ({ userProfile
         </div>
       </div>
 
-      <FilterPanel 
-        filters={filters} 
+      <FilterPanel
+        filters={filters}
         onFiltersChange={setFilters}
         userProfile={userProfile}
         selectedSystem={selectedSystem}
+        salasDeAula={salasDeAula}
       />
 
       <EvolutionSummaryCards data={data} selectedSystem={selectedSystem} />

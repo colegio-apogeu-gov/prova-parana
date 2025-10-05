@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Users, TrendingUp, Filter } from 'lucide-react';
-import { fetchProvaData, getFilterOptions } from '../../lib/supabase';
-import { fetchProvaDataParceiro, getFilterOptionsParceiro } from '../../lib/supabaseParceiro';
+import { fetchProvaData, getFilterOptions, getSalasDeAula } from '../../lib/supabase';
+import { fetchProvaDataParceiro, getFilterOptionsParceiro, getSalasDeAulaParceiro } from '../../lib/supabaseParceiro';
 import { DashboardFilters, ProvaResultado, PerformanceInsight } from '../../types';
 import FilterPanel from './FilterPanel';
 import StatsCards from './StatsCards';
@@ -17,6 +17,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ userProfile, selectedSystem }) => {
   const [data, setData] = useState<ProvaResultado[]>([]);
+  const [salasDeAula, setSalasDeAula] = useState<any[]>([]);
 const [filters, setFilters] = useState<DashboardFilters>(() => ({
   unidade: userProfile?.unidade || ''
 }));
@@ -42,8 +43,25 @@ useEffect(() => {
   });
 
   useEffect(() => {
+    loadSalasDeAula();
+  }, [userProfile, selectedSystem]);
+
+  useEffect(() => {
     loadAllData();
   }, [filters, selectedSystem]);
+
+  const loadSalasDeAula = async () => {
+    if (!userProfile?.unidade) return;
+
+    try {
+      const fetchSalasFn = selectedSystem === 'prova-parana' ? getSalasDeAula : getSalasDeAulaParceiro;
+      const salas = await fetchSalasFn(userProfile.unidade);
+      setSalasDeAula(salas || []);
+    } catch (error) {
+      console.error('Erro ao carregar salas de aula:', error);
+      setSalasDeAula([]);
+    }
+  };
 
   const loadAllData = async () => {
     setLoading(true);
@@ -202,10 +220,11 @@ useEffect(() => {
             selectedSystem={selectedSystem}
           />
           
-          <StudentsSection 
+          <StudentsSection
             filters={filters}
             userProfile={userProfile}
             selectedSystem={selectedSystem}
+            salasDeAula={salasDeAula}
           />
         </>
       )}
