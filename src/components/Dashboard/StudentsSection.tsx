@@ -14,7 +14,8 @@ const getLinkFn = (system: 'prova-parana' | 'parceiro') =>
 interface StudentsSectionProps {
   filters: DashboardFilters;
   userProfile: { unidade: string } | null;
-  selectedSystem: 'prova-parana' | 'parceiro'; // ADICIONE
+  selectedSystem: 'prova-parana' | 'parceiro';
+  salasDeAula: any[];
 }
 
 interface StudentData {
@@ -226,10 +227,10 @@ type InsightsEstruturados = {
   };
 };
 
-// antes: ({ filters, userProfile })
-const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile, selectedSystem }) => {
+const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile, selectedSystem, salasDeAula }) => {
   const [studentsData, setStudentsData] = useState<StudentData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedSalaId, setSelectedSalaId] = useState<string>('');
   const [expandedStudents, setExpandedStudents] = useState<Set<string>>(new Set());
   const [expandedComponents, setExpandedComponents] = useState<Set<string>>(new Set());
   const [linksCache, setLinksCache] = useState<Map<string, string>>(new Map());
@@ -237,7 +238,7 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile,
 
   useEffect(() => {
     loadStudentsData();
-  }, [filters, selectedSystem, userProfile]);
+  }, [filters, selectedSystem, userProfile, selectedSalaId]);
 
   const loadStudentsData = async () => {
     setLoading(true);
@@ -288,9 +289,22 @@ const data = await fetchFn({
         }
       });
 
-      const studentsArray = Object.values(groupedData).sort((a, b) => 
+      let studentsArray = Object.values(groupedData).sort((a, b) =>
         a.nome_aluno.localeCompare(b.nome_aluno)
       );
+
+      if (selectedSalaId) {
+        const sala = salasDeAula.find(s => s.id === selectedSalaId);
+        if (sala) {
+          const alunosSala = new Set(
+            (selectedSystem === 'prova-parana'
+              ? sala.sala_de_aula_alunos
+              : sala.sala_de_aula_alunos_parceiros
+            )?.map((a: any) => a.nome_aluno) || []
+          );
+          studentsArray = studentsArray.filter(student => alunosSala.has(student.nome_aluno));
+        }
+      }
 
       setStudentsData(studentsArray);
     } catch (error) {
@@ -694,13 +708,32 @@ REGRAS:
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="bg-indigo-100 p-2 rounded-lg">
-          <Users className="w-5 h-5 text-indigo-600" />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="bg-indigo-100 p-2 rounded-lg">
+            <Users className="w-5 h-5 text-indigo-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Alunos ({studentsData.length})
+          </h3>
         </div>
-        <h3 className="text-lg font-semibold text-gray-900">
-          Alunos ({studentsData.length})
-        </h3>
+        <div className="w-64">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Filtrar por Sala de Aula
+          </label>
+          <select
+            value={selectedSalaId}
+            onChange={(e) => setSelectedSalaId(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+          >
+            <option value="">Todas as salas</option>
+            {salasDeAula.map((sala) => (
+              <option key={sala.id} value={sala.id}>
+                {sala.nome}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="space-y-3">

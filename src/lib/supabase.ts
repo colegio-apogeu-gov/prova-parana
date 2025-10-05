@@ -615,6 +615,87 @@ export const fetchAllProvaData = async (filters: any = {}) => {
   }
 }
 
+export const getAllUnitsData = async (filters: any = {}, tableName: string) => {
+  const all: string[] = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from(tableName)
+      .select('unidade')
+      .not('unidade', 'is', null)
+      .neq('unidade', '');
+
+    // Aplica outros filtros (sem sobrescrever 'unidade' aqui)
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '' && key !== 'unidade') {
+        query = query.eq(key, value as any);
+      }
+    });
+
+    // Paginação
+    query = query.range(page * pageSize, (page + 1) * pageSize - 1);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const batch = (data ?? [])
+      .map((r: any) => (r.unidade ?? '').trim())
+      .filter(Boolean);
+
+    all.push(...batch);
+
+    hasMore = (data?.length ?? 0) === pageSize;
+    page++;
+  }
+
+  // DISTINCT + sort estáveis
+  const uniqueSorted = Array.from(new Set(all)).sort((a, b) =>
+    a.localeCompare(b, 'pt-BR')
+  );
+
+  return uniqueSorted;
+};
+
+// supabase.ts
+export const getProficiencyDataset = async (
+  scope: { componente?: string; ano_escolar?: string; regional?: string; unidade?: string } = {},
+  tableName: string = 'prova_resultados'
+) => {
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+  const all: any[] = [];
+
+  while (hasMore) {
+    let q = supabase
+      .from(tableName)
+      .select('nome_aluno, acertos, total, avaliado, semestre, regional, unidade')
+      .eq('avaliado', true) // só avaliados
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    // aplica escopo mais restritivo
+    if (scope.unidade) q = q.eq('unidade', scope.unidade);
+    else if (scope.regional) q = q.eq('regional', scope.regional);
+
+    // demais filtros (opcionais)
+    if (scope.componente) q = q.eq('componente', scope.componente);
+    if (scope.ano_escolar) q = q.eq('ano_escolar', scope.ano_escolar);
+
+    const { data, error } = await q;
+    if (error) throw error;
+
+    all.push(...(data ?? []));
+    hasMore = (data?.length ?? 0) === pageSize;
+    page++;
+  }
+
+  return all;
+};
+
+
 export const getProficiencyData = async (filters: any = {}) => {
   try {
     const allData: any[] = [];
@@ -623,11 +704,10 @@ export const getProficiencyData = async (filters: any = {}) => {
     let hasMore = true;
 
     while (hasMore) {
-      let query = supabase
-        .from('prova_resultados')
-        .select('nome_aluno, acertos, total, avaliado')
-        .eq('avaliado', true)
-        .range(page * pageSize, (page + 1) * pageSize - 1);
+let query = supabase
+  .from('prova_resultados')
+  .select('nome_aluno, unidade, regional, componente, ano_escolar, semestre, avaliado, acertos, total')
+  .range(page * pageSize, (page + 1) * pageSize - 1);
 
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
