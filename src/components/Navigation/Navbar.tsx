@@ -113,7 +113,7 @@ const Navbar: React.FC<NavbarProps> = ({
               Visão Geral
             </button>
             
-            {/*<button
+            <button
               onClick={() => onTabChange('atividades')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'atividades'
@@ -123,7 +123,7 @@ const Navbar: React.FC<NavbarProps> = ({
             >
               <BookOpen className="w-4 h-4" />
               Cadastrar Atividades
-            </button>*/}
+            </button>
           </div>
 
           
