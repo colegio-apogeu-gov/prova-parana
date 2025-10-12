@@ -31,6 +31,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   const isProvaParana = selectedSystem === 'prova-parana';
   const tableName = isProvaParana ? 'prova_resultados' : 'prova_resultados_parceiro';
 
+const ANOS_BY_SYSTEM: Record<'prova-parana'|'parceiro', string[]> = {
+  'prova-parana': ['9º ano', '3º ano'],
+  'parceiro': ['8º ano', '2º ano']
+};
+
   useEffect(() => {
     loadFilterOptions();
     // Recarrega unidades quando a regional mudar (para listar somente as daquela regional)
@@ -49,17 +54,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
       // allUnits já deve estar DISTINCT + ordenado (conforme sua implementação)
       setUnidades(allUnits);
 
-      // 2) Anos (pode manter sua lógica atual)
-      const { data: anosData, error: anosErr } = await supabase
-        .from(tableName)
-        .select('ano_escolar')
-        .not('ano_escolar', 'is', null);
-      if (anosErr) throw anosErr;
-
-      const uniqueAnos = [...new Set((anosData ?? []).map((a: any) => a.ano_escolar))]
-        .filter(Boolean)
-        .sort((a: string, b: string) => a.localeCompare(b, 'pt-BR', { numeric: true }));
-      setAnosEscolares(uniqueAnos);
+      setAnosEscolares(ANOS_BY_SYSTEM[selectedSystem]);
     } catch (error) {
       console.error('Erro ao carregar opções de filtro:', error);
       setUnidades([]);

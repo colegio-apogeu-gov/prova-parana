@@ -615,49 +615,27 @@ export const fetchAllProvaData = async (filters: any = {}) => {
   }
 }
 
-export const getAllUnitsData = async (filters: any = {}, tableName: string) => {
-  const all: string[] = [];
-  const pageSize = 1000;
-  let page = 0;
-  let hasMore = true;
+export const getAllUnitsData = async (
+  filters: Record<string, any> = {},
+  tableName: 'prova_resultados' | 'prova_resultados_parceiro'
+) => {
+  const { componente, ano_escolar, regional } = filters ?? {};
+  const fn = tableName === 'prova_resultados'
+    ? 'rpc_distinct_unidades_prova'
+    : 'rpc_distinct_unidades_parceiro';
 
-  while (hasMore) {
-    let query = supabase
-      .from(tableName)
-      .select('unidade')
-      .not('unidade', 'is', null)
-      .neq('unidade', '');
+  const { data, error } = await supabase.rpc(fn, {
+    p_componente:  componente  || null,
+    p_ano_escolar: ano_escolar || null,
+    p_regional:    regional    || null
+  });
+  if (error) throw error;
 
-    // Aplica outros filtros (sem sobrescrever 'unidade' aqui)
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '' && key !== 'unidade') {
-        query = query.eq(key, value as any);
-      }
-    });
-
-    // Paginação
-    query = query.range(page * pageSize, (page + 1) * pageSize - 1);
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    const batch = (data ?? [])
-      .map((r: any) => (r.unidade ?? '').trim())
-      .filter(Boolean);
-
-    all.push(...batch);
-
-    hasMore = (data?.length ?? 0) === pageSize;
-    page++;
-  }
-
-  // DISTINCT + sort estáveis
-  const uniqueSorted = Array.from(new Set(all)).sort((a, b) =>
-    a.localeCompare(b, 'pt-BR')
-  );
-
-  return uniqueSorted;
+  // Já vem ordenado e sem duplicados
+  return (data ?? []).map((r: any) => r.unidade.trim());
 };
+
+
 
 // supabase.ts
 export const getProficiencyDataset = async (
@@ -672,15 +650,13 @@ export const getProficiencyDataset = async (
   while (hasMore) {
     let q = supabase
       .from(tableName)
-      .select('nome_aluno, acertos, total, avaliado, semestre, regional, unidade')
-      .eq('avaliado', true) // só avaliados
+      .select('nome_aluno, nivel_aprendizagem, avaliado, semestre, regional, unidade, created_at')
+      .eq('avaliado', true)
       .range(page * pageSize, (page + 1) * pageSize - 1);
 
-    // aplica escopo mais restritivo
     if (scope.unidade) q = q.eq('unidade', scope.unidade);
     else if (scope.regional) q = q.eq('regional', scope.regional);
 
-    // demais filtros (opcionais)
     if (scope.componente) q = q.eq('componente', scope.componente);
     if (scope.ano_escolar) q = q.eq('ano_escolar', scope.ano_escolar);
 
@@ -695,7 +671,6 @@ export const getProficiencyDataset = async (
   return all;
 };
 
-
 export const getProficiencyData = async (filters: any = {}) => {
   try {
     const allData: any[] = [];
@@ -704,19 +679,18 @@ export const getProficiencyData = async (filters: any = {}) => {
     let hasMore = true;
 
     while (hasMore) {
-let query = supabase
-  .from('prova_resultados')
-  .select('nome_aluno, unidade, regional, componente, ano_escolar, semestre, avaliado, acertos, total')
-  .range(page * pageSize, (page + 1) * pageSize - 1);
+      let query = supabase
+        .from('prova_resultados')
+        .select('nome_aluno, unidade, regional, componente, ano_escolar, semestre, avaliado, nivel_aprendizagem, created_at')
+        .range(page * pageSize, (page + 1) * pageSize - 1);
 
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
-          query = query.eq(key, value);
+          query = query.eq(key, value as any);
         }
       });
 
       const { data, error } = await query;
-
       if (error) throw error;
 
       if (data && data.length > 0) {
@@ -734,3 +708,47 @@ let query = supabase
     return [];
   }
 };
+
+
+export type ProficiencyRow = {
+  semestre: number | null;
+  regional: string | null;
+  unidade: string | null;
+  defasagem: number;
+  intermediario: number;
+  adequado: number;
+  total: number;
+  proficiency: number; // 0–100 com 1 casa decimal
+};
+
+export type ProficiencyFilters = {
+  componente?: string;
+  ano_escolar?: string;
+  regional?: string;
+  unidade?: string;
+};
+
+// Adicione no topo
+const normalizeSelect = (x?: string) => {
+  if (!x) return null;
+  const s = x.trim().toLowerCase();
+  if (!s || s === 'todos' || s === 'todas' || s === 'all') return null;
+  return x;
+};
+
+export async function getProficiencySummary(filters: ProficiencyFilters = {}) {
+  const { componente, ano_escolar, regional, unidade } = filters;
+
+  const { data, error } = await supabase.rpc<ProficiencyRow[]>(
+    'get_proficiency_summary',
+    {
+      p_componente:  normalizeSelect(componente),
+      p_ano_escolar: normalizeSelect(ano_escolar),
+      p_regional:    normalizeSelect(unidade) ? null : normalizeSelect(regional),
+      p_unidade:     normalizeSelect(unidade),
+    }
+  );
+
+  if (error) throw error;
+  return data ?? [];
+}
