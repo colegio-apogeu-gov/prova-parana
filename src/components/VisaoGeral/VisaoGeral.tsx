@@ -76,6 +76,18 @@ const VisaoGeral: React.FC<VisaoGeralProps> = ({ userProfile, selectedSystem }) 
     return 'Aprendizado Adequado';
   };
 
+// Pesos fixos (conforme validação institucional)
+const WEIGHT_DEF = 2;
+const WEIGHT_INT = 50;
+const WEIGHT_ADE = 95;
+
+const computeProfMedia = (def: number, inter: number, adeq: number) => {
+  const N = def + inter + adeq;
+  if (!N) return 0;
+  return ((def * WEIGHT_DEF) + (inter * WEIGHT_INT) + (adeq * WEIGHT_ADE)) / N;
+};
+
+
 const normalizeComponente = (c?: string) =>
   !c || c.toLowerCase() === 'Todos' ? undefined : c;
 
@@ -230,12 +242,19 @@ const normalizeSelect = (x?: string) => {
   const pickSem = (rows: ProficiencyRow[], n: number): ProficiencyRow | undefined =>
     rows.find(r => Number(r.semestre) === n);
 
-  const toCardFromRpc = (row?: ProficiencyRow) => ({
-    value: Number(row?.proficiency ?? 0),
-    defasagem: Number(row?.defasagem ?? 0),
-    intermediario: Number(row?.intermediario ?? 0),
-    adequado: Number(row?.adequado ?? 0),
-  });
+const toCardFromRpc = (row?: ProficiencyRow) => {
+  const def = Number(row?.defasagem ?? 0);
+  const inter = Number(row?.intermediario ?? 0);
+  const adeq = Number(row?.adequado ?? 0);
+
+  return {
+    value: computeProfMedia(def, inter, adeq), // ← novo cálculo
+    defasagem: def,
+    intermediario: inter,
+    adequado: adeq,
+  };
+};
+
 
   // ---------- Fluxo “parceiro” (agregação leve em memória) ----------
   // Reaproveita sua coleção bruta do parceiro sem paginação infinita.
@@ -272,20 +291,20 @@ const normalizeSelect = (x?: string) => {
       if (!byStudent.has(aluno)) byStudent.set(aluno, rank);
       else byStudent.set(aluno, Math.min(byStudent.get(aluno)!, rank));
     }
-    const total = byStudent.size;
-    let def = 0, inter = 0, adeq = 0;
-    for (const r of byStudent.values()) {
-      if (r === 0) def++;
-      else if (r === 1) inter++;
-      else adeq++;
-    }
-    return {
-      value: total ? (adeq / total) * 100 : 0,
-      defasagem: def,
-      intermediario: inter,
-      adequado: adeq
-    };
+  const total = byStudent.size;
+  let def = 0, inter = 0, adeq = 0;
+  for (const r of byStudent.values()) {
+    if (r === 0) def++;
+    else if (r === 1) inter++;
+    else adeq++;
+  }
+  return {
+    value: computeProfMedia(def, inter, adeq), // ← novo cálculo
+    defasagem: def,
+    intermediario: inter,
+    adequado: adeq
   };
+};
 
   // ---------- Loader principal ----------
 const loadProficiencyData = async () => {
