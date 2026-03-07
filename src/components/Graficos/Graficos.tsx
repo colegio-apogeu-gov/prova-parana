@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { PieChart, BarChart3, TrendingUp, Users, Target, BookOpen, Award, Calendar } from 'lucide-react';
 import { fetchProvaData, fetchAllProvaData } from '../../lib/supabase';
 import { fetchProvaDataParceiro, fetchAllProvaDataParceiro } from '../../lib/supabaseParceiro';
+import { fetchProvaDataMais, fetchAllProvaDataMais } from '../../lib/supabaseParanaMais';
 import { ProvaResultado } from '../../types';
 import PerformanceByGradeChart from './PerformanceByGradeChart';
 import ComponentComparisonChart from './ComponentComparisonChart';
@@ -14,7 +15,7 @@ import PerformanceTrendsChart from './PerformanceTrendsChart';
 
 interface GraficosProps {
   userProfile: { unidade: string } | null;
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
 }
 
 const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
@@ -40,8 +41,11 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
         )
       };
       
-      // Busca TODOS os dados sem limitação para gráficos
-      const fetchFn = selectedSystem === 'prova-parana' ? fetchAllProvaData : fetchAllProvaDataParceiro;
+      const fetchFn = selectedSystem === 'prova-parana'
+        ? fetchAllProvaData
+        : selectedSystem === 'parceiro'
+        ? fetchAllProvaDataParceiro
+        : fetchAllProvaDataMais;
       const result = await fetchFn(filters);
       setData(result || []);
     } catch (error) {
@@ -141,6 +145,12 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
               <option value="">Todos</option>
               <option value="LP">Língua Portuguesa</option>
               <option value="MT">Matemática</option>
+              {selectedSystem === 'parana-mais' && (
+                <>
+                  <option value="CH">Ciências Humanas</option>
+                  <option value="CN">Ciências Naturais</option>
+                </>
+              )}
             </select>
           </div>
           <div>

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Plus, Edit2, Trash2, ExternalLink, CheckCircle, AlertCircle } from 'lucide-react';
+import { BookOpen, Plus, CreditCard as Edit2, Trash2, ExternalLink, CheckCircle, AlertCircle } from 'lucide-react';
 import { getLinksQuestoes, createLinkQuestao, updateLinkQuestao, deleteLinkQuestao } from '../../lib/supabase';
 import { LinkQuestao } from '../../types';
 
 interface CadastrarAtividadesProps {
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
 }
 
 const CadastrarAtividades: React.FC<CadastrarAtividadesProps> = ({ selectedSystem }) => {
@@ -17,7 +17,7 @@ const CadastrarAtividades: React.FC<CadastrarAtividadesProps> = ({ selectedSyste
   const [form, setForm] = useState({
     link: '',
     habilidade_codigo: '',
-    componente: 'LP' as 'LP' | 'MT'
+    componente: 'LP' as 'LP' | 'MT' | 'CH' | 'CN'
   });
 
   useEffect(() => {
@@ -165,11 +165,17 @@ const CadastrarAtividades: React.FC<CadastrarAtividadesProps> = ({ selectedSyste
                 </label>
                 <select
                   value={form.componente}
-                  onChange={(e) => setForm({ ...form, componente: e.target.value as 'LP' | 'MT' })}
+                  onChange={(e) => setForm({ ...form, componente: e.target.value as 'LP' | 'MT' | 'CH' | 'CN' })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 >
                   <option value="LP">Língua Portuguesa</option>
                   <option value="MT">Matemática</option>
+                  {selectedSystem === 'parana-mais' && (
+                    <>
+                      <option value="CH">Ciências Humanas</option>
+                      <option value="CN">Ciências Naturais</option>
+                    </>
+                  )}
                 </select>
               </div>
             </div>

@@ -6,7 +6,7 @@ import { DashboardFilters } from '../../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import jsPDF from 'jspdf';
 
-const getLinkFn = (system: 'prova-parana' | 'parceiro') =>
+const getLinkFn = (system: 'prova-parana' | 'parceiro' | 'parana-mais') =>
   system === 'prova-parana'
     ? getLinkByHabilidadeComponente
     : getLinkByHabilidadeComponenteParceiro;
@@ -14,7 +14,7 @@ const getLinkFn = (system: 'prova-parana' | 'parceiro') =>
 interface StudentsSectionProps {
   filters: DashboardFilters;
   userProfile: { unidade: string } | null;
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
   salasDeAula: any[];
 }
 

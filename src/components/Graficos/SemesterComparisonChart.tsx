@@ -4,15 +4,16 @@ import { ProvaResultado } from '../../types';
 
 interface SemesterComparisonChartProps {
   data: ProvaResultado[];
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
 }
 
 const SemesterComparisonChart: React.FC<SemesterComparisonChartProps> = ({ data, selectedSystem }) => {
   const semesterData = React.useMemo(() => {
     // 🔧 Anos válidos por sistema
-    const GRADES_BY_SYSTEM: Record<'prova-parana' | 'parceiro', string[]> = {
+    const GRADES_BY_SYSTEM: Record<'prova-parana' | 'parceiro' | 'parana-mais', string[]> = {
       'prova-parana': ['9º ano', '3º ano'],
       parceiro: ['8º ano', '2º ano'],
+      'parana-mais': ['9º ano', '3º ano'],
     };
     const allowedGrades = GRADES_BY_SYSTEM[selectedSystem];
 

@@ -6,10 +6,11 @@ import ProficiencyGauge from './ProficiencyGauge';
 
 import { getProficiencySummary, ProficiencyRow } from '../../lib/supabase';
 import { getProficiencyDataParceiro } from '../../lib/supabaseParceiro';
+import { getProficiencyDataMais } from '../../lib/supabaseParanaMais';
 
 interface VisaoGeralProps {
   userProfile: UserProfile | null;
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
 }
 
 interface Filters {
@@ -308,7 +309,6 @@ const toCardFromRpc = (row?: ProficiencyRow) => {
 
   // ---------- Loader principal ----------
 const loadProficiencyData = async () => {
-  // helper local: trata "Todos/Todas/All" como sem filtro
   const normalizeSelect = (x?: string) => {
     if (!x) return undefined;
     const s = x.trim().toLowerCase();
@@ -318,14 +318,12 @@ const loadProficiencyData = async () => {
 
   setLoading(true);
   try {
-    // -------------------- SISTEMA PARCEIRO --------------------
     if (selectedSystem === 'parceiro') {
       const comp = normalizeSelect(filters.componente);
       const ano  = normalizeSelect(filters.ano_escolar);
       const reg  = normalizeSelect(filters.regional);
       const uni  = normalizeSelect(filters.unidade);
 
-      // Busca bruta do parceiro (sem aplicar filtros indevidos de "Todos/Todas")
       const raw: RawParceiro[] = await getProficiencyDataParceiro({
         componente: comp,
         ano_escolar: ano,
@@ -348,6 +346,48 @@ const loadProficiencyData = async () => {
       const uniS2 = unidadeRaw.filter(d => String(d.semestre) === '2');
 
       // Agrega
+      const unidade1 = aggregateParceiro(uniS1);
+      const unidade2 = aggregateParceiro(uniS2);
+      const regional1 = aggregateParceiro(regS1);
+      const regional2 = aggregateParceiro(regS2);
+      const redeToda1 = aggregateParceiro(redeS1);
+      const redeToda2 = aggregateParceiro(redeS2);
+
+      setProficiencyData({
+        unidade1Avaliacao: { label: 'Unidade - 1ª Avaliação', ...unidade1 },
+        unidade2Avaliacao: { label: 'Unidade - 2ª Avaliação', ...unidade2 },
+        regional1Avaliacao:{ label: 'Regional - 1ª Avaliação', ...regional1 },
+        regional2Avaliacao:{ label: 'Regional - 2ª Avaliação', ...regional2 },
+        redeToda1Avaliacao:{ label: 'Rede Toda - 1ª Avaliação', ...redeToda1 },
+        redeToda2Avaliacao:{ label: 'Rede Toda - 2ª Avaliação', ...redeToda2 },
+      });
+      return;
+    }
+
+    if (selectedSystem === 'parana-mais') {
+      const comp = normalizeSelect(filters.componente);
+      const ano  = normalizeSelect(filters.ano_escolar);
+      const reg  = normalizeSelect(filters.regional);
+      const uni  = normalizeSelect(filters.unidade);
+
+      const raw: RawParceiro[] = await getProficiencyDataMais({
+        componente: comp,
+        ano_escolar: ano,
+        regional: reg,
+        unidade: uni,
+      });
+
+      const redeS1 = raw.filter(d => String(d.semestre) === '1');
+      const redeS2 = raw.filter(d => String(d.semestre) === '2');
+
+      const regionalRaw = reg ? raw.filter(d => d.regional === reg) : raw;
+      const regS1 = regionalRaw.filter(d => String(d.semestre) === '1');
+      const regS2 = regionalRaw.filter(d => String(d.semestre) === '2');
+
+      const unidadeRaw = uni ? raw.filter(d => d.unidade === uni) : raw;
+      const uniS1 = unidadeRaw.filter(d => String(d.semestre) === '1');
+      const uniS2 = unidadeRaw.filter(d => String(d.semestre) === '2');
+
       const unidade1 = aggregateParceiro(uniS1);
       const unidade2 = aggregateParceiro(uniS2);
       const regional1 = aggregateParceiro(regS1);

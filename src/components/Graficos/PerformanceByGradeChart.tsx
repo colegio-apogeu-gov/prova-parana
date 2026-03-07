@@ -4,7 +4,7 @@ import { ProvaResultado } from '../../types';
 
 interface PerformanceByGradeChartProps {
   data: ProvaResultado[];
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
 }
 
 const PerformanceByGradeChart: React.FC<PerformanceByGradeChartProps> = ({ data, selectedSystem }) => {

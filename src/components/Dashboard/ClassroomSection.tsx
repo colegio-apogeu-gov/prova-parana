@@ -15,7 +15,7 @@ import { SalaDeAula, SalaDeAulaAluno, DashboardFilters } from '../../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import jsPDF from 'jspdf';
 
-const apiMap = (system: 'prova-parana' | 'parceiro') => ({
+const apiMap = (system: 'prova-parana' | 'parceiro' | 'parana-mais') => ({
   getSalasDeAula: system === 'prova-parana' ? getSalasDeAula : getSalasDeAulaParceiro,
   addAlunoToSala: system === 'prova-parana' ? addAlunoToSala : addAlunoToSalaParceiro,
   removeAlunoFromSala: system === 'prova-parana' ? removeAlunoFromSala : removeAlunoFromSalaParceiro,
@@ -28,7 +28,7 @@ const apiMap = (system: 'prova-parana' | 'parceiro') => ({
 interface ClassroomSectionProps {
   userProfile: { unidade: string } | null;
   filters: DashboardFilters;
-  selectedSystem: 'prova-parana' | 'parceiro'; // ADICIONE
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais'; // ADICIONE
 }
 
 
