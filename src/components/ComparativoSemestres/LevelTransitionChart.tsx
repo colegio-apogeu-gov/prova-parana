@@ -4,11 +4,11 @@ import { ProvaResultado, ProvaResultadoParceiro } from '../../types';
 
 interface LevelTransitionChartProps {
   data: (ProvaResultado | ProvaResultadoParceiro)[];
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
 }
 
 // Mapa para normalizar os níveis
-const normalizeLevel = (level: string, system: 'prova-parana' | 'parceiro') => {
+const normalizeLevel = (level: string, system: 'prova-parana' | 'parceiro' | 'parana-mais') => {
   if (system === 'prova-parana') {
     const map: Record<string, string> = {
       'Defasagem': 'Insuficiente',
@@ -29,7 +29,7 @@ const normalizeLevel = (level: string, system: 'prova-parana' | 'parceiro') => {
 
 const LevelTransitionChart: React.FC<LevelTransitionChartProps> = ({ data, selectedSystem }) => {
   // ✅ Funções agora ficam antes do useMemo
-  const isLevelImprovement = (from: string, to: string, system: 'prova-parana' | 'parceiro'): boolean => {
+  const isLevelImprovement = (from: string, to: string, system: 'prova-parana' | 'parceiro' | 'parana-mais'): boolean => {
     if (system === 'prova-parana') {
       const levels = ['Insuficiente', 'Básico', 'Adequado', 'Avançado'];
       return levels.indexOf(to) > levels.indexOf(from);
@@ -39,7 +39,7 @@ const LevelTransitionChart: React.FC<LevelTransitionChartProps> = ({ data, selec
     }
   };
 
-  const isLevelDecline = (from: string, to: string, system: 'prova-parana' | 'parceiro'): boolean => {
+  const isLevelDecline = (from: string, to: string, system: 'prova-parana' | 'parceiro' | 'parana-mais'): boolean => {
     if (system === 'prova-parana') {
       const levels = ['Insuficiente', 'Básico', 'Adequado', 'Avançado'];
       return levels.indexOf(to) < levels.indexOf(from);

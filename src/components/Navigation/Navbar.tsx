@@ -11,22 +11,29 @@ interface NavbarProps {
   onLogout: () => void;
   activeTab: 'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'visaogeral';
   onTabChange: (tab: 'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'visaogeral') => void;
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
   onSystemSwitch: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ 
+const Navbar: React.FC<NavbarProps> = ({
   user,
   userProfile,
   onLogout,
-  activeTab, 
+  activeTab,
   onTabChange,
   selectedSystem,
   onSystemSwitch
 }) => {
-  const isProvaParana = selectedSystem === 'prova-parana';
-  const systemTitle = isProvaParana ? 'Prova Paraná Recomposição' : 'Avaliação Parceiro da Escola';
-  const systemColor = isProvaParana ? 'blue' : 'green';
+  const systemTitle = selectedSystem === 'prova-parana'
+    ? 'Prova Paraná Recomposição'
+    : selectedSystem === 'parceiro'
+    ? 'Avaliação Parceiro da Escola'
+    : 'Paraná Mais';
+  const systemColor = selectedSystem === 'prova-parana'
+    ? 'blue'
+    : selectedSystem === 'parceiro'
+    ? 'green'
+    : 'orange';
 
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200">
@@ -56,7 +63,7 @@ const Navbar: React.FC<NavbarProps> = ({
               <BarChart3 className="w-4 h-4" />
               Dashboard
             </button>
-            {/*<button
+            {<button
               onClick={() => onTabChange('upload')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'upload'
@@ -66,7 +73,7 @@ const Navbar: React.FC<NavbarProps> = ({
             >
               <Upload className="w-4 h-4" />
               Upload
-            </button>*/}
+            </button>}
             <button
               onClick={() => onTabChange('graficos')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${

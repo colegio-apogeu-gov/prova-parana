@@ -83,8 +83,8 @@ export interface UserProfile {
 }
 
 export interface UploadForm {
-  ano: '9º ano' | '3º ano';
-  componente: 'MT' | 'LP';
+  ano: '9º ano' | '3º ano' | 'EF' | 'EM';
+  componente: 'MT' | 'LP' | 'CH' | 'CN';
   semestre: '1' | '2';
   unidade: string;
   file: File | null;

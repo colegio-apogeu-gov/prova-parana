@@ -11,7 +11,7 @@ interface FilterPanelProps {
     ano_escolar: string;
   };
   onFilterChange: (filters: any) => void;
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
   userProfile: UserProfile | null;
 }
 
@@ -31,9 +31,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   const isProvaParana = selectedSystem === 'prova-parana';
   const tableName = isProvaParana ? 'prova_resultados' : 'prova_resultados_parceiro';
 
-const ANOS_BY_SYSTEM: Record<'prova-parana'|'parceiro', string[]> = {
+const ANOS_BY_SYSTEM: Record<'prova-parana'|'parceiro'|'parana-mais', string[]> = {
   'prova-parana': ['9º ano', '3º ano'],
-  'parceiro': ['8º ano', '2º ano']
+  'parceiro': ['8º ano', '2º ano'],
+  'parana-mais': ['9º ano', '3º ano']
 };
 
   useEffect(() => {
@@ -90,6 +91,12 @@ const ANOS_BY_SYSTEM: Record<'prova-parana'|'parceiro', string[]> = {
             <option value="">Todos</option>
             <option value="MT">Matemática</option>
             <option value="LP">Língua Portuguesa</option>
+            {selectedSystem === 'parana-mais' && (
+              <>
+                <option value="CH">Ciências Humanas</option>
+                <option value="CN">Ciências Naturais</option>
+              </>
+            )}
           </select>
         </div>
 

@@ -4,7 +4,7 @@ import { ProvaResultado } from '../../types';
 
 interface SkillsPerformanceChartProps {
   data: ProvaResultado[];
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
 }
 
 const SkillsPerformanceChart: React.FC<SkillsPerformanceChartProps> = ({ data, selectedSystem }) => {
@@ -18,16 +18,18 @@ const SkillsPerformanceChart: React.FC<SkillsPerformanceChartProps> = ({ data, s
 
   const skillsData = React.useMemo(() => {
     // 🎯 Anos válidos por sistema
-    const GRADES_BY_SYSTEM: Record<'prova-parana' | 'parceiro', string[]> = {
+    const GRADES_BY_SYSTEM: Record<'prova-parana' | 'parceiro' | 'parana-mais', string[]> = {
       'prova-parana': ['9º ano', '3º ano'],
       parceiro: ['8º ano', '2º ano'],
+      'parana-mais': ['9º ano', '3º ano'],
     };
     const allowedGrades = GRADES_BY_SYSTEM[selectedSystem];
 
     // 🏷️ Mapeamento de componentes por sistema (ajuste se o parceiro usar códigos diferentes)
-    const COMPONENTS_BY_SYSTEM: Record<'prova-parana' | 'parceiro', Record<string, string>> = {
+    const COMPONENTS_BY_SYSTEM: Record<'prova-parana' | 'parceiro' | 'parana-mais', Record<string, string>> = {
       'prova-parana': { LP: 'Língua Portuguesa', MT: 'Matemática' },
       parceiro: { LP: 'Língua Portuguesa', MT: 'Matemática' },
+      'parana-mais': { LP: 'Língua Portuguesa', MT: 'Matemática', CH: 'Ciências Humanas', CN: 'Ciências Naturais' },
     };
     const componentLabel = COMPONENTS_BY_SYSTEM[selectedSystem];
 

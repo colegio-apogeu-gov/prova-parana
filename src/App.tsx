@@ -9,6 +9,7 @@ import Navbar from './components/Navigation/Navbar';
 import Dashboard from './components/Dashboard/Dashboard';
 import UploadForm from './components/Upload/UploadForm';
 import UploadFormParceiro from './components/Upload/UploadFormParceiro';
+import UploadFormParanaMais from './components/Upload/UploadFormParanaMais';
 import CadastrarAtividades from './components/CadastrarAtividades/CadastrarAtividades';
 import Graficos from './components/Graficos/Graficos';
 import ComparacaoProvas from './components/ComparacaoProvas/ComparacaoProvas';
@@ -20,8 +21,8 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedSystem, setSelectedSystem] = useState<'prova-parana' | 'parceiro' | null>(() => {
-    return (localStorage.getItem('selectedSystem') as 'prova-parana' | 'parceiro') || null;
+  const [selectedSystem, setSelectedSystem] = useState<'prova-parana' | 'parceiro' | 'parana-mais' | null>(() => {
+    return (localStorage.getItem('selectedSystem') as 'prova-parana' | 'parceiro' | 'parana-mais') || null;
   });
   const [activeTab, setActiveTab] = useState<'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'visaogeral'>(() => {
     return (localStorage.getItem('activeTab') as 'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'visaogeral') || 'dashboard';
@@ -78,9 +79,9 @@ function App() {
     }
   };
 
-  const handleSystemSelect = (system: 'prova-parana' | 'parceiro') => {
+  const handleSystemSelect = (system: 'prova-parana' | 'parceiro' | 'parana-mais') => {
     setSelectedSystem(system);
-    setActiveTab('dashboard'); // Reset to dashboard when switching systems
+    setActiveTab('dashboard');
   };
 
   const handleSystemSwitch = () => {
@@ -127,8 +128,10 @@ function App() {
         ) : activeTab === 'upload' ? (
           selectedSystem === 'prova-parana' ? (
             <UploadForm userProfile={userProfile} />
-          ) : (
+          ) : selectedSystem === 'parceiro' ? (
             <UploadFormParceiro userProfile={userProfile} />
+          ) : (
+            <UploadFormParanaMais userProfile={userProfile} />
           )
         ) : activeTab === 'graficos' ? (
           <Graficos userProfile={userProfile} selectedSystem={selectedSystem} />

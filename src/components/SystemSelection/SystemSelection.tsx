@@ -2,7 +2,7 @@ import React from 'react';
 import { School, Users, BookOpen, BarChart3 } from 'lucide-react';
 
 interface SystemSelectionProps {
-  onSystemSelect: (system: 'prova-parana' | 'parceiro') => void;
+  onSystemSelect: (system: 'prova-parana' | 'parceiro' | 'parana-mais') => void;
 }
 
 const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => {
@@ -17,9 +17,9 @@ const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => 
           <p className="text-xl text-gray-600">Escolha o sistema que deseja acessar</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid md:grid-cols-3 gap-6">
           {/* Prova Paraná */}
-          <div 
+          <div
             onClick={() => onSystemSelect('prova-parana')}
             className="bg-white rounded-2xl shadow-xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl border-2 border-transparent hover:border-blue-200"
           >
@@ -45,7 +45,7 @@ const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => 
           </div>
 
           {/* Avaliação Parceiro da Escola */}
-          <div 
+          <div
             onClick={() => onSystemSelect('parceiro')}
             className="bg-white rounded-2xl shadow-xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl border-2 border-transparent hover:border-green-200"
           >
@@ -61,6 +61,32 @@ const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => 
                 <div className="flex items-center justify-center gap-2">
                   <Users className="w-4 h-4" />
                   <span>8º ano e 2º ano</span>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <BookOpen className="w-4 h-4" />
+                  <span>Língua Portuguesa e Matemática</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Paraná Mais */}
+          <div
+            onClick={() => onSystemSelect('parana-mais')}
+            className="bg-white rounded-2xl shadow-xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl border-2 border-transparent hover:border-orange-200"
+          >
+            <div className="text-center">
+              <div className="bg-orange-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                <BarChart3 className="w-8 h-8 text-orange-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Paraná Mais</h2>
+              <p className="text-gray-600 mb-6">
+                Sistema de avaliação avançada para análise de desempenho e desenvolvimento educacional dos estudantes.
+              </p>
+              <div className="space-y-2 text-sm text-gray-500">
+                <div className="flex items-center justify-center gap-2">
+                  <Users className="w-4 h-4" />
+                  <span>Todos os anos</span>
                 </div>
                 <div className="flex items-center justify-center gap-2">
                   <BookOpen className="w-4 h-4" />
