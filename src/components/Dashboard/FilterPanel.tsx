@@ -189,8 +189,22 @@ const habilidadesFiltradas = nivelSelecionado
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Todos</option>
-            <option value="9º ano">9º ano</option>
-            <option value="3º ano">3º ano</option>
+            {selectedSystem === 'parana-mais' ? (
+              <>
+                <option value="EF">EF</option>
+                <option value="EM">EM</option>
+              </>
+            ) : selectedSystem === 'parceiro' ? (
+              <>
+                <option value="8º ano">8º ano</option>
+                <option value="2º ano">2º ano</option>
+              </>
+            ) : (
+              <>
+                <option value="9º ano">9º ano</option>
+                <option value="3º ano">3º ano</option>
+              </>
+            )}
           </select>
         </div>
 

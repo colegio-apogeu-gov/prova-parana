@@ -125,6 +125,11 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
                   <option value="9º ano">9º ano</option>
                   <option value="3º ano">3º ano</option>
                 </>
+              ) : selectedSystem === 'parana-mais' ? (
+                <>
+                  <option value="EF">EF</option>
+                  <option value="EM">EM</option>
+                </>
               ) : (
                 <>
                   <option value="8º ano">8º ano</option>
