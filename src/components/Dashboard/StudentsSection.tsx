@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, ChevronDown, ChevronRight, BookOpen, ExternalLink, Brain } from 'lucide-react';
 import { fetchProvaData, getLinkByHabilidadeComponente } from '../../lib/supabase';
 import { fetchProvaDataParceiro, getLinkByHabilidadeComponenteParceiro } from '../../lib/supabaseParceiro';
+import { fetchProvaDataMais, getLinkByHabilidadeComponenteMais } from '../../lib/supabaseParanaMais';
 import { DashboardFilters } from '../../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import jsPDF from 'jspdf';
@@ -9,7 +10,9 @@ import jsPDF from 'jspdf';
 const getLinkFn = (system: 'prova-parana' | 'parceiro' | 'parana-mais') =>
   system === 'prova-parana'
     ? getLinkByHabilidadeComponente
-    : getLinkByHabilidadeComponenteParceiro;
+    : system === 'parceiro'
+    ? getLinkByHabilidadeComponenteParceiro
+    : getLinkByHabilidadeComponenteMais;
 
 interface StudentsSectionProps {
   filters: DashboardFilters;
@@ -243,13 +246,17 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile,
   const loadStudentsData = async () => {
     setLoading(true);
     try {
-const fetchFn =
-  selectedSystem === 'prova-parana' ? fetchProvaData : fetchProvaDataParceiro;
+      const fetchFn =
+        selectedSystem === 'prova-parana'
+          ? fetchProvaData
+          : selectedSystem === 'parceiro'
+          ? fetchProvaDataParceiro
+          : fetchProvaDataMais;
 
-const data = await fetchFn({
-  ...filters,
-  unidade: userProfile?.unidade
-});
+      const data = await fetchFn({
+        ...filters,
+        unidade: userProfile?.unidade
+      });
 
 
       const groupedData: { [key: string]: StudentData } = {};
@@ -299,7 +306,9 @@ const data = await fetchFn({
           const alunosSala = new Set(
             (selectedSystem === 'prova-parana'
               ? sala.sala_de_aula_alunos
-              : sala.sala_de_aula_alunos_parceiros
+              : selectedSystem === 'parceiro'
+              ? sala.sala_de_aula_alunos_parceiros
+              : sala.sala_de_alunos_mais
             )?.map((a: any) => a.nome_aluno) || []
           );
           studentsArray = studentsArray.filter(student => alunosSala.has(student.nome_aluno));

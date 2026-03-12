@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { UNIDADE_MAPEADA } from '../types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = "https://riioawdlnzjtisxftprx.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpaW9hd2RsbnpqdGlzeGZ0cHJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI2OTQ2OTMsImV4cCI6MjA2ODI3MDY5M30.3qdM7ulWanTTjJwuYG7tJg7LJu7qE4USYVKRgToe06U";
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables');
@@ -462,7 +462,7 @@ export const getSalasDeAulaMais = async (unidade: string) => {
     .from('sala_de_aula_mais')
     .select(`
       *,
-      sala_de_alunos_mais (
+      sala_de_aula_alunos_mais (
         id,
         nome_aluno,
         turma
@@ -472,7 +472,14 @@ export const getSalasDeAulaMais = async (unidade: string) => {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data || [];
+
+  // Normalizar o nome do campo para sala_de_aula_alunos para compatibilidade com o componente
+  const normalizedData = (data || []).map(sala => ({
+    ...sala,
+    sala_de_aula_alunos: sala.sala_de_aula_alunos_mais || []
+  }));
+
+  return normalizedData;
 };
 
 export const createSalaDeAulaMais = async (salaData: {
@@ -499,7 +506,7 @@ export const createSalaDeAulaMais = async (salaData: {
     }));
 
     const { error: alunosError } = await supabase
-      .from('sala_de_alunos_mais')
+      .from('sala_de_aula_alunos_mais')
       .insert(alunosData);
 
     if (alunosError) throw alunosError;
@@ -510,7 +517,7 @@ export const createSalaDeAulaMais = async (salaData: {
 
 export const addAlunoToSalaMais = async (salaId: string, aluno: { nome_aluno: string; turma: string }) => {
   const { data, error } = await supabase
-    .from('sala_de_alunos_mais')
+    .from('sala_de_aula_alunos_mais')
     .insert({
       sala_id: salaId,
       nome_aluno: aluno.nome_aluno,
@@ -525,7 +532,7 @@ export const addAlunoToSalaMais = async (salaId: string, aluno: { nome_aluno: st
 
 export const removeAlunoFromSalaMais = async (alunoId: string) => {
   const { error } = await supabase
-    .from('sala_de_alunos_mais')
+    .from('sala_de_aula_alunos_mais')
     .delete()
     .eq('id', alunoId);
 

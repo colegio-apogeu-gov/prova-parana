@@ -99,7 +99,7 @@ const ComparativoSemestres: React.FC<ComparativoSemestresProps> = ({ userProfile
             ? 'sala_de_aula_alunos'
             : selectedSystem === 'parceiro'
             ? 'sala_de_aula_alunos_parceiros'
-            : 'sala_de_alunos_mais';
+            : 'sala_de_aula_alunos_mais';
           const alunosSala = new Set(
             sala[alunosField]?.map((a: any) => a.nome_aluno) || []
           );
