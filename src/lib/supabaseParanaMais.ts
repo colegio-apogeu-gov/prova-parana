@@ -282,22 +282,24 @@ export const fetchAllProvaDataMais = async (filters: any = {}) => {
 export const searchStudentsMais = async (searchTerm: string, filters: any = {}) => {
   if (!searchTerm || searchTerm.length < 1) return [];
 
-  let query = supabase
-    .from('prova_resultados_mais')
-    .select('nome_aluno')
-    .ilike('nome_aluno', `%${searchTerm}%`)
-    .limit(10);
-
   const filtrosLimpos = { ...filters };
 
   if (filtrosLimpos.unidade && typeof filtrosLimpos.unidade === 'string') {
-    filtrosLimpos.unidade = filtrosLimpos.unidade
+    const originalUnidade = filtrosLimpos.unidade;
+    const unidadeCorrigida = UNIDADE_MAPEADA[originalUnidade as keyof typeof UNIDADE_MAPEADA] || originalUnidade;
+    filtrosLimpos.unidade = unidadeCorrigida
       .replace(/,/g, '')
       .replace(/-/g, ' ')
       .replace(/\s+/g, ' ')
       .replace(/\s*PROFIS\s*$/i, '')
       .trim();
   }
+
+  let query = supabase
+    .from('prova_resultados_mais')
+    .select('nome_aluno')
+    .ilike('nome_aluno', `%${searchTerm}%`)
+    .limit(20);
 
   Object.entries(filtrosLimpos).forEach(([key, value]) => {
     if (value && key !== 'nome_aluno') {
@@ -314,28 +316,41 @@ export const searchStudentsMais = async (searchTerm: string, filters: any = {}) 
 
 export const getFilterOptionsMais = async (filters: any = {}) => {
   try {
+    const filtrosLimpos = { ...filters };
+
+    if (filtrosLimpos.unidade && typeof filtrosLimpos.unidade === 'string') {
+      const originalUnidade = filtrosLimpos.unidade;
+      const unidadeCorrigida = UNIDADE_MAPEADA[originalUnidade as keyof typeof UNIDADE_MAPEADA] || originalUnidade;
+      filtrosLimpos.unidade = unidadeCorrigida
+        .replace(/,/g, '')
+        .replace(/-/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/\s*PROFIS\s*$/i, '')
+        .trim();
+    }
+
     let niveisQuery = supabase
       .from('prova_resultados_mais')
-      .select('nivel_aprendizagem')
+      .select('nivel_aprendizagem', { count: 'exact' })
       .not('nivel_aprendizagem', 'is', null)
-      .not('nivel_aprendizagem', 'eq', '');
+      .not('nivel_aprendizagem', 'eq', '')
+      .limit(100);
 
     let habilidadesQuery = supabase
       .from('prova_resultados_mais')
-      .select('habilidade_codigo, habilidade_id, descricao_habilidade')
+      .select('habilidade_codigo, habilidade_id, descricao_habilidade, nivel_aprendizagem', { count: 'exact' })
       .not('habilidade_codigo', 'is', null)
-      .not('habilidade_codigo', 'eq', '');
-
-    const filtrosLimpos = { ...filters };
+      .not('habilidade_codigo', 'eq', '')
+      .limit(500);
 
     Object.entries(filtrosLimpos).forEach(([key, value]) => {
-      if (value && key !== 'nivel_aprendizagem') {
+      if (value && key !== 'nivel_aprendizagem' && key !== 'nome_aluno') {
         niveisQuery = niveisQuery.eq(key, value);
       }
     });
 
     Object.entries(filtrosLimpos).forEach(([key, value]) => {
-      if (value && key !== 'habilidade_codigo') {
+      if (value && key !== 'habilidade_codigo' && key !== 'nome_aluno') {
         habilidadesQuery = habilidadesQuery.eq(key, value);
       }
     });
@@ -358,7 +373,8 @@ export const getFilterOptionsMais = async (filters: any = {}) => {
         habilidadesMap.set(item.habilidade_codigo, {
           codigo: item.habilidade_codigo,
           id: item.habilidade_id,
-          descricao: item.descricao_habilidade
+          descricao: item.descricao_habilidade,
+          nivel_aprendizagem: item.nivel_aprendizagem
         });
       }
     });

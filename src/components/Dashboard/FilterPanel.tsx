@@ -39,7 +39,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             : selectedSystem === 'parceiro'
             ? searchStudentsParceiro
             : searchStudentsMais;
-          const students = await searchFn(searchTerm, filters);
+
+          const searchFilters = {
+            ...filters,
+            unidade: userProfile?.unidade
+          };
+
+          const students = await searchFn(searchTerm, searchFilters);
           setSuggestions(students);
         } catch (error) {
           console.error('Erro ao buscar alunos:', error);
@@ -52,7 +58,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     } else {
       setSuggestions([]);
     }
-  }, [searchTerm, filters, selectedSystem]);
+  }, [searchTerm, filters, selectedSystem, userProfile]);
 
   useEffect(() => {
     const fetchFilterOptions = async () => {
@@ -284,19 +290,6 @@ const habilidadesFiltradas = nivelSelecionado
       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
     >
       <option value="">Todas</option>
-      {selectedSystem === 'prova-parana' ? (
-        <>
-          <option value="9º ano">9º ano</option>
-          <option value="3º ano">3º ano</option>
-        </>
-      ) : (
-        <>
-          <option value="8º ano">8º ano</option>
-          <option value="2º ano">2º ano</option>
-        </>
-      )}
-
-      {/* ✅ Aqui entram as habilidades do backend */}
       {habilidadesFiltradas.map((habilidade) => (
         <option
           key={`${habilidade.codigo}-${habilidade.id}`}
