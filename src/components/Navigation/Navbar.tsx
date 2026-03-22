@@ -63,7 +63,7 @@ const Navbar: React.FC<NavbarProps> = ({
               <BarChart3 className="w-4 h-4" />
               Dashboard
             </button>
-            {<button
+            {/*<button
               onClick={() => onTabChange('upload')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'upload'
@@ -73,7 +73,7 @@ const Navbar: React.FC<NavbarProps> = ({
             >
               <Upload className="w-4 h-4" />
               Upload
-            </button>}
+            </button>*/}
             <button
               onClick={() => onTabChange('graficos')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -96,6 +96,7 @@ const Navbar: React.FC<NavbarProps> = ({
               <GitCompare className="w-4 h-4" />
               Comparação Provas
             </button>*/}
+            {selectedSystem !== 'parana-mais' && (
             <button
               onClick={() => onTabChange('semestres')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -107,6 +108,7 @@ const Navbar: React.FC<NavbarProps> = ({
               <GitCompare className="w-4 h-4" />
               Comparação Semestres
             </button>
+            )}
 
             <button
               onClick={() => onTabChange('visaogeral')}

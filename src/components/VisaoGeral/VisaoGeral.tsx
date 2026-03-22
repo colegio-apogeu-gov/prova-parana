@@ -20,6 +20,25 @@ interface Filters {
   ano_escolar: string;
 }
 
+interface ComparativoEscola {
+  escola: string;
+  lp2024: number | null;
+  lp2025: number | null;
+  lpDiff: number | null;
+  mat2024: number | null;
+  mat2025: number | null;
+  matDiff: number | null;
+  ch2024?: number | null;
+  ch2025?: number | null;
+  chDiff?: number | null;
+  cn2024?: number | null;
+  cn2025?: number | null;
+  cnDiff?: number | null;
+  mediaGeral2024: number | null;
+  mediaGeral2025: number | null;
+  mediaGeralDiff: number | null;
+}
+
 type CardData = {
   value: number;
   label: string;
@@ -36,6 +55,8 @@ const VisaoGeral: React.FC<VisaoGeralProps> = ({ userProfile, selectedSystem }) 
     unidade: '',
     ano_escolar: ''
   });
+  const [comparativoEscolasEF, setComparativoEscolasEF] = useState<ComparativoEscola[]>([]);
+  const [comparativoEscolasEM, setComparativoEscolasEM] = useState<ComparativoEscola[]>([]);
 
   const [proficiencyData, setProficiencyData] = useState<{
     unidade1Avaliacao: CardData;
@@ -65,6 +86,9 @@ const VisaoGeral: React.FC<VisaoGeralProps> = ({ userProfile, selectedSystem }) 
 
   useEffect(() => {
     loadProficiencyData();
+    if (selectedSystem === 'parana-mais') {
+      loadComparativoEscolas();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, selectedSystem]);
 
@@ -459,6 +483,67 @@ const loadProficiencyData = async () => {
   }
 };
 
+const loadComparativoEscolas = async () => {
+  try {
+    const anoEscolar = filters.ano_escolar?.toUpperCase();
+
+    const dadosEF: ComparativoEscola[] = [
+      { escola: 'ANITA CANET, C E-EF M P', lp2024: 251, lp2025: 250, lpDiff: -1, mat2024: 257, mat2025: 258, matDiff: 1, mediaGeral2024: 254, mediaGeral2025: 254, mediaGeralDiff: 0 },
+      { escola: 'ANTONIO TUPY PINHEIRO, C E-EF M PROFIS', lp2024: 242, lp2025: 256, lpDiff: 14, mat2024: 238, mat2025: 250, matDiff: 12, mediaGeral2024: 240, mediaGeral2025: 253, mediaGeralDiff: 13 },
+      { escola: 'COSTA VIANA, C E-EF M PROFIS N', lp2024: 240, lp2025: 251, lpDiff: 11, mat2024: 242, mat2025: 251, matDiff: 9, mediaGeral2024: 241, mediaGeral2025: 251, mediaGeralDiff: 10 },
+      { escola: 'CRISTO REI, C E-EF M PROFIS', lp2024: 232, lp2025: 249, lpDiff: 17, mat2024: 240, mat2025: 250, matDiff: 10, mediaGeral2024: 236, mediaGeral2025: 250, mediaGeralDiff: 14 },
+      { escola: 'DECIO DOSSI, C E DR-EF M PROFIS', lp2024: 238, lp2025: 236, lpDiff: -2, mat2024: 247, mat2025: 234, matDiff: -13, mediaGeral2024: 243, mediaGeral2025: 235, mediaGeralDiff: -8 },
+      { escola: 'FRANCISCO C MARTINS, C E-M P', lp2024: null, lp2025: null, lpDiff: null, mat2024: null, mat2025: null, matDiff: null, mediaGeral2024: null, mediaGeral2025: null, mediaGeralDiff: null },
+      { escola: 'GODOFREDO MACHADO, E E-EF', lp2024: 237, lp2025: 263, lpDiff: 26, mat2024: 248, mat2025: 269, matDiff: 21, mediaGeral2024: 243, mediaGeral2025: 266, mediaGeralDiff: 24 },
+      { escola: 'ISABEL L S SOUZA, C E PROFA-EF M PROFIS', lp2024: 235, lp2025: 252, lpDiff: 17, mat2024: 234, mat2025: 236, matDiff: 2, mediaGeral2024: 235, mediaGeral2025: 244, mediaGeralDiff: 10 },
+      { escola: 'IVO LEAO, C E-EF M', lp2024: 235, lp2025: 257, lpDiff: 22, mat2024: 246, mat2025: 262, matDiff: 16, mediaGeral2024: 241, mediaGeral2025: 260, mediaGeralDiff: 19 },
+      { escola: 'JOAO DE OLIVEIRA FRANCO, C E-EF M', lp2024: 230, lp2025: 265, lpDiff: 35, mat2024: 252, mat2025: 270, matDiff: 18, mediaGeral2024: 241, mediaGeral2025: 268, mediaGeralDiff: 27 },
+      { escola: 'JOAO MAZZAROTTO, C E-EF M', lp2024: 227, lp2025: 231, lpDiff: 4, mat2024: 233, mat2025: 233, matDiff: 0, mediaGeral2024: 230, mediaGeral2025: 232, mediaGeralDiff: 2 },
+      { escola: 'LIANE MARTA DA COSTA, C E-EF M PROFIS', lp2024: 241, lp2025: 230, lpDiff: -11, mat2024: 260, mat2025: 271, matDiff: 11, mediaGeral2024: 251, mediaGeral2025: 251, mediaGeralDiff: 0 },
+      { escola: 'PAULO FREIRE, C E PROF-E F M N', lp2024: 222, lp2025: 246, lpDiff: 24, mat2024: 231, mat2025: 248, matDiff: 17, mediaGeral2024: 227, mediaGeral2025: 247, mediaGeralDiff: 21 },
+      { escola: 'SANTO AGOSTINHO, C E-EF M', lp2024: 241, lp2025: 257, lpDiff: 16, mat2024: 230, mat2025: 254, matDiff: 24, mediaGeral2024: 236, mediaGeral2025: 256, mediaGeralDiff: 20 },
+      { escola: 'TARSILA DO AMARAL, C E-EF M PROFIS', lp2024: 233, lp2025: 235, lpDiff: 2, mat2024: 233, mat2025: 243, matDiff: 10, mediaGeral2024: 233, mediaGeral2025: 239, mediaGeralDiff: 6 },
+      { escola: 'TEREZA DA S RAMOS, C E PROFA-EF M', lp2024: 224, lp2025: 245, lpDiff: 21, mat2024: 236, mat2025: 246, matDiff: 10, mediaGeral2024: 230, mediaGeral2025: 246, mediaGeralDiff: 16 },
+      { escola: 'Geral', lp2024: 235, lp2025: 248, lpDiff: 13, mat2024: 242, mat2025: 252, matDiff: 10, mediaGeral2024: 239, mediaGeral2025: 250, mediaGeralDiff: 11 }
+    ];
+
+    const dadosEM: ComparativoEscola[] = [
+      { escola: 'ANITA CANET, C E-EF M P', lp2024: 271, lp2025: 289, lpDiff: 18, mat2024: 257, mat2025: 293, matDiff: 36, ch2024: 520, ch2025: 526, chDiff: 6, cn2024: 488, cn2025: 524, cnDiff: 36, mediaGeral2024: 384, mediaGeral2025: 408, mediaGeralDiff: 24 },
+      { escola: 'ANTONIO TUPY PINHEIRO, C E-EF M PROFIS', lp2024: 280, lp2025: 284, lpDiff: 4, mat2024: 260, mat2025: 267, matDiff: 7, ch2024: 494, ch2025: 489, chDiff: -5, cn2024: 531, cn2025: 490, cnDiff: -41, mediaGeral2024: 391, mediaGeral2025: 383, mediaGeralDiff: -9 },
+      { escola: 'COSTA VIANA, C E-EF M PROFIS N', lp2024: 288, lp2025: 300, lpDiff: 12, mat2024: 265, mat2025: 284, matDiff: 19, ch2024: 503, ch2025: 524, chDiff: 21, cn2024: 492, cn2025: 515, cnDiff: 23, mediaGeral2024: 387, mediaGeral2025: 406, mediaGeralDiff: 19 },
+      { escola: 'CRISTO REI, C E-EF M PROFIS', lp2024: 293, lp2025: 295, lpDiff: 2, mat2024: 265, mat2025: 277, matDiff: 12, ch2024: 492, ch2025: 478, chDiff: -14, cn2024: 478, cn2025: 473, cnDiff: -5, mediaGeral2024: 382, mediaGeral2025: 381, mediaGeralDiff: -1 },
+      { escola: 'DECIO DOSSI, C E DR-EF M PROFIS', lp2024: 275, lp2025: 283, lpDiff: 8, mat2024: 257, mat2025: 272, matDiff: 15, ch2024: 509, ch2025: 467, chDiff: -42, cn2024: 507, cn2025: 458, cnDiff: -49, mediaGeral2024: 387, mediaGeral2025: 370, mediaGeralDiff: -17 },
+      { escola: 'FRANCISCO C MARTINS, C E-M P', lp2024: 295, lp2025: 290, lpDiff: -5, mat2024: 273, mat2025: 284, matDiff: 11, ch2024: 485, ch2025: 500, chDiff: 15, cn2024: 498, cn2025: 490, cnDiff: -8, mediaGeral2024: 388, mediaGeral2025: 391, mediaGeralDiff: 3 },
+      { escola: 'GODOFREDO MACHADO, E E-EF', lp2024: null, lp2025: null, lpDiff: null, mat2024: null, mat2025: null, matDiff: null, ch2024: null, ch2025: null, chDiff: null, cn2024: null, cn2025: null, cnDiff: null, mediaGeral2024: null, mediaGeral2025: null, mediaGeralDiff: null },
+      { escola: 'ISABEL L S SOUZA, C E PROFA-EF M PROFIS', lp2024: 267, lp2025: 280, lpDiff: 13, mat2024: 249, mat2025: 268, matDiff: 19, ch2024: 521, ch2025: 485, chDiff: -36, cn2024: 517, cn2025: 468, cnDiff: -49, mediaGeral2024: 389, mediaGeral2025: 375, mediaGeralDiff: -13 },
+      { escola: 'IVO LEAO, C E-EF M', lp2024: 276, lp2025: 288, lpDiff: 12, mat2024: 258, mat2025: 275, matDiff: 17, ch2024: 494, ch2025: 473, chDiff: -21, cn2024: 500, cn2025: 477, cnDiff: -23, mediaGeral2024: 382, mediaGeral2025: 378, mediaGeralDiff: -4 },
+      { escola: 'JOAO DE OLIVEIRA FRANCO, C E-EF M', lp2024: 279, lp2025: 287, lpDiff: 8, mat2024: 255, mat2025: 276, matDiff: 21, ch2024: 483, ch2025: 521, chDiff: 38, cn2024: 497, cn2025: 509, cnDiff: 12, mediaGeral2024: 379, mediaGeral2025: 398, mediaGeralDiff: 20 },
+      { escola: 'JOAO MAZZAROTTO, C E-EF M', lp2024: 275, lp2025: 294, lpDiff: 19, mat2024: 261, mat2025: 276, matDiff: 15, ch2024: 503, ch2025: 503, chDiff: 0, cn2024: 499, cn2025: 496, cnDiff: -3, mediaGeral2024: 385, mediaGeral2025: 392, mediaGeralDiff: 8 },
+      { escola: 'LIANE MARTA DA COSTA, C E-EF M PROFIS', lp2024: 275, lp2025: 261, lpDiff: -14, mat2024: 252, mat2025: 255, matDiff: 3, ch2024: 502, ch2025: 497, chDiff: -5, cn2024: 508, cn2025: 486, cnDiff: -22, mediaGeral2024: 384, mediaGeral2025: 375, mediaGeralDiff: -10 },
+      { escola: 'PAULO FREIRE, C E PROF-E F M N', lp2024: 292, lp2025: 285, lpDiff: -7, mat2024: 261, mat2025: 268, matDiff: 7, ch2024: 685, ch2025: 462, chDiff: -223, cn2024: 727, cn2025: 472, cnDiff: -255, mediaGeral2024: 491, mediaGeral2025: 372, mediaGeralDiff: -120 },
+      { escola: 'SANTO AGOSTINHO, C E-EF M', lp2024: 285, lp2025: 310, lpDiff: 25, mat2024: 261, mat2025: 299, matDiff: 38, ch2024: 509, ch2025: 529, chDiff: 20, cn2024: 519, cn2025: 505, cnDiff: -14, mediaGeral2024: 394, mediaGeral2025: 411, mediaGeralDiff: 17 },
+      { escola: 'TARSILA DO AMARAL, C E-EF M PROFIS', lp2024: 293, lp2025: 294, lpDiff: 1, mat2024: 278, mat2025: 297, matDiff: 19, ch2024: 494, ch2025: 505, chDiff: 11, cn2024: 480, cn2025: 520, cnDiff: 40, mediaGeral2024: 386, mediaGeral2025: 404, mediaGeralDiff: 18 },
+      { escola: 'TEREZA DA S RAMOS, C E PROFA-EF M', lp2024: 293, lp2025: 287, lpDiff: -6, mat2024: 264, mat2025: 262, matDiff: -2, ch2024: 776, ch2025: 474, chDiff: -302, cn2024: 766, cn2025: 468, cnDiff: -298, mediaGeral2024: 525, mediaGeral2025: 373, mediaGeralDiff: -152 },
+      { escola: 'Geral', lp2024: 282, lp2025: 288, lpDiff: 6, mat2024: 261, mat2025: 277, matDiff: 16, ch2024: 531, ch2025: 496, chDiff: -36, cn2024: 534, cn2025: 490, cnDiff: -44, mediaGeral2024: 402, mediaGeral2025: 388, mediaGeralDiff: -14 }
+    ];
+
+    let dadosFiltradosEF = dadosEF;
+    let dadosFiltradosEM = dadosEM;
+
+    if (filters.unidade) {
+      dadosFiltradosEF = dadosFiltradosEF.filter(d => d.escola === filters.unidade || d.escola === 'Geral');
+      dadosFiltradosEM = dadosFiltradosEM.filter(d => d.escola === filters.unidade || d.escola === 'Geral');
+    }
+
+    setComparativoEscolasEF(dadosFiltradosEF);
+    setComparativoEscolasEM(dadosFiltradosEM);
+  } catch (error) {
+    console.error('Erro ao carregar comparativo de escolas:', error);
+    setComparativoEscolasEF([]);
+    setComparativoEscolasEM([]);
+  }
+};
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -482,6 +567,8 @@ const loadProficiencyData = async () => {
       ) : (
         <>
           {/* Linha 1: Unidade 1ª e 2ª */}
+          
+          {selectedSystem !== 'parana-mais' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card
               title={proficiencyData.unidade1Avaliacao.label}
@@ -504,8 +591,11 @@ const loadProficiencyData = async () => {
               }}
             />
           </div>
+          )}
 
           {/* Linha 2: Regional 1ª e 2ª */}
+          
+          {selectedSystem !== 'parana-mais' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card
               title={proficiencyData.regional1Avaliacao.label}
@@ -528,8 +618,11 @@ const loadProficiencyData = async () => {
               }}
             />
           </div>
+          )}
 
           {/* Linha 3: Rede toda 1ª e 2ª */}
+          
+          {selectedSystem !== 'parana-mais' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card
               title={proficiencyData.redeToda1Avaliacao.label}
@@ -552,6 +645,262 @@ const loadProficiencyData = async () => {
               }}
             />
           </div>
+          )}
+
+          {/* Tabelas Comparativas - Apenas para Paraná Mais */}
+          {selectedSystem === 'parana-mais' && (
+            <>
+              {/* Tabela Ensino Fundamental */}
+              {comparativoEscolasEF.length > 0 && (
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">
+                    Comparativo por Escola - 2024 x 2025 (Ensino Fundamental)
+                  </h2>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">
+                            Escola
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Língua Portuguesa<br/>2024
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Língua Portuguesa<br/>2025
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            LP<br/>2024 x 2025
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Matemática<br/>2024
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Matemática<br/>2025
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Mat<br/>2024 x 2025
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Média Geral<br/>2024
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Média Geral<br/>2025
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            MG<br/>2024 x 2025
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {comparativoEscolasEF.map((escola, idx) => {
+                          const isTotal = escola.escola === 'Geral';
+                          const tdBgClass = isTotal ? 'bg-blue-50' : '';
+                          return (
+                            <tr key={idx} className={isTotal ? 'bg-blue-50 font-semibold' : 'hover:bg-gray-50'}>
+                              <td className={`px-4 py-3 text-sm text-gray-900 sticky left-0 z-10 ${tdBgClass || 'bg-white'}`}>
+                                {escola.escola}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.lp2024 !== null ? escola.lp2024 : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.lp2025 !== null ? escola.lp2025 : '-'}
+                              </td>
+                              <td className={`px-4 py-3 text-sm text-center font-semibold ${
+                                escola.lpDiff === null ? '' :
+                                escola.lpDiff > 0 ? 'text-green-600' :
+                                escola.lpDiff < 0 ? 'text-red-600' :
+                                'text-gray-900'
+                              }`}>
+                                {escola.lpDiff !== null ? escola.lpDiff : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.mat2024 !== null ? escola.mat2024 : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.mat2025 !== null ? escola.mat2025 : '-'}
+                              </td>
+                              <td className={`px-4 py-3 text-sm text-center font-semibold ${
+                                escola.matDiff === null ? '' :
+                                escola.matDiff > 0 ? 'text-green-600' :
+                                escola.matDiff < 0 ? 'text-red-600' :
+                                'text-gray-900'
+                              }`}>
+                                {escola.matDiff !== null ? escola.matDiff : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.mediaGeral2024 !== null ? escola.mediaGeral2024 : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.mediaGeral2025 !== null ? escola.mediaGeral2025 : '-'}
+                              </td>
+                              <td className={`px-4 py-3 text-sm text-center font-semibold ${
+                                escola.mediaGeralDiff === null ? '' :
+                                escola.mediaGeralDiff > 0 ? 'text-green-600' :
+                                escola.mediaGeralDiff < 0 ? 'text-red-600' :
+                                'text-gray-900'
+                              }`}>
+                                {escola.mediaGeralDiff !== null ? escola.mediaGeralDiff : '-'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Tabela Ensino Médio */}
+              {comparativoEscolasEM.length > 0 && (
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">
+                    Comparativo por Escola - 2024 x 2025 (Ensino Médio)
+                  </h2>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">
+                            Escola
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Língua Portuguesa<br/>2024
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Língua Portuguesa<br/>2025
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            LP<br/>2024 x 2025
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Matemática<br/>2024
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Matemática<br/>2025
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Mat<br/>2024 x 2025
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ciências Humanas<br/>2024
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ciências Humanas<br/>2025
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            CH<br/>2024 x 2025
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ciências da Natureza<br/>2024
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ciências da Natureza<br/>2025
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            CN<br/>2024 x 2025
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Média Geral<br/>2024
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Média Geral<br/>2025
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            MG<br/>2024 x 2025
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {comparativoEscolasEM.map((escola, idx) => {
+                          const isTotal = escola.escola === 'Geral';
+                          const tdBgClass = isTotal ? 'bg-blue-50' : '';
+                          return (
+                            <tr key={idx} className={isTotal ? 'bg-blue-50 font-semibold' : 'hover:bg-gray-50'}>
+                              <td className={`px-4 py-3 text-sm text-gray-900 sticky left-0 z-10 ${tdBgClass || 'bg-white'}`}>
+                                {escola.escola}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.lp2024 !== null ? escola.lp2024 : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.lp2025 !== null ? escola.lp2025 : '-'}
+                              </td>
+                              <td className={`px-4 py-3 text-sm text-center font-semibold ${
+                                escola.lpDiff === null ? '' :
+                                escola.lpDiff > 0 ? 'text-green-600' :
+                                escola.lpDiff < 0 ? 'text-red-600' :
+                                'text-gray-900'
+                              }`}>
+                                {escola.lpDiff !== null ? escola.lpDiff : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.mat2024 !== null ? escola.mat2024 : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.mat2025 !== null ? escola.mat2025 : '-'}
+                              </td>
+                              <td className={`px-4 py-3 text-sm text-center font-semibold ${
+                                escola.matDiff === null ? '' :
+                                escola.matDiff > 0 ? 'text-green-600' :
+                                escola.matDiff < 0 ? 'text-red-600' :
+                                'text-gray-900'
+                              }`}>
+                                {escola.matDiff !== null ? escola.matDiff : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.ch2024 !== null ? escola.ch2024 : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.ch2025 !== null ? escola.ch2025 : '-'}
+                              </td>
+                              <td className={`px-4 py-3 text-sm text-center font-semibold ${
+                                escola.chDiff === null ? '' :
+                                escola.chDiff! > 0 ? 'text-green-600' :
+                                escola.chDiff! < 0 ? 'text-red-600' :
+                                'text-gray-900'
+                              }`}>
+                                {escola.chDiff !== null ? escola.chDiff : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.cn2024 !== null ? escola.cn2024 : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.cn2025 !== null ? escola.cn2025 : '-'}
+                              </td>
+                              <td className={`px-4 py-3 text-sm text-center font-semibold ${
+                                escola.cnDiff === null ? '' :
+                                escola.cnDiff! > 0 ? 'text-green-600' :
+                                escola.cnDiff! < 0 ? 'text-red-600' :
+                                'text-gray-900'
+                              }`}>
+                                {escola.cnDiff !== null ? escola.cnDiff : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.mediaGeral2024 !== null ? escola.mediaGeral2024 : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                {escola.mediaGeral2025 !== null ? escola.mediaGeral2025 : '-'}
+                              </td>
+                              <td className={`px-4 py-3 text-sm text-center font-semibold ${
+                                escola.mediaGeralDiff === null ? '' :
+                                escola.mediaGeralDiff > 0 ? 'text-green-600' :
+                                escola.mediaGeralDiff < 0 ? 'text-red-600' :
+                                'text-gray-900'
+                              }`}>
+                                {escola.mediaGeralDiff !== null ? escola.mediaGeralDiff : '-'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </>
       )}
     </div>
