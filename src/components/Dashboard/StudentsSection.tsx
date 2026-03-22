@@ -275,7 +275,14 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile,
         const componentKey = item.componente;
         if (!groupedData[studentKey].componentes[componentKey]) {
           groupedData[studentKey].componentes[componentKey] = {
-            componente: item.componente === 'LP' ? 'Língua Portuguesa' : 'Matemática',
+            componente:
+  item.componente === 'LP'
+    ? 'Língua Portuguesa'
+    : item.componente === 'CH'
+    ? 'Ciências Humanas'
+    : item.componente === 'CN'
+    ? 'Ciências Naturais'
+    : 'Matemática',
             total_acertos: 0,
             total_questoes: 0,
             habilidades: []

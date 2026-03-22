@@ -21,10 +21,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [filterOptions, setFilterOptions] = useState<{
+    anos?: string[];
     niveis?: string[];
     padroes?: string[];
     habilidades: Array<{ codigo: string; id: string; descricao: string; nivel_aprendizagem?: string }>;
   }>({
+    anos: [],
     niveis: [],
     padroes: [],
     habilidades: []
@@ -75,7 +77,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         setFilterOptions(options);
       } catch (error) {
         console.error('Erro ao buscar opções de filtro:', error);
-        setFilterOptions({ niveis: [], padroes: [], habilidades: [] });
+        setFilterOptions({ anos: [], niveis: [], padroes: [], habilidades: [] });
       }
     };
 
@@ -184,10 +186,29 @@ const habilidadesFiltradas = nivelSelecionado
           />
         </div>
 
+        {/* Ano da Prova */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Ano da Prova
+          </label>
+          <select
+            value={filters.ano_prova || ''}
+            onChange={(e) => updateFilter('ano_prova', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">Todos</option>
+            {filterOptions.anos?.map((ano) => (
+              <option key={ano} value={ano}>
+                {ano}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Ano Escolar */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Ano Escolar
+            {selectedSystem === 'parana-mais' ? (<>Ensino</>) : (<>Ano Escolar</>)}
           </label>
           <select
             value={filters.ano_escolar || ''}
@@ -236,21 +257,22 @@ const habilidadesFiltradas = nivelSelecionado
           </select>
         </div>
 
-        {/* Semestre */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Semestre
-          </label>
-          <select
-            value={filters.semestre || ''}
-            onChange={(e) => updateFilter('semestre', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Todos</option>
-            <option value="1">1º Semestre</option>
-            <option value="2">2º Semestre</option>
-          </select>
-        </div>
+{selectedSystem !== 'parana-mais' && (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Semestre
+    </label>
+    <select
+      value={filters.semestre || ''}
+      onChange={(e) => updateFilter('semestre', e.target.value)}
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    >
+      <option value="">Todos</option>
+      <option value="1">1º Semestre</option>
+      <option value="2">2º Semestre</option>
+    </select>
+  </div>
+)}
 
         {/* Nível de Aprendizagem ou Padrão de Desempenho */}
         <div>

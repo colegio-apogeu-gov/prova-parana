@@ -86,11 +86,11 @@ const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => 
               <div className="space-y-2 text-sm text-gray-500">
                 <div className="flex items-center justify-center gap-2">
                   <Users className="w-4 h-4" />
-                  <span>Todos os anos</span>
+                  <span>9º ano e 3º ano</span>
                 </div>
                 <div className="flex items-center justify-center gap-2">
                   <BookOpen className="w-4 h-4" />
-                  <span>Língua Portuguesa e Matemática</span>
+                  <span>Língua Portuguesa, Matemática, Ciências Humanas e Ciências Naturais</span>
                 </div>
               </div>
             </div>

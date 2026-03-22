@@ -92,6 +92,7 @@ export interface UploadForm {
 
 export interface DashboardFilters {
   unidade?: string;
+  ano_prova?: string;
   ano_escolar?: string;
   componente?: string;
   semestre?: string;
