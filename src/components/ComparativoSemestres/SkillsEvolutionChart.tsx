@@ -4,7 +4,7 @@ import { ProvaResultado, ProvaResultadoParceiro } from '../../types';
 
 interface SkillsEvolutionChartProps {
   data: (ProvaResultado | ProvaResultadoParceiro)[];
-  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
 const SkillsEvolutionChart: React.FC<SkillsEvolutionChartProps> = ({ data, selectedSystem }) => {

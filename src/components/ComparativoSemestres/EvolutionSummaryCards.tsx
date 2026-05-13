@@ -4,7 +4,7 @@ import { ProvaResultado, ProvaResultadoParceiro } from '../../types';
 
 interface EvolutionSummaryCardsProps {
   data: (ProvaResultado | ProvaResultadoParceiro)[];
-  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
 const EvolutionSummaryCards: React.FC<EvolutionSummaryCardsProps> = ({ data, selectedSystem }) => {

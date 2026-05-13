@@ -4,7 +4,7 @@ import { ProvaResultado } from '../../types';
 
 interface LearningLevelsChartProps {
   data: ProvaResultado[];
-  selectedSystem?: 'prova-parana' | 'parceiro' | 'parana-mais';
+  selectedSystem?: 'prova-parana' | 'parceiro';
 }
 
 const LearningLevelsChart: React.FC<LearningLevelsChartProps> = ({ data, selectedSystem = 'prova-parana' }) => {

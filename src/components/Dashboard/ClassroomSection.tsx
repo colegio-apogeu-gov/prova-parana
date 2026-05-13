@@ -10,34 +10,25 @@ import {
   getLinkByHabilidadeComponenteParceiro,
   getAlunosDisponivelParceiro
 } from '../../lib/supabaseParceiro';
-import {
-  getSalasDeAulaMais,
-  addAlunoToSalaMais,
-  removeAlunoFromSalaMais,
-  createSalaDeAulaMais,
-  fetchProvaDataMais,
-  getLinkByHabilidadeComponenteMais,
-  getAlunosDisponivelMais
-} from '../../lib/supabaseParanaMais';
 
 import { SalaDeAula, SalaDeAulaAluno, DashboardFilters } from '../../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import jsPDF from 'jspdf';
 
-const apiMap = (system: 'prova-parana' | 'parceiro' | 'parana-mais') => ({
-  getSalasDeAula: system === 'prova-parana' ? getSalasDeAula : system === 'parceiro' ? getSalasDeAulaParceiro : getSalasDeAulaMais,
-  addAlunoToSala: system === 'prova-parana' ? addAlunoToSala : system === 'parceiro' ? addAlunoToSalaParceiro : addAlunoToSalaMais,
-  removeAlunoFromSala: system === 'prova-parana' ? removeAlunoFromSala : system === 'parceiro' ? removeAlunoFromSalaParceiro : removeAlunoFromSalaMais,
-  createSalaDeAula: system === 'prova-parana' ? createSalaDeAula : system === 'parceiro' ? createSalaDeAulaParceiro : createSalaDeAulaMais,
-  fetchProvaData: system === 'prova-parana' ? fetchProvaData : system === 'parceiro' ? fetchProvaDataParceiro : fetchProvaDataMais,
-  getLinkByHabilidadeComponente: system === 'prova-parana' ? getLinkByHabilidadeComponente : system === 'parceiro' ? getLinkByHabilidadeComponenteParceiro : getLinkByHabilidadeComponenteMais,
+const apiMap = (system: 'prova-parana' | 'parceiro') => ({
+  getSalasDeAula: system === 'prova-parana' ? getSalasDeAula : getSalasDeAulaParceiro,
+  addAlunoToSala: system === 'prova-parana' ? addAlunoToSala : addAlunoToSalaParceiro,
+  removeAlunoFromSala: system === 'prova-parana' ? removeAlunoFromSala : removeAlunoFromSalaParceiro,
+  createSalaDeAula: system === 'prova-parana' ? createSalaDeAula : createSalaDeAulaParceiro,
+  fetchProvaData: system === 'prova-parana' ? fetchProvaData : fetchProvaDataParceiro,
+  getLinkByHabilidadeComponente: system === 'prova-parana' ? getLinkByHabilidadeComponente : getLinkByHabilidadeComponenteParceiro,
 });
 
 
 interface ClassroomSectionProps {
   userProfile: { unidade: string } | null;
   filters: DashboardFilters;
-  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais'; // ADICIONE
+  selectedSystem: 'prova-parana' | 'parceiro'; // ADICIONE
 }
 
 
@@ -105,13 +96,9 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
 
   const loadAlunosDisponiveis = async () => {
     if (!userProfile?.unidade) return;
-
+    
     try {
-      const getAlunosFn = selectedSystem === 'prova-parana'
-        ? getAlunosDisponiveis
-        : selectedSystem === 'parceiro'
-        ? getAlunosDisponivelParceiro
-        : getAlunosDisponivelMais;
+      const getAlunosFn = selectedSystem === 'prova-parana' ? getAlunosDisponiveis : getAlunosDisponivelParceiro;
       const alunos = await getAlunosFn({
         unidade: userProfile.unidade,
         ...filters

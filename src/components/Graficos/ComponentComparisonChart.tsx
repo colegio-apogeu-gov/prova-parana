@@ -4,14 +4,14 @@ import { ProvaResultado } from '../../types';
 
 interface ComponentComparisonChartProps {
   data: ProvaResultado[];
-  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
 const ComponentComparisonChart: React.FC<ComponentComparisonChartProps> = ({ data, selectedSystem }) => {
   const componentData = React.useMemo(() => {
     // 🔧 Mapeie aqui os códigos e rótulos por sistema
     const COMPONENTS_BY_SYSTEM: Record<
-      'prova-parana' | 'parceiro' | 'parana-mais',
+      'prova-parana' | 'parceiro',
       Record<string, string>
     > = {
       'prova-parana': {
@@ -22,12 +22,6 @@ const ComponentComparisonChart: React.FC<ComponentComparisonChartProps> = ({ dat
         // Ajuste se o parceiro tiver códigos diferentes (ex.: "MAT" em vez de "MT")
         LP: 'Língua Portuguesa',
         MT: 'Matemática',
-      },
-      'parana-mais': {
-        LP: 'Língua Portuguesa',
-        MT: 'Matemática',
-        CH: 'Ciências Humanas',
-        CN: 'Ciências Naturais',
       },
     };
 

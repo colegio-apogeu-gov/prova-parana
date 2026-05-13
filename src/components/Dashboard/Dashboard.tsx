@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { BarChart3, Users, TrendingUp, Filter } from 'lucide-react';
 import { fetchProvaData, getFilterOptions, getSalasDeAula } from '../../lib/supabase';
 import { fetchProvaDataParceiro, getFilterOptionsParceiro, getSalasDeAulaParceiro } from '../../lib/supabaseParceiro';
-import { fetchProvaDataMais, getFilterOptionsMais, getSalasDeAulaMais } from '../../lib/supabaseParanaMais';
 import { DashboardFilters, ProvaResultado, PerformanceInsight } from '../../types';
 import FilterPanel from './FilterPanel';
 import StatsCards from './StatsCards';
@@ -13,7 +12,7 @@ import ClassroomSection from './ClassroomSection';
 
 interface DashboardProps {
   userProfile: { unidade: string } | null;
-  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ userProfile, selectedSystem }) => {
@@ -55,11 +54,7 @@ useEffect(() => {
     if (!userProfile?.unidade) return;
 
     try {
-      const fetchSalasFn = selectedSystem === 'prova-parana'
-        ? getSalasDeAula
-        : selectedSystem === 'parceiro'
-        ? getSalasDeAulaParceiro
-        : getSalasDeAulaMais;
+      const fetchSalasFn = selectedSystem === 'prova-parana' ? getSalasDeAula : getSalasDeAulaParceiro;
       const salas = await fetchSalasFn(userProfile.unidade);
       setSalasDeAula(salas || []);
     } catch (error) {
@@ -74,25 +69,14 @@ useEffect(() => {
     setStudentsLoading(true);
     
     try {
-      const fetchDataFn = selectedSystem === 'prova-parana'
-        ? fetchProvaData
-        : selectedSystem === 'parceiro'
-        ? fetchProvaDataParceiro
-        : fetchProvaDataMais;
-
-      const getFiltersFn = selectedSystem === 'prova-parana'
-        ? getFilterOptions
-        : selectedSystem === 'parceiro'
-        ? getFilterOptionsParceiro
-        : getFilterOptionsMais;
-
+      // Carrega dados principais e opções de filtro em paralelo
       const [provaData, filterOptions] = await Promise.all([
-        fetchDataFn(filters),
-        getFiltersFn({
-          ...filters,
-          unidade: userProfile?.unidade
-        })
-      ]);
+  (selectedSystem === 'prova-parana' ? fetchProvaData : fetchProvaDataParceiro)(filters),
+  (selectedSystem === 'prova-parana' ? getFilterOptions : getFilterOptionsParceiro)({
+    ...filters,
+    unidade: userProfile?.unidade
+  })
+]);
       
       setData(provaData || []);
       processInsights(provaData || []);
@@ -187,7 +171,7 @@ useEffect(() => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
             <p className="text-gray-600">
-              Análise de Performance - {selectedSystem === 'prova-parana' ? 'Prova Paraná Recomposição' : selectedSystem === 'parceiro' ? 'Avaliação Parceiro da Escola' : 'Paraná Mais'}
+              Análise de Performance - {selectedSystem === 'prova-parana' ? 'Prova Paraná Recomposição' : 'Avaliação Parceiro da Escola'}
             </p>
           </div>
         </div>

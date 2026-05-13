@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { UNIDADE_MAPEADA } from '../types';
 
-const supabaseUrl = "https://riioawdlnzjtisxftprx.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpaW9hd2RsbnpqdGlzeGZ0cHJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI2OTQ2OTMsImV4cCI6MjA2ODI3MDY5M30.3qdM7ulWanTTjJwuYG7tJg7LJu7qE4USYVKRgToe06U";
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables');
@@ -38,21 +38,13 @@ export const fetchProvaData = async (filters: any = {}) => {
         .select('*')
         .order('nome_aluno', { ascending: true })
         .range(page * pageSize, (page + 1) * pageSize - 1);
-
+      
       // Aplicar filtros válidos
       Object.entries(searchFilters).forEach(([key, value]) => {
-        if (value && key !== 'aluno' && key !== 'ano_prova') {
+        if (value && key !== 'aluno') {
           query = query.eq(key, value);
         }
       });
-
-      // Filtro de ano da prova (baseado em created_at)
-      if (searchFilters.ano_prova) {
-        const ano = searchFilters.ano_prova;
-        const startDate = `${ano}-01-01`;
-        const endDate = `${ano}-12-31`;
-        query = query.gte('created_at', startDate).lte('created_at', endDate);
-      }
 
       const { data, error } = await query;
 
@@ -202,12 +194,6 @@ export const searchStudents = async (searchTerm: string, filters: any = {}) => {
 
 export const getFilterOptions = async (filters: any = {}) => {
   try {
-    // Busca anos das provas únicos
-    let anosQuery = supabase
-      .from('prova_resultados')
-      .select('created_at')
-      .not('created_at', 'is', null);
-
     // Busca níveis de aprendizagem únicos
     let niveisQuery = supabase
       .from('prova_resultados')
@@ -224,13 +210,6 @@ export const getFilterOptions = async (filters: any = {}) => {
 
     const filtrosLimpos = { ...filters };
 
-    // Aplica filtros para anos (exceto ele mesmo)
-    Object.entries(filtrosLimpos).forEach(([key, value]) => {
-      if (value && key !== 'ano_prova') {
-        anosQuery = anosQuery.eq(key, value);
-      }
-    });
-
     // Aplica filtros para a busca de níveis (exceto ele mesmo)
     Object.entries(filtrosLimpos).forEach(([key, value]) => {
       if (value && key !== 'nivel_aprendizagem') {
@@ -245,19 +224,13 @@ export const getFilterOptions = async (filters: any = {}) => {
       }
     });
 
-    const [anosResult, niveisResult, habilidadesResult] = await Promise.all([
-      anosQuery,
+    const [niveisResult, habilidadesResult] = await Promise.all([
       niveisQuery,
       habilidadesQuery
     ]);
 
-    if (anosResult.error) throw anosResult.error;
     if (niveisResult.error) throw niveisResult.error;
     if (habilidadesResult.error) throw habilidadesResult.error;
-
-    const anosUnicos = [...new Set(
-      anosResult.data?.map(item => new Date(item.created_at).getFullYear().toString()).filter(Boolean) || []
-    )].sort((a, b) => b.localeCompare(a));
 
     const niveisUnicos = [...new Set(
       niveisResult.data?.map(item => item.nivel_aprendizagem).filter(Boolean) || []
@@ -278,14 +251,12 @@ export const getFilterOptions = async (filters: any = {}) => {
       .sort((a, b) => a.codigo.localeCompare(b.codigo));
 
     return {
-      anos: anosUnicos,
       niveis: niveisUnicos,
       habilidades: habilidadesUnicas
     };
   } catch (error) {
     console.error('Erro ao buscar opções de filtro:', error);
     return {
-      anos: [],
       niveis: [],
       habilidades: []
     };

@@ -17,7 +17,7 @@ const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => 
           <p className="text-xl text-gray-600">Escolha o sistema que deseja acessar</p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-3 gap-8">
           {/* Prova Paraná */}
           <div
             onClick={() => onSystemSelect('prova-parana')}
@@ -30,6 +30,32 @@ const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => 
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Prova Paraná Recomposição</h2>
               <p className="text-gray-600 mb-6">
                 Sistema oficial de avaliação educacional do estado do Paraná para análise de desempenho dos estudantes.
+              </p>
+              <div className="space-y-2 text-sm text-gray-500">
+                <div className="flex items-center justify-center gap-2">
+                  <Users className="w-4 h-4" />
+                  <span>9º ano e 3º ano</span>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <BookOpen className="w-4 h-4" />
+                  <span>Língua Portuguesa e Matemática</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Paraná Mais */}
+          <div
+            onClick={() => onSystemSelect('parana-mais')}
+            className="bg-white rounded-2xl shadow-xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl border-2 border-transparent hover:border-cyan-200"
+          >
+            <div className="text-center">
+              <div className="bg-cyan-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                <BarChart3 className="w-8 h-8 text-cyan-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Paraná Mais</h2>
+              <p className="text-gray-600 mb-6">
+                Sistema avançado de avaliação e acompanhamento educacional com análises complementares de desempenho.
               </p>
               <div className="space-y-2 text-sm text-gray-500">
                 <div className="flex items-center justify-center gap-2">
@@ -65,32 +91,6 @@ const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => 
                 <div className="flex items-center justify-center gap-2">
                   <BookOpen className="w-4 h-4" />
                   <span>Língua Portuguesa e Matemática</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Paraná Mais */}
-          <div
-            onClick={() => onSystemSelect('parana-mais')}
-            className="bg-white rounded-2xl shadow-xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl border-2 border-transparent hover:border-orange-200"
-          >
-            <div className="text-center">
-              <div className="bg-orange-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-                <BarChart3 className="w-8 h-8 text-orange-600" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Paraná Mais</h2>
-              <p className="text-gray-600 mb-6">
-                Sistema de avaliação avançada para análise de desempenho e desenvolvimento educacional dos estudantes.
-              </p>
-              <div className="space-y-2 text-sm text-gray-500">
-                <div className="flex items-center justify-center gap-2">
-                  <Users className="w-4 h-4" />
-                  <span>9º ano e 3º ano</span>
-                </div>
-                <div className="flex items-center justify-center gap-2">
-                  <BookOpen className="w-4 h-4" />
-                  <span>Língua Portuguesa, Matemática, Ciências Humanas e Ciências Naturais</span>
                 </div>
               </div>
             </div>

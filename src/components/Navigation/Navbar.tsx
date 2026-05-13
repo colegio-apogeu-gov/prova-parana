@@ -11,29 +11,22 @@ interface NavbarProps {
   onLogout: () => void;
   activeTab: 'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'visaogeral';
   onTabChange: (tab: 'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'visaogeral') => void;
-  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
+  selectedSystem: 'prova-parana' | 'parceiro';
   onSystemSwitch: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({
+const Navbar: React.FC<NavbarProps> = ({ 
   user,
   userProfile,
   onLogout,
-  activeTab,
+  activeTab, 
   onTabChange,
   selectedSystem,
   onSystemSwitch
 }) => {
-  const systemTitle = selectedSystem === 'prova-parana'
-    ? 'Prova Paraná Recomposição'
-    : selectedSystem === 'parceiro'
-    ? 'Avaliação Parceiro da Escola'
-    : 'Paraná Mais';
-  const systemColor = selectedSystem === 'prova-parana'
-    ? 'blue'
-    : selectedSystem === 'parceiro'
-    ? 'green'
-    : 'orange';
+  const isProvaParana = selectedSystem === 'prova-parana';
+  const systemTitle = isProvaParana ? 'Prova Paraná Recomposição' : 'Avaliação Parceiro da Escola';
+  const systemColor = isProvaParana ? 'blue' : 'green';
 
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200">
@@ -96,7 +89,6 @@ const Navbar: React.FC<NavbarProps> = ({
               <GitCompare className="w-4 h-4" />
               Comparação Provas
             </button>*/}
-            {selectedSystem !== 'parana-mais' && (
             <button
               onClick={() => onTabChange('semestres')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -108,7 +100,6 @@ const Navbar: React.FC<NavbarProps> = ({
               <GitCompare className="w-4 h-4" />
               Comparação Semestres
             </button>
-            )}
 
             <button
               onClick={() => onTabChange('visaogeral')}

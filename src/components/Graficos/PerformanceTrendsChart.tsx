@@ -4,16 +4,15 @@ import { ProvaResultado } from '../../types';
 
 interface PerformanceTrendsChartProps {
   data: ProvaResultado[];
-  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
 const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = ({ data, selectedSystem }) => {
   const trendsData = React.useMemo(() => {
     // 🔧 Anos válidos por sistema
-    const GRADES_BY_SYSTEM: Record<'prova-parana' | 'parceiro' | 'parana-mais', string[]> = {
+    const GRADES_BY_SYSTEM: Record<'prova-parana' | 'parceiro', string[]> = {
       'prova-parana': ['9º ano', '3º ano'],
       parceiro: ['8º ano', '2º ano'],
-      'parana-mais': ['EF', 'EM'],
     };
 
     const allowedGrades = GRADES_BY_SYSTEM[selectedSystem];

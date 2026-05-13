@@ -11,7 +11,7 @@ interface FilterPanelProps {
     ano_escolar: string;
   };
   onFilterChange: (filters: any) => void;
-  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
+  selectedSystem: 'prova-parana' | 'parceiro';
   userProfile: UserProfile | null;
 }
 
@@ -31,10 +31,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   const isProvaParana = selectedSystem === 'prova-parana';
   const tableName = isProvaParana ? 'prova_resultados' : 'prova_resultados_parceiro';
 
-const ANOS_BY_SYSTEM: Record<'prova-parana'|'parceiro'|'parana-mais', string[]> = {
+const ANOS_BY_SYSTEM: Record<'prova-parana'|'parceiro', string[]> = {
   'prova-parana': ['9º ano', '3º ano'],
-  'parceiro': ['8º ano', '2º ano'],
-  'parana-mais': ['EF', 'EM']
+  'parceiro': ['8º ano', '2º ano']
 };
 
   useEffect(() => {
@@ -47,35 +46,13 @@ const ANOS_BY_SYSTEM: Record<'prova-parana'|'parceiro'|'parana-mais', string[]> 
     try {
       setUnidadesLoading(true);
 
-      if (selectedSystem === 'parana-mais') {
-        const unidadesMockadas = [
-          'ANITA CANET, C E-EF M P',
-          'ANTONIO TUPY PINHEIRO, C E-EF M PROFIS',
-          'COSTA VIANA, C E-EF M PROFIS N',
-          'CRISTO REI, C E-EF M PROFIS',
-          'DECIO DOSSI, C E DR-EF M PROFIS',
-          'FRANCISCO C MARTINS, C E-M P',
-          'GODOFREDO MACHADO, E E-EF',
-          'ISABEL L S SOUZA, C E PROFA-EF M PROFIS',
-          'IVO LEAO, C E-EF M',
-          'JOAO DE OLIVEIRA FRANCO, C E-EF M',
-          'JOAO MAZZAROTTO, C E-EF M',
-          'LIANE MARTA DA COSTA, C E-EF M PROFIS',
-          'PAULO FREIRE, C E PROF-E F M N',
-          'SANTO AGOSTINHO, C E-EF M',
-          'TARSILA DO AMARAL, C E-EF M PROFIS',
-          'TEREZA DA S RAMOS, C E PROFA-EF M'
-        ];
-        setUnidades(unidadesMockadas);
-      } else {
-        // 1) Unidades via getAllUnitsData (passando regional se selecionada)
-        const unidadesFiltros: any = {};
-        if (filters.regional) unidadesFiltros.regional = filters.regional;
+      // 1) Unidades via getAllUnitsData (passando regional se selecionada)
+      const unidadesFiltros: any = {};
+      if (filters.regional) unidadesFiltros.regional = filters.regional;
 
-        const allUnits = await getAllUnitsData(unidadesFiltros, tableName);
-        // allUnits já deve estar DISTINCT + ordenado (conforme sua implementação)
-        setUnidades(allUnits);
-      }
+      const allUnits = await getAllUnitsData(unidadesFiltros, tableName);
+      // allUnits já deve estar DISTINCT + ordenado (conforme sua implementação)
+      setUnidades(allUnits);
 
       setAnosEscolares(ANOS_BY_SYSTEM[selectedSystem]);
     } catch (error) {
@@ -113,12 +90,6 @@ const ANOS_BY_SYSTEM: Record<'prova-parana'|'parceiro'|'parana-mais', string[]> 
             <option value="">Todos</option>
             <option value="MT">Matemática</option>
             <option value="LP">Língua Portuguesa</option>
-            {selectedSystem === 'parana-mais' && (
-              <>
-                <option value="CH">Ciências Humanas</option>
-                <option value="CN">Ciências Naturais</option>
-              </>
-            )}
           </select>
         </div>
 

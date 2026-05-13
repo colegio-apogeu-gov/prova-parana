@@ -44,6 +44,27 @@ export interface ProvaResultadoParceiro {
   created_at: string;
 }
 
+// ---------- Paraná Mais system types
+export interface ProvaResultadoMais {
+  id: string;
+  ano_escolar: '9º ano' | '3º ano';
+  componente: 'MT' | 'LP';
+  semestre: '1' | '2';
+  unidade: string;
+  turma: string;
+  nome_aluno: string;
+  avaliado: boolean;
+  nivel_aprendizagem: string;
+  habilidade_id: string;
+  habilidade_codigo: string;
+  descricao_habilidade: string;
+  acertos: number;
+  total: number;
+  percentual: number;
+  ano_escolar_resultados: string;
+  created_at: string;
+}
+
 export interface LinkQuestaoParceiro {
   id: string;
   link: string;
@@ -83,8 +104,8 @@ export interface UserProfile {
 }
 
 export interface UploadForm {
-  ano: '9º ano' | '3º ano' | 'EF' | 'EM';
-  componente: 'MT' | 'LP' | 'CH' | 'CN';
+  ano: '9º ano' | '3º ano';
+  componente: 'MT' | 'LP';
   semestre: '1' | '2';
   unidade: string;
   file: File | null;
@@ -92,7 +113,6 @@ export interface UploadForm {
 
 export interface DashboardFilters {
   unidade?: string;
-  ano_prova?: string;
   ano_escolar?: string;
   componente?: string;
   semestre?: string;

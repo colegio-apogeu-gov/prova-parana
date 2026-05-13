@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { UNIDADE_MAPEADA } from '../types';
 
-const supabaseUrl = "https://riioawdlnzjtisxftprx.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpaW9hd2RsbnpqdGlzeGZ0cHJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI2OTQ2OTMsImV4cCI6MjA2ODI3MDY5M30.3qdM7ulWanTTjJwuYG7tJg7LJu7qE4USYVKRgToe06U";
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables');
@@ -38,21 +38,13 @@ export const fetchProvaDataParceiro = async (filters: any = {}) => {
         .select('*')
         .order('nome_aluno', { ascending: true })
         .range(page * pageSize, (page + 1) * pageSize - 1);
-
+      
       // Aplicar filtros válidos
       Object.entries(searchFilters).forEach(([key, value]) => {
-        if (value && key !== 'aluno' && key !== 'ano_prova') {
+        if (value && key !== 'aluno') {
           query = query.eq(key, value);
         }
       });
-
-      // Filtro de ano da prova (baseado em created_at)
-      if (searchFilters.ano_prova) {
-        const ano = searchFilters.ano_prova;
-        const startDate = `${ano}-01-01`;
-        const endDate = `${ano}-12-31`;
-        query = query.gte('created_at', startDate).lte('created_at', endDate);
-      }
 
       const { data, error } = await query;
 
@@ -368,27 +360,6 @@ export const getFilterOptionsParceiro = async (filters: any = {}) => {
     // Base "limpa" para filtros
     const filtrosLimpos = { ...filters };
 
-    // ====== ANOS DAS PROVAS (created_at) ======
-    const buildAnosQuery = () => {
-      let q = supabase
-        .from('prova_resultados_parceiro')
-        .select('created_at')
-        .not('created_at', 'is', null);
-
-      // aplica filtros exceto ele mesmo
-      Object.entries(filtrosLimpos).forEach(([key, value]) => {
-        if (value && key !== 'ano_prova') {
-          q = q.eq(key, value as any);
-        }
-      });
-      return q;
-    };
-
-    const anosRows = await fetchAllPaginated<{ created_at: string | null }>(buildAnosQuery);
-    const anosUnicos = [...new Set(
-      (anosRows || []).map(r => r.created_at ? new Date(r.created_at).getFullYear().toString() : null).filter(Boolean) as string[]
-    )].sort((a, b) => b.localeCompare(a));
-
     // ====== PADRÕES (padrao_desempenho) ======
     const buildPadroesQuery = () => {
       let q = supabase
@@ -450,14 +421,12 @@ export const getFilterOptionsParceiro = async (filters: any = {}) => {
       .sort((a, b) => a.codigo.localeCompare(b.codigo));
 
     return {
-      anos: anosUnicos,
       padroes: padroesUnicos,
       habilidades: habilidadesUnicas
     };
   } catch (e) {
     console.error(e);
     return {
-      anos: [],
       padroes: [],
       habilidades: []
     };

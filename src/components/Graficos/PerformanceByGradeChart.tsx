@@ -4,18 +4,15 @@ import { ProvaResultado } from '../../types';
 
 interface PerformanceByGradeChartProps {
   data: ProvaResultado[];
-  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
 const PerformanceByGradeChart: React.FC<PerformanceByGradeChartProps> = ({ data, selectedSystem }) => {
 const gradeData = React.useMemo(() => {
-  const GRADES_BY_SYSTEM: Record<'prova-parana' | 'parceiro' | 'parana-mais', Record<string, number[]>> = {
-    'prova-parana': { '9º ano': [], '3º ano': [] },
-    'parceiro': { '8º ano': [], '2º ano': [] },
-    'parana-mais': { 'EF': [], 'EM': [] },
-  };
-
-  const grades = GRADES_BY_SYSTEM[selectedSystem];
+  const grades =
+    selectedSystem === 'prova-parana'
+      ? { '9º ano': [], '3º ano': [] }
+      : { '8º ano': [], '2º ano': [] };
 
   data.forEach(item => {
     if (item.avaliado && item.ano_escolar in grades) {

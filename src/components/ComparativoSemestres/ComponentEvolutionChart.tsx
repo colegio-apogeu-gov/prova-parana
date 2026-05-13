@@ -4,7 +4,7 @@ import { ProvaResultado, ProvaResultadoParceiro } from '../../types';
 
 interface ComponentEvolutionChartProps {
   data: (ProvaResultado | ProvaResultadoParceiro)[];
-  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
 const ComponentEvolutionChart: React.FC<ComponentEvolutionChartProps> = ({ data, selectedSystem }) => {

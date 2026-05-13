@@ -2,22 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Users, ChevronDown, ChevronRight, BookOpen, ExternalLink, Brain } from 'lucide-react';
 import { fetchProvaData, getLinkByHabilidadeComponente } from '../../lib/supabase';
 import { fetchProvaDataParceiro, getLinkByHabilidadeComponenteParceiro } from '../../lib/supabaseParceiro';
-import { fetchProvaDataMais, getLinkByHabilidadeComponenteMais } from '../../lib/supabaseParanaMais';
 import { DashboardFilters } from '../../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import jsPDF from 'jspdf';
 
-const getLinkFn = (system: 'prova-parana' | 'parceiro' | 'parana-mais') =>
+const getLinkFn = (system: 'prova-parana' | 'parceiro') =>
   system === 'prova-parana'
     ? getLinkByHabilidadeComponente
-    : system === 'parceiro'
-    ? getLinkByHabilidadeComponenteParceiro
-    : getLinkByHabilidadeComponenteMais;
+    : getLinkByHabilidadeComponenteParceiro;
 
 interface StudentsSectionProps {
   filters: DashboardFilters;
   userProfile: { unidade: string } | null;
-  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
+  selectedSystem: 'prova-parana' | 'parceiro';
   salasDeAula: any[];
 }
 
@@ -246,17 +243,13 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile,
   const loadStudentsData = async () => {
     setLoading(true);
     try {
-      const fetchFn =
-        selectedSystem === 'prova-parana'
-          ? fetchProvaData
-          : selectedSystem === 'parceiro'
-          ? fetchProvaDataParceiro
-          : fetchProvaDataMais;
+const fetchFn =
+  selectedSystem === 'prova-parana' ? fetchProvaData : fetchProvaDataParceiro;
 
-      const data = await fetchFn({
-        ...filters,
-        unidade: userProfile?.unidade
-      });
+const data = await fetchFn({
+  ...filters,
+  unidade: userProfile?.unidade
+});
 
 
       const groupedData: { [key: string]: StudentData } = {};
@@ -275,14 +268,7 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile,
         const componentKey = item.componente;
         if (!groupedData[studentKey].componentes[componentKey]) {
           groupedData[studentKey].componentes[componentKey] = {
-            componente:
-  item.componente === 'LP'
-    ? 'Língua Portuguesa'
-    : item.componente === 'CH'
-    ? 'Ciências Humanas'
-    : item.componente === 'CN'
-    ? 'Ciências Naturais'
-    : 'Matemática',
+            componente: item.componente === 'LP' ? 'Língua Portuguesa' : 'Matemática',
             total_acertos: 0,
             total_questoes: 0,
             habilidades: []
@@ -313,9 +299,7 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile,
           const alunosSala = new Set(
             (selectedSystem === 'prova-parana'
               ? sala.sala_de_aula_alunos
-              : selectedSystem === 'parceiro'
-              ? sala.sala_de_aula_alunos_parceiros
-              : sala.sala_de_alunos_mais
+              : sala.sala_de_aula_alunos_parceiros
             )?.map((a: any) => a.nome_aluno) || []
           );
           studentsArray = studentsArray.filter(student => alunosSala.has(student.nome_aluno));

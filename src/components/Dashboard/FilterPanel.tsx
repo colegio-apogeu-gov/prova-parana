@@ -3,13 +3,12 @@ import { Filter } from 'lucide-react';
 import { DashboardFilters } from '../../types';
 import { searchStudents, getFilterOptions } from '../../lib/supabase';
 import { searchStudentsParceiro, getFilterOptionsParceiro } from '../../lib/supabaseParceiro';
-import { searchStudentsMais, getFilterOptionsMais } from '../../lib/supabaseParanaMais';
 
 interface FilterPanelProps {
   filters: DashboardFilters;
   onFiltersChange: (filters: DashboardFilters) => void;
   userProfile: { unidade: string } | null;
-  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
 const FilterPanel: React.FC<FilterPanelProps> = ({
@@ -21,12 +20,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [filterOptions, setFilterOptions] = useState<{
-    anos?: string[];
     niveis?: string[];
     padroes?: string[];
     habilidades: Array<{ codigo: string; id: string; descricao: string; nivel_aprendizagem?: string }>;
   }>({
-    anos: [],
     niveis: [],
     padroes: [],
     habilidades: []
@@ -36,18 +33,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     if (searchTerm.length > 0) {
       const fetchSuggestions = async () => {
         try {
-          const searchFn = selectedSystem === 'prova-parana'
-            ? searchStudents
-            : selectedSystem === 'parceiro'
-            ? searchStudentsParceiro
-            : searchStudentsMais;
-
-          const searchFilters = {
-            ...filters,
-            unidade: userProfile?.unidade
-          };
-
-          const students = await searchFn(searchTerm, searchFilters);
+          const searchFn = selectedSystem === 'prova-parana' ? searchStudents : searchStudentsParceiro;
+          const students = await searchFn(searchTerm, filters);
           setSuggestions(students);
         } catch (error) {
           console.error('Erro ao buscar alunos:', error);
@@ -60,16 +47,12 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     } else {
       setSuggestions([]);
     }
-  }, [searchTerm, filters, selectedSystem, userProfile]);
+  }, [searchTerm, filters, selectedSystem]);
 
   useEffect(() => {
     const fetchFilterOptions = async () => {
       try {
-        const getOptionsFn = selectedSystem === 'prova-parana'
-          ? getFilterOptions
-          : selectedSystem === 'parceiro'
-          ? getFilterOptionsParceiro
-          : getFilterOptionsMais;
+        const getOptionsFn = selectedSystem === 'prova-parana' ? getFilterOptions : getFilterOptionsParceiro;
         const options = await getOptionsFn({
           ...filters,
           unidade: userProfile?.unidade
@@ -77,7 +60,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         setFilterOptions(options);
       } catch (error) {
         console.error('Erro ao buscar opções de filtro:', error);
-        setFilterOptions({ anos: [], niveis: [], padroes: [], habilidades: [] });
+        setFilterOptions({ niveis: [], padroes: [], habilidades: [] });
       }
     };
 
@@ -114,7 +97,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     setSuggestions([]);
   };
 
-  const nivelSelecionado = (selectedSystem === 'prova-parana' || selectedSystem === 'parana-mais')
+  const nivelSelecionado = selectedSystem === 'prova-parana' 
     ? (filters.nivel_aprendizagem && filters.nivel_aprendizagem !== '')
     : (filters.padrao_desempenho && filters.padrao_desempenho !== '');
 
@@ -186,29 +169,10 @@ const habilidadesFiltradas = nivelSelecionado
           />
         </div>
 
-        {/* Ano da Prova */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Ano da Prova
-          </label>
-          <select
-            value={filters.ano_prova || ''}
-            onChange={(e) => updateFilter('ano_prova', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Todos</option>
-            {filterOptions.anos?.map((ano) => (
-              <option key={ano} value={ano}>
-                {ano}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Ano Escolar */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            {selectedSystem === 'parana-mais' ? (<>Ensino</>) : (<>Ano Escolar</>)}
+            Ano Escolar
           </label>
           <select
             value={filters.ano_escolar || ''}
@@ -216,22 +180,8 @@ const habilidadesFiltradas = nivelSelecionado
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Todos</option>
-            {selectedSystem === 'parana-mais' ? (
-              <>
-                <option value="EF">EF</option>
-                <option value="EM">EM</option>
-              </>
-            ) : selectedSystem === 'parceiro' ? (
-              <>
-                <option value="8º ano">8º ano</option>
-                <option value="2º ano">2º ano</option>
-              </>
-            ) : (
-              <>
-                <option value="9º ano">9º ano</option>
-                <option value="3º ano">3º ano</option>
-              </>
-            )}
+            <option value="9º ano">9º ano</option>
+            <option value="3º ano">3º ano</option>
           </select>
         </div>
 
@@ -248,44 +198,37 @@ const habilidadesFiltradas = nivelSelecionado
             <option value="">Todos</option>
             <option value="LP">Língua Portuguesa</option>
             <option value="MT">Matemática</option>
-            {selectedSystem === 'parana-mais' && (
-              <>
-                <option value="CH">Ciências Humanas</option>
-                <option value="CN">Ciências Naturais</option>
-              </>
-            )}
           </select>
         </div>
 
-{selectedSystem !== 'parana-mais' && (
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-2">
-      Semestre
-    </label>
-    <select
-      value={filters.semestre || ''}
-      onChange={(e) => updateFilter('semestre', e.target.value)}
-      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-    >
-      <option value="">Todos</option>
-      <option value="1">1º Semestre</option>
-      <option value="2">2º Semestre</option>
-    </select>
-  </div>
-)}
+        {/* Semestre */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Semestre
+          </label>
+          <select
+            value={filters.semestre || ''}
+            onChange={(e) => updateFilter('semestre', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">Todos</option>
+            <option value="1">1º Semestre</option>
+            <option value="2">2º Semestre</option>
+          </select>
+        </div>
 
         {/* Nível de Aprendizagem ou Padrão de Desempenho */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            {(selectedSystem === 'prova-parana' || selectedSystem === 'parana-mais') ? 'Nível de Aprendizagem' : 'Padrão de Desempenho'}
+            {selectedSystem === 'prova-parana' ? 'Nível de Aprendizagem' : 'Padrão de Desempenho'}
           </label>
           <select
-            value={(selectedSystem === 'prova-parana' || selectedSystem === 'parana-mais') ? (filters.nivel_aprendizagem || '') : (filters.padrao_desempenho || '')}
-            onChange={(e) => updateFilter((selectedSystem === 'prova-parana' || selectedSystem === 'parana-mais') ? 'nivel_aprendizagem' : 'padrao_desempenho', e.target.value)}
+            value={selectedSystem === 'prova-parana' ? (filters.nivel_aprendizagem || '') : (filters.padrao_desempenho || '')}
+            onChange={(e) => updateFilter(selectedSystem === 'prova-parana' ? 'nivel_aprendizagem' : 'padrao_desempenho', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            <option value="">{(selectedSystem === 'prova-parana' || selectedSystem === 'parana-mais') ? 'Selecione um nível de aprendizagem' : 'Selecione um padrão de desempenho'}</option>
-            {(selectedSystem === 'prova-parana' || selectedSystem === 'parana-mais')
+            <option value="">{selectedSystem === 'prova-parana' ? 'Selecione um nível de aprendizagem' : 'Selecione um padrão de desempenho'}</option>
+            {selectedSystem === 'prova-parana' 
               ? filterOptions.niveis?.map((nivel) => (
                   <option key={nivel} value={nivel}>
                     {nivel}
@@ -312,6 +255,19 @@ const habilidadesFiltradas = nivelSelecionado
       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
     >
       <option value="">Todas</option>
+      {selectedSystem === 'prova-parana' ? (
+        <>
+          <option value="9º ano">9º ano</option>
+          <option value="3º ano">3º ano</option>
+        </>
+      ) : (
+        <>
+          <option value="8º ano">8º ano</option>
+          <option value="2º ano">2º ano</option>
+        </>
+      )}
+
+      {/* ✅ Aqui entram as habilidades do backend */}
       {habilidadesFiltradas.map((habilidade) => (
         <option
           key={`${habilidade.codigo}-${habilidade.id}`}

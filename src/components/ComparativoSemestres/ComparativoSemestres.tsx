@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, TrendingUp, TrendingDown, Minus, Users, Target, BookOpen } from 'lucide-react';
 import { fetchAllProvaData, getSalasDeAula } from '../../lib/supabase';
 import { fetchAllProvaDataParceiro, getSalasDeAulaParceiro } from '../../lib/supabaseParceiro';
-import { fetchAllProvaDataMais, getSalasDeAulaMais } from '../../lib/supabaseParanaMais';
 import { ProvaResultado, ProvaResultadoParceiro } from '../../types';
 import FilterPanel from './FilterPanel';
 import SemesterPerformanceChart from './SemesterPerformanceChart';
@@ -15,7 +14,7 @@ import ComparativoSemestralCards from './ComparativoSemestralCards';
 
 interface ComparativoSemestresProps {
   userProfile: { unidade: string } | null;
-  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
+  selectedSystem: 'prova-parana' | 'parceiro';
 }
 
 export interface SemesterFilters {
@@ -57,11 +56,7 @@ const ComparativoSemestres: React.FC<ComparativoSemestresProps> = ({ userProfile
     if (!userProfile?.unidade) return;
 
     try {
-      const fetchSalasFn = selectedSystem === 'prova-parana'
-        ? getSalasDeAula
-        : selectedSystem === 'parceiro'
-        ? getSalasDeAulaParceiro
-        : getSalasDeAulaMais;
+      const fetchSalasFn = selectedSystem === 'prova-parana' ? getSalasDeAula : getSalasDeAulaParceiro;
       const salas = await fetchSalasFn(userProfile.unidade);
       setSalasDeAula(salas || []);
     } catch (error) {
@@ -73,18 +68,13 @@ const ComparativoSemestres: React.FC<ComparativoSemestresProps> = ({ userProfile
   const loadData = async () => {
     setLoading(true);
     try {
-      const fetchFn = selectedSystem === 'prova-parana'
-        ? fetchAllProvaData
-        : selectedSystem === 'parceiro'
-        ? fetchAllProvaDataParceiro
-        : fetchAllProvaDataMais;
-
+      const fetchFn = selectedSystem === 'prova-parana' ? fetchAllProvaData : fetchAllProvaDataParceiro;
       const result = await fetchFn({
         unidade: filters.unidade,
         ano_escolar: filters.ano_escolar,
         componente: filters.componente,
         nome_aluno: filters.aluno,
-        ...(selectedSystem === 'prova-parana' || selectedSystem === 'parana-mais'
+        ...(selectedSystem === 'prova-parana'
           ? { nivel_aprendizagem: filters.nivel_aprendizagem }
           : { padrao_desempenho: filters.padrao_desempenho }
         )
@@ -95,13 +85,11 @@ const ComparativoSemestres: React.FC<ComparativoSemestresProps> = ({ userProfile
       if (filters.sala_id && filteredData.length > 0) {
         const sala = salasDeAula.find(s => s.id === filters.sala_id);
         if (sala) {
-          const alunosField = selectedSystem === 'prova-parana'
-            ? 'sala_de_aula_alunos'
-            : selectedSystem === 'parceiro'
-            ? 'sala_de_aula_alunos_parceiros'
-            : 'sala_de_aula_alunos_mais';
           const alunosSala = new Set(
-            sala[alunosField]?.map((a: any) => a.nome_aluno) || []
+            (selectedSystem === 'prova-parana'
+              ? sala.sala_de_aula_alunos
+              : sala.sala_de_aula_alunos_parceiros
+            )?.map((a: any) => a.nome_aluno) || []
           );
           filteredData = filteredData.filter(item => alunosSala.has(item.nome_aluno));
         }

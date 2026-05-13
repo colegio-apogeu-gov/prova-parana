@@ -9,7 +9,6 @@ import Navbar from './components/Navigation/Navbar';
 import Dashboard from './components/Dashboard/Dashboard';
 import UploadForm from './components/Upload/UploadForm';
 import UploadFormParceiro from './components/Upload/UploadFormParceiro';
-import UploadFormParanaMais from './components/Upload/UploadFormParanaMais';
 import CadastrarAtividades from './components/CadastrarAtividades/CadastrarAtividades';
 import Graficos from './components/Graficos/Graficos';
 import ComparacaoProvas from './components/ComparacaoProvas/ComparacaoProvas';
@@ -79,9 +78,9 @@ function App() {
     }
   };
 
-  const handleSystemSelect = (system: 'prova-parana' | 'parceiro' | 'parana-mais') => {
+  const handleSystemSelect = (system: 'prova-parana' | 'parceiro') => {
     setSelectedSystem(system);
-    setActiveTab('dashboard');
+    setActiveTab('dashboard'); // Reset to dashboard when switching systems
   };
 
   const handleSystemSwitch = () => {
@@ -128,10 +127,8 @@ function App() {
         ) : activeTab === 'upload' ? (
           selectedSystem === 'prova-parana' ? (
             <UploadForm userProfile={userProfile} />
-          ) : selectedSystem === 'parceiro' ? (
-            <UploadFormParceiro userProfile={userProfile} />
           ) : (
-            <UploadFormParanaMais userProfile={userProfile} />
+            <UploadFormParceiro userProfile={userProfile} />
           )
         ) : activeTab === 'graficos' ? (
           <Graficos userProfile={userProfile} selectedSystem={selectedSystem} />

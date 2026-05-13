@@ -8,7 +8,7 @@ interface FilterPanelProps {
   filters: SemesterFilters;
   onFiltersChange: (filters: SemesterFilters) => void;
   userProfile: { unidade: string } | null;
-  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
+  selectedSystem: 'prova-parana' | 'parceiro';
   salasDeAula: any[];
 }
 
@@ -151,11 +151,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 <option value="9º ano">9º ano</option>
                 <option value="3º ano">3º ano</option>
               </>
-            ) : selectedSystem === 'parana-mais' ? (
-              <>
-                <option value="EF">EF</option>
-                <option value="EM">EM</option>
-              </>
             ) : (
               <>
                 <option value="8º ano">8º ano</option>
@@ -178,12 +173,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             <option value="">Todos</option>
             <option value="LP">Língua Portuguesa</option>
             <option value="MT">Matemática</option>
-            {selectedSystem === 'parana-mais' && (
-              <>
-                <option value="CH">Ciências Humanas</option>
-                <option value="CN">Ciências Naturais</option>
-              </>
-            )}
           </select>
         </div>
 
