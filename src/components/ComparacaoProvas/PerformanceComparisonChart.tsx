@@ -13,9 +13,10 @@ const PerformanceComparisonChart: React.FC<PerformanceComparisonChartProps> = ({
 }) => {
   const comparisonData = React.useMemo(() => {
     // Processar dados Prova Paraná por ano
-    const paranaByGrade = {
-      '9º ano': [] as number[],
-      '3º ano': [] as number[]
+    const paranaByGrade: Record<string, number[]> = {
+      '9º ano': [],
+      '6º ano': [],
+      '3º ano': []
     };
 
     dataParana.forEach(item => {
@@ -46,6 +47,13 @@ const PerformanceComparisonChart: React.FC<PerformanceComparisonChartProps> = ({
         system: 'Prova Paraná',
         average: calculateAverage(paranaByGrade['9º ano']),
         count: paranaByGrade['9º ano'].length,
+        color: 'bg-gradient-to-r from-blue-400 to-blue-600'
+      },
+      {
+        grade: '6º ano',
+        system: 'Prova Paraná',
+        average: calculateAverage(paranaByGrade['6º ano']),
+        count: paranaByGrade['6º ano'].length,
         color: 'bg-gradient-to-r from-blue-400 to-blue-600'
       },
       {

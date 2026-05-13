@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Filter } from 'lucide-react';
 import { DashboardFilters } from '../../types';
-import { searchStudents, getFilterOptions } from '../../lib/supabase';
-import { searchStudentsParceiro, getFilterOptionsParceiro } from '../../lib/supabaseParceiro';
+import { searchStudents, getFilterOptions, getAnosProva } from '../../lib/supabase';
+import { searchStudentsParceiro, getFilterOptionsParceiro, getAnosProvaParceiro } from '../../lib/supabaseParceiro';
+import { getAnosProvaMais } from '../../lib/supabaseMais';
 
 interface FilterPanelProps {
   filters: DashboardFilters;
   onFiltersChange: (filters: DashboardFilters) => void;
   userProfile: { unidade: string } | null;
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
 }
 
 const FilterPanel: React.FC<FilterPanelProps> = ({
@@ -28,6 +29,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     padroes: [],
     habilidades: []
   });
+  const [anosProva, setAnosProva] = useState<string[]>([]);
 
   useEffect(() => {
     if (searchTerm.length > 0) {
@@ -66,6 +68,26 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
     fetchFilterOptions();
   }, [filters, userProfile, selectedSystem]);
+
+  useEffect(() => {
+    const fetchAnosProva = async () => {
+      try {
+        const getAnosFn =
+          selectedSystem === 'prova-parana'
+            ? getAnosProva
+            : selectedSystem === 'parana-mais'
+            ? getAnosProvaMais
+            : getAnosProvaParceiro;
+        const anos = await getAnosFn(userProfile?.unidade);
+        setAnosProva(anos);
+      } catch (error) {
+        console.error('Erro ao buscar anos de prova:', error);
+        setAnosProva([]);
+      }
+    };
+
+    fetchAnosProva();
+  }, [userProfile, selectedSystem]);
 
   useEffect(() => {
     if (filters.nome_aluno) {
@@ -113,7 +135,7 @@ const habilidadesFiltradas = nivelSelecionado
         <h3 className="text-lg font-medium text-gray-900">Filtros</h3>
       </div>
 
-      <div className="grid md:grid-cols-7 gap-4">
+      <div className="grid md:grid-cols-8 gap-4">
         {/* Aluno */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -180,8 +202,37 @@ const habilidadesFiltradas = nivelSelecionado
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Todos</option>
-            <option value="9º ano">9º ano</option>
-            <option value="3º ano">3º ano</option>
+            {selectedSystem === 'prova-parana' ? (
+              <>
+                <option value="9º ano">9º ano</option>
+                <option value="6º ano">6º ano</option>
+                <option value="3º ano">3º ano</option>
+              </>
+            ) : (
+              <>
+                <option value="8º ano">8º ano</option>
+                <option value="2º ano">2º ano</option>
+              </>
+            )}
+          </select>
+        </div>
+
+        {/* Ano Prova */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Ano Prova
+          </label>
+          <select
+            value={filters.ano_prova || ''}
+            onChange={(e) => updateFilter('ano_prova', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">Todos</option>
+            {anosProva.map((ano) => (
+              <option key={ano} value={ano}>
+                {ano}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -258,6 +309,7 @@ const habilidadesFiltradas = nivelSelecionado
       {selectedSystem === 'prova-parana' ? (
         <>
           <option value="9º ano">9º ano</option>
+          <option value="6º ano">6º ano</option>
           <option value="3º ano">3º ano</option>
         </>
       ) : (

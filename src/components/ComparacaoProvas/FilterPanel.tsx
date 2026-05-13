@@ -202,6 +202,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 >
                   <option value="">Todos</option>
                   <option value="9º ano">9º ano</option>
+                  <option value="6º ano">6º ano</option>
                   <option value="3º ano">3º ano</option>
                 </select>
               </div>

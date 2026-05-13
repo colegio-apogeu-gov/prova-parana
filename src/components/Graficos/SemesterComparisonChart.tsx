@@ -11,7 +11,7 @@ const SemesterComparisonChart: React.FC<SemesterComparisonChartProps> = ({ data,
   const semesterData = React.useMemo(() => {
     // 🔧 Anos válidos por sistema
     const GRADES_BY_SYSTEM: Record<'prova-parana' | 'parceiro', string[]> = {
-      'prova-parana': ['9º ano', '3º ano'],
+      'prova-parana': ['9º ano', '6º ano', '3º ano'],
       parceiro: ['8º ano', '2º ano'],
     };
     const allowedGrades = GRADES_BY_SYSTEM[selectedSystem];
