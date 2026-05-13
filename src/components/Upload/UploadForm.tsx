@@ -14,6 +14,7 @@ const UploadForm: React.FC<UploadFormProps> = ({ userProfile }) => {
     componente: 'LP',
     semestre: '1',
     unidade: '',
+    ano_prova: String(new Date().getFullYear()),
     file: null,
   });
   const [uploading, setUploading] = useState(false);
@@ -53,7 +54,7 @@ const UploadForm: React.FC<UploadFormProps> = ({ userProfile }) => {
     // Procura nas primeiras linhas por indicadores do ano escolar
     //const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
     const data = XLSX.utils.sheet_to_json(worksheet, { defval: "", raw: false });
-    
+
     for (let i = 0; i < Math.min(5, data.length); i++) {
       const row = data[i];
       if (row && row.length > 0) {
@@ -61,12 +62,15 @@ const UploadForm: React.FC<UploadFormProps> = ({ userProfile }) => {
         if (rowText.includes('3º ano') || rowText.includes('3° ano') || rowText.includes('ensino médio')) {
           return '3º ano';
         }
+        if (rowText.includes('6º ano') || rowText.includes('6° ano')) {
+          return '6º ano';
+        }
         if (rowText.includes('9º ano') || rowText.includes('9° ano') || rowText.includes('ensino fundamental')) {
           return '9º ano';
         }
       }
     }
-    
+
     return form.ano; // Fallback para o valor selecionado no formulário
   };
 
@@ -199,6 +203,7 @@ const UploadForm: React.FC<UploadFormProps> = ({ userProfile }) => {
         turma: turma,
         nome_aluno: nomeAluno,
         nivel_aprendizagem: nivelAprendizagem,
+        ano_prova: form.ano_prova,
       };
 
       // Identifica e processa todas as colunas de habilidades (H01, H02, etc.)
@@ -290,6 +295,7 @@ const UploadForm: React.FC<UploadFormProps> = ({ userProfile }) => {
             componente: 'LP',
             semestre: '1',
             unidade: '',
+            ano_prova: String(new Date().getFullYear()),
             file: null,
           });
           setPreviewData([]);
@@ -325,7 +331,7 @@ const UploadForm: React.FC<UploadFormProps> = ({ userProfile }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid md:grid-cols-4 gap-4">
+        <div className="grid md:grid-cols-5 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Unidade Escolar
@@ -343,6 +349,21 @@ const UploadForm: React.FC<UploadFormProps> = ({ userProfile }) => {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Ano Prova
+            </label>
+            <input
+              type="number"
+              min="2000"
+              max="2100"
+              value={form.ano_prova}
+              onChange={(e) => setForm({ ...form, ano_prova: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            />
           </div>
 
           <div>
@@ -365,10 +386,11 @@ const UploadForm: React.FC<UploadFormProps> = ({ userProfile }) => {
             </label>
             <select
               value={form.ano}
-              onChange={(e) => setForm({ ...form, ano: e.target.value as '9º ano' | '3º ano' })}
+              onChange={(e) => setForm({ ...form, ano: e.target.value as '9º ano' | '6º ano' | '3º ano' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
             >
               <option value="9º ano">9º ano</option>
+              <option value="6º ano">6º ano</option>
               <option value="3º ano">3º ano</option>
             </select>
           </div>

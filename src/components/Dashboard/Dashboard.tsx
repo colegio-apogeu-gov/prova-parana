@@ -12,7 +12,7 @@ import ClassroomSection from './ClassroomSection';
 
 interface DashboardProps {
   userProfile: { unidade: string } | null;
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ userProfile, selectedSystem }) => {

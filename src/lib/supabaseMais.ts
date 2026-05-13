@@ -15,13 +15,102 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
+// Enriquecimento: a partir da tabela componentes_habilidades, preenche
+// habilidade_codigo (= posicao) e descricao_habilidade (= descricao) quando
+// (componente, ano_escolar, habilidade) baterem com (componente, ano_escolar, habilidade_id).
+export const enrichWithComponentesHabilidadesMais = async (data: any[]) => {
+  if (!data || data.length === 0) return data;
+
+  const componentes = [...new Set(data.map((d) => d.componente).filter(Boolean))];
+  const anos = [...new Set(data.map((d) => d.ano_escolar).filter(Boolean))];
+  const habilidades = [...new Set(data.map((d) => d.habilidade_id).filter(Boolean))];
+
+  if (componentes.length === 0 || anos.length === 0 || habilidades.length === 0) {
+    return data;
+  }
+
+  const { data: habRows, error } = await supabase
+    .from('componentes_habilidades')
+    .select('componente, ano_escolar, habilidade, posicao, descricao')
+    .in('componente', componentes)
+    .in('ano_escolar', anos)
+    .in('habilidade', habilidades);
+
+  if (error) {
+    console.error('Erro ao buscar componentes_habilidades:', error);
+    return data;
+  }
+
+  const lookup = new Map<string, { posicao: string; descricao: string }>();
+  (habRows || []).forEach((h: any) => {
+    const key = `${h.componente}||${h.ano_escolar}||${h.habilidade}`;
+    lookup.set(key, { posicao: h.posicao ?? '', descricao: h.descricao ?? '' });
+  });
+
+  return data.map((row) => {
+    const key = `${row.componente}||${row.ano_escolar}||${row.habilidade_id}`;
+    const info = lookup.get(key);
+    if (info) {
+      return {
+        ...row,
+        habilidade_codigo: info.posicao,
+        descricao_habilidade: info.descricao,
+      };
+    }
+    return row;
+  });
+};
+
 export const uploadProvaDataMais = async (data: any[]) => {
+  const enriched = await enrichWithComponentesHabilidadesMais(data);
   const { data: result, error } = await supabase
     .from('prova_resultados_mais')
-    .insert(data);
+    .insert(enriched);
 
   if (error) throw error;
   return result;
+};
+
+// Retorna lista distinta de ano_prova encontrados na tabela prova_resultados_mais,
+// opcionalmente filtrando pela unidade.
+export const getAnosProvaMais = async (unidade?: string): Promise<string[]> => {
+  try {
+    const allRows: { ano_prova: string | null }[] = [];
+    const pageSize = 1000;
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      let query = supabase
+        .from('prova_resultados_mais')
+        .select('ano_prova')
+        .not('ano_prova', 'is', null)
+        .not('ano_prova', 'eq', '')
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (unidade) {
+        query = query.eq('unidade', unidade);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allRows.push(...data);
+        hasMore = data.length === pageSize;
+        page++;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return [...new Set(allRows.map((r) => r.ano_prova).filter(Boolean) as string[])].sort(
+      (a, b) => b.localeCompare(a)
+    );
+  } catch (error) {
+    console.error('Erro ao buscar anos de prova:', error);
+    return [];
+  }
 };
 
 export const fetchProvaDataMais = async (filters: any = {}) => {

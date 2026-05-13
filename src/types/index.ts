@@ -5,7 +5,7 @@
 // ---------- Database types (Prova Paraná)
 export interface ProvaResultado {
   id: string;
-  ano_escolar: '9º ano' | '3º ano';
+  ano_escolar: '9º ano' | '6º ano' | '3º ano';
   componente: 'MT' | 'LP';
   semestre: '1' | '2';
   unidade: string;
@@ -19,6 +19,7 @@ export interface ProvaResultado {
   acertos: number;
   total: number;
   percentual: number;
+  ano_prova?: string;
   created_at: string;
 }
 
@@ -41,6 +42,7 @@ export interface ProvaResultadoParceiro {
   total: number;
   percentual: number;
   ano_escolar_resultados: string;
+  ano_prova?: string;
   created_at: string;
 }
 
@@ -62,6 +64,7 @@ export interface ProvaResultadoMais {
   total: number;
   percentual: number;
   ano_escolar_resultados: string;
+  ano_prova?: string;
   created_at: string;
 }
 
@@ -93,6 +96,7 @@ export interface UploadFormParceiro {
   componente: 'MT' | 'LP';
   semestre: '1' | '2';
   unidade: string;
+  ano_prova: string;
   file: File | null;
 }
 
@@ -104,10 +108,11 @@ export interface UserProfile {
 }
 
 export interface UploadForm {
-  ano: '9º ano' | '3º ano';
+  ano: '9º ano' | '6º ano' | '3º ano';
   componente: 'MT' | 'LP';
   semestre: '1' | '2';
   unidade: string;
+  ano_prova: string;
   file: File | null;
 }
 
@@ -120,6 +125,7 @@ export interface DashboardFilters {
   nivel_aprendizagem?: string;
   padrao_desempenho?: string;
   habilidade_codigo?: string;
+  ano_prova?: string;
 }
 
 export interface PerformanceInsight {

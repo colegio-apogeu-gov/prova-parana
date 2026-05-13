@@ -14,6 +14,7 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
     componente: 'LP',
     semestre: '1',
     unidade: '',
+    ano_prova: String(new Date().getFullYear()),
     file: null,
   });
   const [uploading, setUploading] = useState(false);
@@ -164,6 +165,7 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
         padrao_desempenho: padraoDesempenho,
         proficiencia: proficiencia,
         ano_escolar_resultados: anoEscolar,
+        ano_prova: form.ano_prova,
       };
 
       // Determina o número máximo de habilidades baseado no componente
@@ -182,8 +184,8 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
             ...baseRecord,
             avaliado: total > 0,
             habilidade_id: habilidadeId,
-            habilidade_codigo: `${habilidadeId}_${componente}`,
-            descricao_habilidade: `Habilidade ${habilidadeId} - ${componente}`,
+            habilidade_codigo: "",
+            descricao_habilidade: "",
             acertos,
             total,
             percentual
@@ -258,6 +260,7 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
             componente: 'LP',
             semestre: '1',
             unidade: '',
+            ano_prova: String(new Date().getFullYear()),
             file: null,
           });
           setPreviewData([]);
@@ -293,7 +296,7 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid md:grid-cols-4 gap-4">
+        <div className="grid md:grid-cols-5 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Unidade Escolar
@@ -311,6 +314,21 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Ano Prova
+            </label>
+            <input
+              type="number"
+              min="2000"
+              max="2100"
+              value={form.ano_prova}
+              onChange={(e) => setForm({ ...form, ano_prova: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              required
+            />
           </div>
 
           <div>

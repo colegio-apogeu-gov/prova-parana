@@ -9,9 +9,9 @@ interface PerformanceByGradeChartProps {
 
 const PerformanceByGradeChart: React.FC<PerformanceByGradeChartProps> = ({ data, selectedSystem }) => {
 const gradeData = React.useMemo(() => {
-  const grades =
+  const grades: Record<string, number[]> =
     selectedSystem === 'prova-parana'
-      ? { '9º ano': [], '3º ano': [] }
+      ? { '9º ano': [], '6º ano': [], '3º ano': [] }
       : { '8º ano': [], '2º ano': [] };
 
   data.forEach(item => {
