@@ -25,11 +25,14 @@ const UploadForm: React.FC<UploadFormProps> = ({ userProfile }) => {
   const UNIDADES_OPCOES = [
     'ANITA CANET C E EF M',
     'ANTONIO TUPY PINHEIRO C E EF M',
+    'CARNEIRO C E GAL EF M PROFIS',
     'COSTA VIANA C E EF M PROFIS N',
     'CRISTO REI C E EF M',
     'DECIO DOSSI C E DR EF M PROFIS',
     'FRANCISCO C MARTINS C E EM PROF',
+    'GILDO A SCHUCK C E PROF EF M ETI N',
     'GODOFREDO MACHADO E E EF',
+    'HOMERO B DE BARROS C E EFM ETI',
     'ISABEL L S SOUZA C E PROFA EF M',
     'IVO LEAO C E EF M',
     'JOAO DE OLIVEIRA FRANCO C E EF M',
@@ -38,7 +41,8 @@ const UploadForm: React.FC<UploadFormProps> = ({ userProfile }) => {
     'PAULO FREIRE C E PROF E F M N',
     'SANTO AGOSTINHO C E EF M',
     'TARSILA DO AMARAL C E EF M',
-    'TEREZA DA S RAMOS C E PROFA EF M'
+    'TEREZA DA S RAMOS C E PROFA EF M',
+    'VICTOR DO AMARAL C E PROF EFM ETI PROFI'
   ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
