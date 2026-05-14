@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { PieChart, BarChart3, TrendingUp, Users, Target, BookOpen, Award, Calendar } from 'lucide-react';
-import { fetchProvaData, fetchAllProvaData } from '../../lib/supabase';
-import { fetchProvaDataParceiro, fetchAllProvaDataParceiro } from '../../lib/supabaseParceiro';
+import { fetchProvaData, fetchAllProvaData, getAnosProva } from '../../lib/supabase';
+import { fetchProvaDataParceiro, fetchAllProvaDataParceiro, getAnosProvaParceiro } from '../../lib/supabaseParceiro';
+import { getAnosProvaMais } from '../../lib/supabaseMais';
 import { ProvaResultado } from '../../types';
 import PerformanceByGradeChart from './PerformanceByGradeChart';
 import ComponentComparisonChart from './ComponentComparisonChart';
@@ -23,12 +24,35 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
   const [selectedFilters, setSelectedFilters] = useState({
     ano_escolar: '',
     componente: '',
-    semestre: ''
+    semestre: '',
+    ano_prova: ''
   });
+  const [anosProva, setAnosProva] = useState<string[]>([]);
 
   useEffect(() => {
     loadData();
   }, [selectedFilters, userProfile]);
+
+  useEffect(() => {
+    const fetchAnosProva = async () => {
+      try {
+        const sys = selectedSystem as 'prova-parana' | 'parceiro' | 'parana-mais';
+        const getAnosFn =
+          sys === 'prova-parana'
+            ? getAnosProva
+            : sys === 'parana-mais'
+            ? getAnosProvaMais
+            : getAnosProvaParceiro;
+        const anos = await getAnosFn(userProfile?.unidade);
+        setAnosProva(anos);
+      } catch (error) {
+        console.error('Erro ao buscar anos de prova:', error);
+        setAnosProva([]);
+      }
+    };
+
+    fetchAnosProva();
+  }, [userProfile, selectedSystem]);
 
   const loadData = async () => {
     setLoading(true);
@@ -105,7 +129,7 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
 
       {/* Filtros */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Ano Escolar
@@ -128,6 +152,23 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
                   <option value="2º ano">2º ano</option>
                 </>
               )}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Ano Prova
+            </label>
+            <select
+              value={selectedFilters.ano_prova}
+              onChange={(e) => updateFilter('ano_prova', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value="">Todos</option>
+              {anosProva.map((ano) => (
+                <option key={ano} value={ano}>
+                  {ano}
+                </option>
+              ))}
             </select>
           </div>
           <div>
