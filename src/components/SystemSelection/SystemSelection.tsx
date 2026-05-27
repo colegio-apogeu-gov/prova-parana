@@ -86,7 +86,7 @@ const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => 
               <div className="space-y-2 text-sm text-gray-500">
                 <div className="flex items-center justify-center gap-2">
                   <Users className="w-4 h-4" />
-                  <span>8º ano e 2º ano</span>
+                  <span>1º, 2º, 3º, 6º, 7º, 8º e 9º ano</span>
                 </div>
                 <div className="flex items-center justify-center gap-2">
                   <BookOpen className="w-4 h-4" />

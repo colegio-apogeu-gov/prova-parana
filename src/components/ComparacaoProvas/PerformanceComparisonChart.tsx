@@ -26,9 +26,14 @@ const PerformanceComparisonChart: React.FC<PerformanceComparisonChartProps> = ({
     });
 
     // Processar dados Parceiro por ano
-    const parceiroByGrade = {
-      '8º ano': [] as number[],
-      '2º ano': [] as number[]
+    const parceiroByGrade: Record<string, number[]> = {
+      '9º ano': [],
+      '8º ano': [],
+      '7º ano': [],
+      '6º ano': [],
+      '3º ano': [],
+      '2º ano': [],
+      '1º ano': []
     };
 
     dataParceiro.forEach(item => {
@@ -64,6 +69,13 @@ const PerformanceComparisonChart: React.FC<PerformanceComparisonChartProps> = ({
         color: 'bg-gradient-to-r from-blue-500 to-blue-700'
       },
       {
+        grade: '9º ano',
+        system: 'Parceiro Escola',
+        average: calculateAverage(parceiroByGrade['9º ano']),
+        count: parceiroByGrade['9º ano'].length,
+        color: 'bg-gradient-to-r from-green-400 to-green-600'
+      },
+      {
         grade: '8º ano',
         system: 'Parceiro Escola',
         average: calculateAverage(parceiroByGrade['8º ano']),
@@ -71,10 +83,38 @@ const PerformanceComparisonChart: React.FC<PerformanceComparisonChartProps> = ({
         color: 'bg-gradient-to-r from-green-400 to-green-600'
       },
       {
+        grade: '7º ano',
+        system: 'Parceiro Escola',
+        average: calculateAverage(parceiroByGrade['7º ano']),
+        count: parceiroByGrade['7º ano'].length,
+        color: 'bg-gradient-to-r from-green-400 to-green-600'
+      },
+      {
+        grade: '6º ano',
+        system: 'Parceiro Escola',
+        average: calculateAverage(parceiroByGrade['6º ano']),
+        count: parceiroByGrade['6º ano'].length,
+        color: 'bg-gradient-to-r from-green-400 to-green-600'
+      },
+      {
+        grade: '3º ano',
+        system: 'Parceiro Escola',
+        average: calculateAverage(parceiroByGrade['3º ano']),
+        count: parceiroByGrade['3º ano'].length,
+        color: 'bg-gradient-to-r from-green-500 to-green-700'
+      },
+      {
         grade: '2º ano',
         system: 'Parceiro Escola',
         average: calculateAverage(parceiroByGrade['2º ano']),
         count: parceiroByGrade['2º ano'].length,
+        color: 'bg-gradient-to-r from-green-500 to-green-700'
+      },
+      {
+        grade: '1º ano',
+        system: 'Parceiro Escola',
+        average: calculateAverage(parceiroByGrade['1º ano']),
+        count: parceiroByGrade['1º ano'].length,
         color: 'bg-gradient-to-r from-green-500 to-green-700'
       }
     ];
