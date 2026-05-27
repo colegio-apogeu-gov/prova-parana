@@ -26,7 +26,7 @@ export interface ProvaResultado {
 // ---------- Parceiro system types
 export interface ProvaResultadoParceiro {
   id: string;
-  ano_escolar: '8º ano' | '2º ano';
+  ano_escolar: '9º ano' | '8º ano' | '7º ano' | '6º ano' | '3º ano' | '2º ano' | '1º ano';
   componente: 'MT' | 'LP';
   semestre: '1' | '2';
   unidade: string;
@@ -92,7 +92,7 @@ export interface SalaDeAulaAlunoParceiro {
 }
 
 export interface UploadFormParceiro {
-  ano: '8º ano' | '2º ano';
+  ano: '9º ano' | '8º ano' | '7º ano' | '6º ano' | '3º ano' | '2º ano' | '1º ano';
   componente: 'MT' | 'LP';
   semestre: '1' | '2';
   unidade: string;

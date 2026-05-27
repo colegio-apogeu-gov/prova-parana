@@ -33,7 +33,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 const ANOS_BY_SYSTEM: Record<'prova-parana'|'parceiro', string[]> = {
   'prova-parana': ['9º ano', '6º ano', '3º ano'],
-  'parceiro': ['8º ano', '2º ano']
+  'parceiro': ['9º ano', '8º ano', '7º ano', '6º ano', '3º ano', '2º ano', '1º ano']
 };
 
   useEffect(() => {

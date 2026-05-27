@@ -57,14 +57,29 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
   const detectAnoEscolarFromData = (worksheet: XLSX.WorkSheet): string => {
     const data = XLSX.utils.sheet_to_json(worksheet, { defval: "", raw: false });
     
+    const anosDetectaveis: Array<{ key: string; label: string }> = [
+      { key: '9', label: '9º ano' },
+      { key: '8', label: '8º ano' },
+      { key: '7', label: '7º ano' },
+      { key: '6', label: '6º ano' },
+      { key: '3', label: '3º ano' },
+      { key: '2', label: '2º ano' },
+      { key: '1', label: '1º ano' },
+    ];
+
     for (let i = 0; i < Math.min(5, data.length); i++) {
       const row = data[i];
       if (row && row.length > 0) {
         const rowText = row.join(' ').toLowerCase();
-        if (rowText.includes('2º ano') || rowText.includes('2° ano') || rowText.includes('ensino médio')) {
+        for (const ano of anosDetectaveis) {
+          if (rowText.includes(`${ano.key}º ano`) || rowText.includes(`${ano.key}° ano`)) {
+            return ano.label;
+          }
+        }
+        if (rowText.includes('ensino médio')) {
           return '2º ano';
         }
-        if (rowText.includes('8º ano') || rowText.includes('8° ano') || rowText.includes('ensino fundamental')) {
+        if (rowText.includes('ensino fundamental')) {
           return '8º ano';
         }
       }
@@ -355,11 +370,16 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
             </label>
             <select
               value={form.ano}
-              onChange={(e) => setForm({ ...form, ano: e.target.value as '8º ano' | '2º ano' })}
+              onChange={(e) => setForm({ ...form, ano: e.target.value as UploadFormParceiroType['ano'] })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50"
             >
+              <option value="9º ano">9º ano</option>
               <option value="8º ano">8º ano</option>
+              <option value="7º ano">7º ano</option>
+              <option value="6º ano">6º ano</option>
+              <option value="3º ano">3º ano</option>
               <option value="2º ano">2º ano</option>
+              <option value="1º ano">1º ano</option>
             </select>
           </div>
 

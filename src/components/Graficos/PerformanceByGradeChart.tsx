@@ -12,7 +12,7 @@ const gradeData = React.useMemo(() => {
   const grades: Record<string, number[]> =
     selectedSystem === 'prova-parana'
       ? { '9º ano': [], '6º ano': [], '3º ano': [] }
-      : { '8º ano': [], '2º ano': [] };
+      : { '9º ano': [], '8º ano': [], '7º ano': [], '6º ano': [], '3º ano': [], '2º ano': [], '1º ano': [] };
 
   data.forEach(item => {
     if (item.avaliado && item.ano_escolar in grades) {
