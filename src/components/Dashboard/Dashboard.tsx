@@ -121,13 +121,17 @@ useEffect(() => {
       data.filter(item => item.avaliado).map(item => `${item.nome_aluno}-${item.turma}`)
     );
 
-    // Contar níveis de aprendizagem por aluno único (considerando componente e semestre)
+    // Contar níveis por aluno único (considerando componente e semestre).
+    // O parceiro usa a coluna `padrao_desempenho`; os demais usam `nivel_aprendizagem`.
     const studentLevels = new Map<string, string>();
-    
+
     data.forEach(item => {
-      if (item.nivel_aprendizagem && item.avaliado) {
+      const nivel = selectedSystem === 'parceiro'
+        ? (item as any).padrao_desempenho
+        : item.nivel_aprendizagem;
+      if (nivel && item.avaliado) {
         const studentKey = `${item.nome_aluno}-${item.turma}-${item.componente}-${item.semestre}`;
-        studentLevels.set(studentKey, item.nivel_aprendizagem);
+        studentLevels.set(studentKey, nivel);
       }
     });
     
@@ -147,6 +151,15 @@ useEffect(() => {
             total_questoes: 0,
             count: 0
           };
+        }
+        // A descrição/código podem vir vazios em algumas linhas (ex.: parceiro,
+        // quando o enrich de componentes_habilidades não preencheu). Mantém o
+        // primeiro valor NÃO vazio encontrado entre as linhas da mesma habilidade.
+        if (!acc[item.habilidade_id].descricao && item.descricao_habilidade) {
+          acc[item.habilidade_id].descricao = item.descricao_habilidade;
+        }
+        if (!acc[item.habilidade_id].habilidade_codigo && item.habilidade_codigo) {
+          acc[item.habilidade_id].habilidade_codigo = item.habilidade_codigo;
         }
         acc[item.habilidade_id].total_acertos += item.acertos;
         acc[item.habilidade_id].total_questoes += item.total;
@@ -228,7 +241,7 @@ useEffect(() => {
           <StatsCards insights={insights} />
           
           <div className="grid lg:grid-cols-2 gap-6">
-            <PerformanceChart insights={insights} />
+            <PerformanceChart insights={insights} selectedSystem={selectedSystem} />
             <SkillsAnalysis insights={insights} />
           </div>
           

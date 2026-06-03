@@ -452,11 +452,14 @@ export const getFilterOptionsParceiro = async (filters: any = {}) => {
     const filtrosLimpos = { ...filters };
 
     // ====== PADRÕES (padrao_desempenho) ======
+    // Puxa todos os padrões de desempenho distintos existentes no banco,
+    // em vez de uma lista fixa (hardcoded).
     const buildPadroesQuery = () => {
       let q = supabase
         .from('prova_resultados_parceiro')
         .select('padrao_desempenho')
-        .in('padrao_desempenho', ['Básico', 'Abaixo do Básico', 'Adequado']);
+        .not('padrao_desempenho', 'is', null)
+        .not('padrao_desempenho', 'eq', '');
 
       // aplica filtros exceto ele mesmo
       Object.entries(filtrosLimpos).forEach(([key, value]) => {

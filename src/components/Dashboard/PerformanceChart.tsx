@@ -4,10 +4,14 @@ import { PerformanceInsight } from '../../types';
 
 interface PerformanceChartProps {
   insights: PerformanceInsight;
+  selectedSystem?: 'prova-parana' | 'parceiro' | 'parana-mais';
 }
 
-const PerformanceChart: React.FC<PerformanceChartProps> = ({ insights }) => {
+const PerformanceChart: React.FC<PerformanceChartProps> = ({ insights, selectedSystem }) => {
   const maxQuantidade = Math.max(...insights.distribuicao_niveis.map(item => item.quantidade), 1);
+  const distribuicaoTitulo = selectedSystem === 'parceiro'
+    ? 'Distribuição por Padrão de Desempenho'
+    : 'Distribuição por Nível de Aprendizagem';
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -16,7 +20,7 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ insights }) => {
           <BarChart3 className="w-5 h-5 text-green-600" />
         </div>
         <h3 className="text-lg font-semibold text-gray-900">
-          Distribuição por Nível de Aprendizagem
+          {distribuicaoTitulo}
         </h3>
       </div>
 
