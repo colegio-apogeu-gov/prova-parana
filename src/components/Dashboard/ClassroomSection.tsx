@@ -6,29 +6,46 @@ import {
   addAlunoToSalaParceiro,
   removeAlunoFromSalaParceiro,
   createSalaDeAulaParceiro,
+  deleteSalaDeAulaParceiro,
   fetchProvaDataParceiro,
   getLinkByHabilidadeComponenteParceiro,
   getAlunosDisponivelParceiro
 } from '../../lib/supabaseParceiro';
+import {
+  getSalasDeAulaMais,
+  addAlunoToSalaMais,
+  removeAlunoFromSalaMais,
+  createSalaDeAulaMais,
+  deleteSalaDeAulaMais,
+  fetchProvaDataMais,
+  getLinkByHabilidadeComponenteMais,
+  getAlunosDisponiveisMais
+} from '../../lib/supabaseMais';
 
 import { SalaDeAula, SalaDeAulaAluno, DashboardFilters } from '../../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import jsPDF from 'jspdf';
 
-const apiMap = (system: 'prova-parana' | 'parceiro') => ({
-  getSalasDeAula: system === 'prova-parana' ? getSalasDeAula : getSalasDeAulaParceiro,
-  addAlunoToSala: system === 'prova-parana' ? addAlunoToSala : addAlunoToSalaParceiro,
-  removeAlunoFromSala: system === 'prova-parana' ? removeAlunoFromSala : removeAlunoFromSalaParceiro,
-  createSalaDeAula: system === 'prova-parana' ? createSalaDeAula : createSalaDeAulaParceiro,
-  fetchProvaData: system === 'prova-parana' ? fetchProvaData : fetchProvaDataParceiro,
-  getLinkByHabilidadeComponente: system === 'prova-parana' ? getLinkByHabilidadeComponente : getLinkByHabilidadeComponenteParceiro,
+type SystemKey = 'prova-parana' | 'parceiro' | 'parana-mais';
+
+const pick = <T,>(system: SystemKey, base: T, parceiro: T, mais: T): T =>
+  system === 'prova-parana' ? base : system === 'parana-mais' ? mais : parceiro;
+
+const apiMap = (system: SystemKey) => ({
+  getSalasDeAula: pick(system, getSalasDeAula, getSalasDeAulaParceiro, getSalasDeAulaMais),
+  addAlunoToSala: pick(system, addAlunoToSala, addAlunoToSalaParceiro, addAlunoToSalaMais),
+  removeAlunoFromSala: pick(system, removeAlunoFromSala, removeAlunoFromSalaParceiro, removeAlunoFromSalaMais),
+  createSalaDeAula: pick(system, createSalaDeAula, createSalaDeAulaParceiro, createSalaDeAulaMais),
+  deleteSalaDeAula: pick(system, deleteSalaDeAula, deleteSalaDeAulaParceiro, deleteSalaDeAulaMais),
+  fetchProvaData: pick(system, fetchProvaData, fetchProvaDataParceiro, fetchProvaDataMais),
+  getLinkByHabilidadeComponente: pick(system, getLinkByHabilidadeComponente, getLinkByHabilidadeComponenteParceiro, getLinkByHabilidadeComponenteMais),
 });
 
 
 interface ClassroomSectionProps {
   userProfile: { unidade: string } | null;
   filters: DashboardFilters;
-  selectedSystem: 'prova-parana' | 'parceiro'; // ADICIONE
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais'; // ADICIONE
 }
 
 
@@ -86,7 +103,18 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
     setLoading(true);
     try {
       const data = await apiMap(selectedSystem).getSalasDeAula(userProfile.unidade);
-      setSalas(data);
+      // Cada sistema retorna os alunos sob uma chave diferente
+      // (sala_de_aula_alunos / _parceiros / _mais). Normaliza para que o
+      // restante do componente sempre use `sala_de_aula_alunos`.
+      const normalized = (data || []).map((sala: any) => ({
+        ...sala,
+        sala_de_aula_alunos:
+          sala.sala_de_aula_alunos ??
+          sala.sala_de_aula_alunos_parceiros ??
+          sala.sala_de_aula_alunos_mais ??
+          [],
+      }));
+      setSalas(normalized);
     } catch (error) {
       console.error('Erro ao carregar salas:', error);
     } finally {
@@ -98,7 +126,7 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
     if (!userProfile?.unidade) return;
     
     try {
-      const getAlunosFn = selectedSystem === 'prova-parana' ? getAlunosDisponiveis : getAlunosDisponivelParceiro;
+      const getAlunosFn = pick(selectedSystem, getAlunosDisponiveis, getAlunosDisponivelParceiro, getAlunosDisponiveisMais);
       const alunos = await getAlunosFn({
         unidade: userProfile.unidade,
         ...filters
@@ -251,7 +279,7 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
     if (!confirm('Tem certeza que deseja excluir esta sala de aula?')) return;
     
     try {
-      await deleteSalaDeAula(salaId);
+      await apiMap(selectedSystem).deleteSalaDeAula(salaId);
       await loadSalas();
     } catch (error) {
       console.error('Erro ao excluir sala:', error);

@@ -371,3 +371,92 @@ export const getAlunosDaSalaMais = async (salaId: string) => {
     return [];
   }
 };
+
+export const createSalaDeAulaMais = async (salaData: {
+  nome: string;
+  unidade: string;
+  alunos: Array<{ nome_aluno: string; turma: string }>;
+}) => {
+  // Cria a sala
+  const { data: sala, error: salaError } = await supabase
+    .from('sala_de_aula_mais')
+    .insert({
+      nome: salaData.nome,
+      unidade: salaData.unidade
+    })
+    .select()
+    .single();
+
+  if (salaError) throw salaError;
+
+  // Adiciona os alunos à sala
+  if (salaData.alunos.length > 0) {
+    const alunosData = salaData.alunos.map((aluno) => ({
+      sala_id: sala.id,
+      nome_aluno: aluno.nome_aluno,
+      turma: aluno.turma
+    }));
+
+    const { error: alunosError } = await supabase
+      .from('sala_de_aula_alunos_mais')
+      .insert(alunosData);
+
+    if (alunosError) throw alunosError;
+  }
+
+  return sala;
+};
+
+export const addAlunoToSalaMais = async (salaId: string, aluno: { nome_aluno: string; turma: string }) => {
+  const { data, error } = await supabase
+    .from('sala_de_aula_alunos_mais')
+    .insert({
+      sala_id: salaId,
+      nome_aluno: aluno.nome_aluno,
+      turma: aluno.turma
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const removeAlunoFromSalaMais = async (alunoId: string) => {
+  const { error } = await supabase
+    .from('sala_de_aula_alunos_mais')
+    .delete()
+    .eq('id', alunoId);
+
+  if (error) throw error;
+};
+
+export const deleteSalaDeAulaMais = async (salaId: string) => {
+  const { error } = await supabase
+    .from('sala_de_aula_mais')
+    .delete()
+    .eq('id', salaId);
+
+  if (error) throw error;
+};
+
+export const getAlunosDisponiveisMais = async (filters: any = {}) => {
+  const data = await fetchProvaDataMais(filters);
+
+  // Alunos únicos com sua turma
+  const uniqueStudents = new Map<string, { nome_aluno: string; turma: string }>();
+
+  data.forEach((item: any) => {
+    const key = `${item.nome_aluno}-${item.turma}`;
+    if (!uniqueStudents.has(key)) {
+      uniqueStudents.set(key, {
+        nome_aluno: item.nome_aluno,
+        turma: item.turma
+      });
+    }
+  });
+
+  return Array.from(uniqueStudents.values()).sort((a, b) =>
+    a.nome_aluno.localeCompare(b.nome_aluno)
+  );
+};

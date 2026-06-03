@@ -79,7 +79,7 @@ function App() {
     }
   };
 
-  const handleSystemSelect = (system: 'prova-parana' | 'parceiro') => {
+  const handleSystemSelect = (system: 'prova-parana' | 'parceiro' | 'parana-mais') => {
     setSelectedSystem(system);
     setActiveTab('dashboard'); // Reset to dashboard when switching systems
   };
@@ -129,7 +129,7 @@ function App() {
           selectedSystem === 'prova-parana' ? (
             <UploadForm userProfile={userProfile} />
           ) : (
-            <UploadFormParceiro userProfile={userProfile} />
+            <UploadFormParceiro userProfile={userProfile} selectedSystem={selectedSystem} />
           )
         ) : activeTab === 'graficos' ? (
           <Graficos userProfile={userProfile} selectedSystem={selectedSystem} />

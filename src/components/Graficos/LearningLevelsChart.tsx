@@ -4,7 +4,7 @@ import { ProvaResultado } from '../../types';
 
 interface LearningLevelsChartProps {
   data: ProvaResultado[];
-  selectedSystem?: 'prova-parana' | 'parceiro';
+  selectedSystem?: 'prova-parana' | 'parceiro' | 'parana-mais';
 }
 
 const LearningLevelsChart: React.FC<LearningLevelsChartProps> = ({ data, selectedSystem = 'prova-parana' }) => {
@@ -13,7 +13,7 @@ const LearningLevelsChart: React.FC<LearningLevelsChartProps> = ({ data, selecte
     const uniqueStudents = new Set<string>();
     
     data.forEach(item => {
-      const levelField = selectedSystem === 'prova-parana' ? item.nivel_aprendizagem : (item as any).padrao_desempenho;
+      const levelField = selectedSystem === 'parceiro' ? (item as any).padrao_desempenho : item.nivel_aprendizagem;
       if (item.avaliado && levelField) {
         const studentKey = `${item.nome_aluno}-${item.turma}-${item.componente}-${item.semestre}`;
         if (!uniqueStudents.has(studentKey)) {
@@ -32,7 +32,7 @@ const LearningLevelsChart: React.FC<LearningLevelsChartProps> = ({ data, selecte
         percentage: total > 0 ? (count / total) * 100 : 0
       }))
       .sort((a, b) => b.count - a.count);
-  }, [data]);
+  }, [data, selectedSystem]);
 
   const getColorClass = (index: number) => {
     const colors = [
@@ -54,7 +54,7 @@ const LearningLevelsChart: React.FC<LearningLevelsChartProps> = ({ data, selecte
           <Target className="w-5 h-5 text-green-600" />
         </div>
         <h3 className="text-lg font-semibold text-gray-900">
-          {selectedSystem === 'prova-parana' ? 'Distribuição por Nível de Aprendizagem' : 'Distribuição por Padrão de Desempenho'}
+          {selectedSystem === 'parceiro' ? 'Distribuição por Padrão de Desempenho' : 'Distribuição por Nível de Aprendizagem'}
         </h3>
       </div>
 

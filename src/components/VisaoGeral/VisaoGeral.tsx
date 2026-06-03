@@ -6,10 +6,11 @@ import ProficiencyGauge from './ProficiencyGauge';
 
 import { getProficiencySummary, ProficiencyRow } from '../../lib/supabase';
 import { getProficiencyDataParceiro } from '../../lib/supabaseParceiro';
+import { getProficiencyDataMais } from '../../lib/supabaseMais';
 
 interface VisaoGeralProps {
   userProfile: UserProfile | null;
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
 }
 
 interface Filters {
@@ -318,15 +319,19 @@ const loadProficiencyData = async () => {
 
   setLoading(true);
   try {
-    // -------------------- SISTEMA PARCEIRO --------------------
-    if (selectedSystem === 'parceiro') {
+    // -------------------- SISTEMAS PARCEIRO E PARANÁ MAIS (agregação em memória) --------------------
+    if (selectedSystem === 'parceiro' || selectedSystem === 'parana-mais') {
       const comp = normalizeSelect(filters.componente);
       const ano  = normalizeSelect(filters.ano_escolar);
       const reg  = normalizeSelect(filters.regional);
       const uni  = normalizeSelect(filters.unidade);
 
-      // Busca bruta do parceiro (sem aplicar filtros indevidos de "Todos/Todas")
-      const raw: RawParceiro[] = await getProficiencyDataParceiro({
+      // Escolhe a fonte de dados conforme o sistema (parceiro x paraná mais)
+      const getProficiencyDataFn =
+        selectedSystem === 'parana-mais' ? getProficiencyDataMais : getProficiencyDataParceiro;
+
+      // Busca bruta (sem aplicar filtros indevidos de "Todos/Todas")
+      const raw: RawParceiro[] = await getProficiencyDataFn({
         componente: comp,
         ano_escolar: ano,
         regional: reg,
