@@ -2,19 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { Users, ChevronDown, ChevronRight, BookOpen, ExternalLink, Brain } from 'lucide-react';
 import { fetchProvaData, getLinkByHabilidadeComponente } from '../../lib/supabase';
 import { fetchProvaDataParceiro, getLinkByHabilidadeComponenteParceiro } from '../../lib/supabaseParceiro';
+import { fetchProvaDataMais, getLinkByHabilidadeComponenteMais } from '../../lib/supabaseMais';
 import { DashboardFilters } from '../../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import jsPDF from 'jspdf';
 
-const getLinkFn = (system: 'prova-parana' | 'parceiro') =>
+const getLinkFn = (system: 'prova-parana' | 'parceiro' | 'parana-mais') =>
   system === 'prova-parana'
     ? getLinkByHabilidadeComponente
+    : system === 'parana-mais'
+    ? getLinkByHabilidadeComponenteMais
     : getLinkByHabilidadeComponenteParceiro;
 
 interface StudentsSectionProps {
   filters: DashboardFilters;
   userProfile: { unidade: string } | null;
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
   salasDeAula: any[];
 }
 
@@ -244,7 +247,11 @@ const StudentsSection: React.FC<StudentsSectionProps> = ({ filters, userProfile,
     setLoading(true);
     try {
 const fetchFn =
-  selectedSystem === 'prova-parana' ? fetchProvaData : fetchProvaDataParceiro;
+  selectedSystem === 'prova-parana'
+    ? fetchProvaData
+    : selectedSystem === 'parana-mais'
+    ? fetchProvaDataMais
+    : fetchProvaDataParceiro;
 
 const data = await fetchFn({
   ...filters,
@@ -299,6 +306,8 @@ const data = await fetchFn({
           const alunosSala = new Set(
             (selectedSystem === 'prova-parana'
               ? sala.sala_de_aula_alunos
+              : selectedSystem === 'parana-mais'
+              ? sala.sala_de_aula_alunos_mais
               : sala.sala_de_aula_alunos_parceiros
             )?.map((a: any) => a.nome_aluno) || []
           );

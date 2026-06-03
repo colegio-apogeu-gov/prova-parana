@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { PieChart, BarChart3, TrendingUp, Users, Target, BookOpen, Award, Calendar } from 'lucide-react';
 import { fetchProvaData, fetchAllProvaData, getAnosProva } from '../../lib/supabase';
 import { fetchProvaDataParceiro, fetchAllProvaDataParceiro, getAnosProvaParceiro } from '../../lib/supabaseParceiro';
-import { getAnosProvaMais } from '../../lib/supabaseMais';
+import { fetchAllProvaDataMais, getAnosProvaMais } from '../../lib/supabaseMais';
 import { ProvaResultado } from '../../types';
 import PerformanceByGradeChart from './PerformanceByGradeChart';
 import ComponentComparisonChart from './ComponentComparisonChart';
@@ -15,7 +15,7 @@ import PerformanceTrendsChart from './PerformanceTrendsChart';
 
 interface GraficosProps {
   userProfile: { unidade: string } | null;
-  selectedSystem: 'prova-parana' | 'parceiro';
+  selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
 }
 
 const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
@@ -31,7 +31,7 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
 
   useEffect(() => {
     loadData();
-  }, [selectedFilters, userProfile]);
+  }, [selectedFilters, userProfile, selectedSystem]);
 
   useEffect(() => {
     const fetchAnosProva = async () => {
@@ -65,7 +65,12 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
       };
       
       // Busca TODOS os dados sem limitação para gráficos
-      const fetchFn = selectedSystem === 'prova-parana' ? fetchAllProvaData : fetchAllProvaDataParceiro;
+      const fetchFn =
+        selectedSystem === 'prova-parana'
+          ? fetchAllProvaData
+          : selectedSystem === 'parana-mais'
+          ? fetchAllProvaDataMais
+          : fetchAllProvaDataParceiro;
       const result = await fetchFn(filters);
       setData(result || []);
     } catch (error) {
@@ -118,7 +123,7 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Análise Gráfica</h1>
             <p className="text-gray-600">
-              Visualizações dos dados da {selectedSystem === 'prova-parana' ? 'Prova Paraná Recomposição' : 'Avaliação Parceiro da Escola'}
+              Visualizações dos dados da {selectedSystem === 'prova-parana' ? 'Prova Paraná Recomposição' : selectedSystem === 'parceiro' ? 'Avaliação Parceiro da Escola' : 'Paraná Mais'}
             </p>
           </div>
         </div>
@@ -144,6 +149,11 @@ const Graficos: React.FC<GraficosProps> = ({ userProfile, selectedSystem }) => {
                 <>
                   <option value="9º ano">9º ano</option>
                   <option value="6º ano">6º ano</option>
+                  <option value="3º ano">3º ano</option>
+                </>
+              ) : selectedSystem === 'parana-mais' ? (
+                <>
+                  <option value="9º ano">9º ano</option>
                   <option value="3º ano">3º ano</option>
                 </>
               ) : (

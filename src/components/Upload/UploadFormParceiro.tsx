@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Download, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { uploadProvaDataParceiro } from '../../lib/supabaseParceiro';
+import { uploadProvaDataMais } from '../../lib/supabaseMais';
 import { UploadFormParceiro as UploadFormParceiroType } from '../../types';
 import { parseFileName, downloadLog, UploadLogEntry, ParsedFileName } from '../../lib/bulkUploadUtils';
 
 interface UploadFormParceiroProps {
   userProfile: { unidade: string } | null;
+  selectedSystem?: 'parceiro' | 'parana-mais';
 }
 
 interface BulkFileEntry {
@@ -15,7 +17,10 @@ interface BulkFileEntry {
   error: string | null;
 }
 
-const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) => {
+const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile, selectedSystem = 'parceiro' }) => {
+  const isMais = selectedSystem === 'parana-mais';
+  const uploadFn = isMais ? uploadProvaDataMais : uploadProvaDataParceiro;
+  const systemLabel = isMais ? 'Paraná Mais' : 'Avaliação Parceiro da Escola';
   const [form, setForm] = useState<UploadFormParceiroType>({
     ano: '8º ano',
     componente: 'LP',
@@ -307,7 +312,7 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
         throw new Error('Nenhum dado valido encontrado na planilha');
       }
 
-      await uploadProvaDataParceiro(processedData);
+      await uploadFn(processedData);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
 
@@ -379,7 +384,7 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
           throw new Error('Nenhum dado valido encontrado na planilha');
         }
 
-        await uploadProvaDataParceiro(processedData);
+        await uploadFn(processedData);
 
         log.push({
           fileName: entry.file.name,
@@ -431,8 +436,8 @@ const UploadFormParceiro: React.FC<UploadFormParceiroProps> = ({ userProfile }) 
             <Upload className="w-6 h-6 text-green-600" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Upload de Planilhas - Avaliacao Parceiro da Escola</h2>
-            <p className="text-gray-600">Importe os dados da Avaliacao Parceiro da Escola</p>
+            <h2 className="text-xl font-semibold text-gray-900">Upload de Planilhas - {systemLabel}</h2>
+            <p className="text-gray-600">Importe os dados da {systemLabel}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
