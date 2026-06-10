@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, ChevronDown, ChevronRight, UserPlus, UserMinus, Trash2, X, Search, Brain, ExternalLink, Download } from 'lucide-react';
+import { Users, Plus, ChevronDown, ChevronRight, UserPlus, UserMinus, Trash2, X, Search, Brain, ExternalLink, Download, Filter, SlidersHorizontal } from 'lucide-react';
 import { getSalasDeAula, createSalaDeAula, addAlunoToSala, removeAlunoFromSala, deleteSalaDeAula, getAlunosDisponiveis, fetchProvaData, getLinkByHabilidadeComponente } from '../../lib/supabase';
 import {
   getSalasDeAulaParceiro,
@@ -53,6 +53,9 @@ interface StudentData {
   nome_aluno: string;
   unidade: string;
   semestre: string;
+  // Níveis de desempenho do aluno (nivel_aprendizagem ou padrao_desempenho).
+  // Um aluno pode ter níveis distintos por componente, por isso é um conjunto.
+  niveis: string[];
   componentes: {
     [key: string]: {
       componente: string;
@@ -69,6 +72,122 @@ interface StudentData {
   };
 }
 
+// Filtros aplicados dentro de uma sala de aula específica.
+// Todos os campos de seleção são multi-seleção (arrays).
+interface SalaFilters {
+  nome: string;                 // busca textual por nome do aluno
+  niveis: string[];             // nível de desempenho (multi)
+  componentes: string[];        // 'LP' | 'MT' (multi)
+  habilidades: string[];        // habilidade_codigo (multi)
+  desempenho: string[];         // faixas de desempenho: 'alto' | 'medio' | 'baixo' (multi)
+}
+
+const EMPTY_SALA_FILTERS: SalaFilters = {
+  nome: '',
+  niveis: [],
+  componentes: [],
+  habilidades: [],
+  desempenho: [],
+};
+
+// Faixas de desempenho (percentual geral de acertos do aluno na sala).
+const DESEMPENHO_BANDS: Array<{ key: string; label: string; min: number; max: number }> = [
+  { key: 'alto', label: 'Alto desempenho (≥ 70%)', min: 70, max: 100.0001 },
+  { key: 'medio', label: 'Médio desempenho (50% – 69%)', min: 50, max: 70 },
+  { key: 'baixo', label: 'Baixo desempenho (< 50%)', min: -0.0001, max: 50 },
+];
+
+// Componente reutilizável de seleção múltipla via checkboxes em dropdown.
+interface MultiSelectProps {
+  label: string;
+  options: Array<{ value: string; label: string }>;
+  selected: string[];
+  onChange: (values: string[]) => void;
+  placeholder?: string;
+  emptyMessage?: string;
+}
+
+const MultiSelect: React.FC<MultiSelectProps> = ({
+  label,
+  options,
+  selected,
+  onChange,
+  placeholder = 'Todos',
+  emptyMessage = 'Nenhuma opção disponível',
+}) => {
+  const [open, setOpen] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const toggleValue = (value: string) => {
+    if (selected.includes(value)) {
+      onChange(selected.filter(v => v !== value));
+    } else {
+      onChange([...selected, value]);
+    }
+  };
+
+  const summary =
+    selected.length === 0
+      ? placeholder
+      : selected.length === 1
+      ? options.find(o => o.value === selected[0])?.label ?? selected[0]
+      : `${selected.length} selecionados`;
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent text-left"
+      >
+        <span className={selected.length === 0 ? 'text-gray-400' : 'text-gray-900'}>
+          {summary}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+          {options.length === 0 ? (
+            <p className="px-3 py-2 text-sm text-gray-500">{emptyMessage}</p>
+          ) : (
+            options.map(option => {
+              const isChecked = selected.includes(option.value);
+              return (
+                <label
+                  key={option.value}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${
+                    isChecked ? 'bg-green-50' : ''
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleValue(option.value)}
+                    className="text-green-600 focus:ring-green-500"
+                  />
+                  <span className="text-gray-800">{option.label}</span>
+                </label>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // antes: ({ userProfile, filters })
 const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filters, selectedSystem }) => {
   const [salas, setSalas] = useState<(SalaDeAula & { sala_de_aula_alunos: SalaDeAulaAluno[] })[]>([]);
@@ -84,7 +203,12 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
   const [addingStudents, setAddingStudents] = useState<{ [key: string]: boolean }>({});
   const [generatingInsights, setGeneratingInsights] = useState<Set<string>>(new Set());
   const [linksCache, setLinksCache] = useState<Map<string, string>>(new Map());
-  
+
+  // Filtros por sala (cada sala tem seu próprio conjunto de filtros).
+  const [salaFilters, setSalaFilters] = useState<{ [salaId: string]: SalaFilters }>({});
+  // Salas cuja barra de filtros está visível.
+  const [filtersVisible, setFiltersVisible] = useState<Set<string>>(new Set());
+
   const [form, setForm] = useState({
     nome: '',
     alunos: [] as Array<{ nome_aluno: string; turma: string }>
@@ -151,9 +275,57 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
     }
   }, [searchTerm, alunosDisponiveis]);
 
+  // Agrupa as linhas brutas da prova de UM aluno em StudentData.
+  // Reutilizado tanto pelo carregamento individual (expandir aluno) quanto
+  // pelo carregamento em lote (preencher os filtros da sala).
+  const buildStudentData = (nomeAluno: string, rows: any[]): StudentData => {
+    const niveisSet = new Set<string>();
+    const groupedData: StudentData = {
+      nome_aluno: nomeAluno,
+      unidade: userProfile?.unidade || '',
+      semestre: '1',
+      niveis: [],
+      componentes: {}
+    };
+
+    rows.forEach((item: any) => {
+      if (item.nome_aluno !== nomeAluno) return;
+
+      // O nível de desempenho aparece como nivel_aprendizagem (prova-parana/
+      // parana-mais) ou padrao_desempenho (parceiro).
+      const nivel = item.nivel_aprendizagem ?? item.padrao_desempenho;
+      if (nivel) niveisSet.add(String(nivel));
+
+      const componentKey = item.componente;
+      if (!groupedData.componentes[componentKey]) {
+        groupedData.componentes[componentKey] = {
+          componente: item.componente === 'LP' ? 'Língua Portuguesa' : 'Matemática',
+          total_acertos: 0,
+          total_questoes: 0,
+          habilidades: []
+        };
+      }
+
+      if (item.avaliado) {
+        groupedData.componentes[componentKey].total_acertos += item.acertos;
+        groupedData.componentes[componentKey].total_questoes += item.total;
+        groupedData.componentes[componentKey].habilidades.push({
+          habilidade_id: item.habilidade_id,
+          habilidade_codigo: item.habilidade_codigo,
+          descricao: item.descricao_habilidade,
+          acertos: item.acertos,
+          total: item.total
+        });
+      }
+    });
+
+    groupedData.niveis = Array.from(niveisSet);
+    return groupedData;
+  };
+
   const loadStudentData = async (nomeAluno: string, turma: string) => {
     const studentKey = `${nomeAluno}-${turma}`;
-    
+
     if (studentsData[studentKey]) return;
 
     try {
@@ -161,45 +333,46 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
         unidade: userProfile?.unidade,
         nome_aluno: nomeAluno});
 
-      const groupedData: StudentData = {
-        nome_aluno: nomeAluno,
-        unidade: userProfile?.unidade || '',
-        semestre: '1',
-        componentes: {}
-      };
-
-      data.forEach((item: any) => {
-        if (item.nome_aluno === nomeAluno) {
-          const componentKey = item.componente;
-          if (!groupedData.componentes[componentKey]) {
-            groupedData.componentes[componentKey] = {
-              componente: item.componente === 'LP' ? 'Língua Portuguesa' : 'Matemática',
-              total_acertos: 0,
-              total_questoes: 0,
-              habilidades: []
-            };
-          }
-
-          if (item.avaliado) {
-            groupedData.componentes[componentKey].total_acertos += item.acertos;
-            groupedData.componentes[componentKey].total_questoes += item.total;
-            groupedData.componentes[componentKey].habilidades.push({
-              habilidade_id: item.habilidade_id,
-              habilidade_codigo: item.habilidade_codigo,
-              descricao: item.descricao_habilidade,
-              acertos: item.acertos,
-              total: item.total
-            });
-          }
-        }
-      });
-
-      setStudentsData(prev => ({
-        ...prev,
-        [studentKey]: groupedData
-      }));
+      const groupedData = buildStudentData(nomeAluno, data);
+      setStudentsData(prev => ({ ...prev, [studentKey]: groupedData }));
     } catch (error) {
       console.error('Erro ao carregar dados do aluno:', error);
+    }
+  };
+
+  // Carrega (em lote) os dados de prova de todos os alunos de uma sala, para
+  // que os filtros da sala (nível, componente, habilidade, desempenho) possam
+  // operar sobre todos os alunos — não apenas os que foram expandidos.
+  const loadSalaStudentsData = async (
+    alunos: Array<{ nome_aluno: string; turma: string }>
+  ) => {
+    const pending = alunos.filter(a => !studentsData[`${a.nome_aluno}-${a.turma}`]);
+    if (pending.length === 0) return;
+
+    try {
+      const results = await Promise.all(
+        pending.map(async (aluno) => {
+          const data = await apiMap(selectedSystem).fetchProvaData({
+            ...filters,
+            unidade: userProfile?.unidade,
+            nome_aluno: aluno.nome_aluno,
+          });
+          return {
+            key: `${aluno.nome_aluno}-${aluno.turma}`,
+            value: buildStudentData(aluno.nome_aluno, data),
+          };
+        })
+      );
+
+      setStudentsData(prev => {
+        const next = { ...prev };
+        results.forEach(({ key, value }) => {
+          next[key] = value;
+        });
+        return next;
+      });
+    } catch (error) {
+      console.error('Erro ao carregar dados dos alunos da sala:', error);
     }
   };
 
@@ -227,8 +400,165 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
       newExpanded.delete(salaId);
     } else {
       newExpanded.add(salaId);
+      // Ao abrir a sala, carrega os dados de prova de todos os alunos para
+      // que os filtros (nível, componente, habilidade, desempenho) funcionem.
+      const sala = salas.find(s => s.id === salaId);
+      if (sala) {
+        loadSalaStudentsData(
+          sala.sala_de_aula_alunos.map(a => ({ nome_aluno: a.nome_aluno, turma: a.turma }))
+        );
+      }
     }
     setExpandedSalas(newExpanded);
+  };
+
+  // Retorna os filtros de uma sala, com fallback para o estado vazio.
+  const getSalaFilters = (salaId: string): SalaFilters =>
+    salaFilters[salaId] ?? EMPTY_SALA_FILTERS;
+
+  const updateSalaFilter = <K extends keyof SalaFilters>(
+    salaId: string,
+    key: K,
+    value: SalaFilters[K]
+  ) => {
+    setSalaFilters(prev => ({
+      ...prev,
+      [salaId]: { ...getSalaFilters(salaId), [key]: value },
+    }));
+  };
+
+  const clearSalaFilters = (salaId: string) => {
+    setSalaFilters(prev => ({ ...prev, [salaId]: { ...EMPTY_SALA_FILTERS } }));
+  };
+
+  const toggleFiltersVisible = (salaId: string) => {
+    setFiltersVisible(prev => {
+      const next = new Set(prev);
+      next.has(salaId) ? next.delete(salaId) : next.add(salaId);
+      return next;
+    });
+  };
+
+  // Percentual geral de acertos de um aluno (todos os componentes somados).
+  const getStudentOverallPct = (data: StudentData | undefined): number | null => {
+    if (!data) return null;
+    let acertos = 0;
+    let total = 0;
+    Object.values(data.componentes).forEach(c => {
+      acertos += c.total_acertos;
+      total += c.total_questoes;
+    });
+    if (total <= 0) return null;
+    return (acertos / total) * 100;
+  };
+
+  // Conta quantos filtros estão ativos (para badge no botão).
+  const countActiveFilters = (f: SalaFilters): number =>
+    (f.nome.trim() ? 1 : 0) +
+    f.niveis.length +
+    f.componentes.length +
+    f.habilidades.length +
+    f.desempenho.length;
+
+  // Aplica os filtros de uma sala à lista de alunos.
+  const getFilteredAlunosDaSala = (
+    sala: SalaDeAula & { sala_de_aula_alunos: SalaDeAulaAluno[] }
+  ): SalaDeAulaAluno[] => {
+    const f = getSalaFilters(sala.id);
+    const nomeQuery = f.nome.trim().toLowerCase();
+
+    return sala.sala_de_aula_alunos.filter(aluno => {
+      // 1) Nome (busca textual)
+      if (nomeQuery && !aluno.nome_aluno.toLowerCase().includes(nomeQuery)) {
+        return false;
+      }
+
+      const data = studentsData[`${aluno.nome_aluno}-${aluno.turma}`];
+
+      // Filtros que dependem dos dados de prova. Se os dados ainda não
+      // carregaram, só mantém o aluno quando não há filtros desse tipo ativos.
+      const needsData =
+        f.niveis.length > 0 ||
+        f.componentes.length > 0 ||
+        f.habilidades.length > 0 ||
+        f.desempenho.length > 0;
+
+      if (needsData && !data) return false;
+
+      // 2) Nível de desempenho (multi) — qualquer um dos selecionados
+      if (f.niveis.length > 0) {
+        if (!data!.niveis.some(n => f.niveis.includes(n))) return false;
+      }
+
+      // 3) Componente (multi)
+      if (f.componentes.length > 0) {
+        const comps = Object.keys(data!.componentes);
+        if (!comps.some(c => f.componentes.includes(c))) return false;
+      }
+
+      // 4) Habilidade_codigo (multi)
+      if (f.habilidades.length > 0) {
+        const codigos = new Set<string>();
+        Object.values(data!.componentes).forEach(c =>
+          c.habilidades.forEach(h => codigos.add(h.habilidade_codigo))
+        );
+        if (![...codigos].some(c => f.habilidades.includes(c))) return false;
+      }
+
+      // 5) Faixa de desempenho (multi)
+      if (f.desempenho.length > 0) {
+        const pct = getStudentOverallPct(data);
+        if (pct === null) return false;
+        const inBand = f.desempenho.some(key => {
+          const band = DESEMPENHO_BANDS.find(b => b.key === key);
+          return band ? pct >= band.min && pct < band.max : false;
+        });
+        if (!inBand) return false;
+      }
+
+      return true;
+    });
+  };
+
+  // Opções de nível/componente/habilidade disponíveis para uma sala,
+  // derivadas dos dados de prova já carregados dos seus alunos.
+  const getSalaFilterOptions = (
+    sala: SalaDeAula & { sala_de_aula_alunos: SalaDeAulaAluno[] }
+  ) => {
+    const niveis = new Set<string>();
+    const componentes = new Set<string>();
+    const habilidades = new Map<string, string>(); // codigo -> descricao
+
+    sala.sala_de_aula_alunos.forEach(aluno => {
+      const data = studentsData[`${aluno.nome_aluno}-${aluno.turma}`];
+      if (!data) return;
+      data.niveis.forEach(n => niveis.add(n));
+      Object.keys(data.componentes).forEach(c => componentes.add(c));
+      Object.values(data.componentes).forEach(c =>
+        c.habilidades.forEach(h => {
+          if (!habilidades.has(h.habilidade_codigo)) {
+            habilidades.set(h.habilidade_codigo, h.descricao || '');
+          }
+        })
+      );
+    });
+
+    const componenteLabel = (c: string) =>
+      c === 'LP' ? 'Língua Portuguesa' : c === 'MT' ? 'Matemática' : c;
+
+    return {
+      niveis: Array.from(niveis).sort().map(n => ({ value: n, label: n })),
+      componentes: Array.from(componentes).sort().map(c => ({
+        value: c,
+        label: componenteLabel(c),
+      })),
+      habilidades: Array.from(habilidades.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([codigo, descricao]) => ({
+          value: codigo,
+          label: descricao ? `${codigo} — ${descricao}` : codigo,
+        })),
+    };
   };
 
   const toggleStudentExpansion = async (studentKey: string, nomeAluno: string, turma: string) => {
@@ -736,6 +1066,29 @@ Seja específico e prático nas recomendações, considerando que este é um rel
                   </div>
                 </button>
                 <div className="flex items-center gap-2">
+                  {expandedSalas.has(sala.id) && (() => {
+                    const ativos = countActiveFilters(getSalaFilters(sala.id));
+                    const aberto = filtersVisible.has(sala.id);
+                    return (
+                      <button
+                        onClick={() => toggleFiltersVisible(sala.id)}
+                        className={`relative flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-colors ${
+                          aberto || ativos > 0
+                            ? 'bg-green-100 text-green-700'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                        title="Filtrar alunos"
+                      >
+                        <SlidersHorizontal className="w-4 h-4" />
+                        Filtros
+                        {ativos > 0 && (
+                          <span className="ml-1 inline-flex items-center justify-center w-5 h-5 text-xs font-semibold text-white bg-green-600 rounded-full">
+                            {ativos}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })()}
                   <button
                     onClick={() => handleDeleteSala(sala.id)}
                     className="text-red-600 hover:text-red-800 p-1"
@@ -743,11 +1096,13 @@ Seja específico e prático nas recomendações, considerando que este é um rel
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
-                  {expandedSalas.has(sala.id) ? (
-                    <ChevronDown className="w-5 h-5 text-gray-400" />
-                  ) : (
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
-                  )}
+                  <button onClick={() => toggleSalaExpansion(sala.id)} className="p-1">
+                    {expandedSalas.has(sala.id) ? (
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-gray-400" />
+                    )}
+                  </button>
                 </div>
               </div>
 
@@ -782,12 +1137,107 @@ Seja específico e prático nas recomendações, considerando que este é um rel
                     </select>
                   </div>
 
-                  <div className="space-y-2">
-                    {sala.sala_de_aula_alunos.map((aluno) => {
-                      const studentKey = `${aluno.nome_aluno}-${aluno.turma}`;
-                      const studentData = studentsData[studentKey];
-                      
-                      return (
+                  {/* Barra de filtros da sala */}
+                  {filtersVisible.has(sala.id) && (() => {
+                    const f = getSalaFilters(sala.id);
+                    const opts = getSalaFilterOptions(sala);
+                    const ativos = countActiveFilters(f);
+                    return (
+                      <div className="mb-4 p-4 bg-white border border-gray-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                            <Filter className="w-4 h-4 text-gray-500" />
+                            Filtrar alunos
+                          </div>
+                          {ativos > 0 && (
+                            <button
+                              onClick={() => clearSalaFilters(sala.id)}
+                              className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800"
+                            >
+                              <X className="w-3 h-3" />
+                              Limpar filtros
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                          {/* Nome */}
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Nome do aluno</label>
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <input
+                                type="text"
+                                value={f.nome}
+                                onChange={(e) => updateSalaFilter(sala.id, 'nome', e.target.value)}
+                                placeholder="Buscar por nome..."
+                                className="w-full pl-8 pr-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Nível de desempenho (multi) */}
+                          <MultiSelect
+                            label="Nível de desempenho"
+                            options={opts.niveis}
+                            selected={f.niveis}
+                            onChange={(v) => updateSalaFilter(sala.id, 'niveis', v)}
+                            emptyMessage="Carregando dados dos alunos..."
+                          />
+
+                          {/* Componente (multi) */}
+                          <MultiSelect
+                            label="Componente"
+                            options={opts.componentes}
+                            selected={f.componentes}
+                            onChange={(v) => updateSalaFilter(sala.id, 'componentes', v)}
+                            emptyMessage="Carregando dados dos alunos..."
+                          />
+
+                          {/* Faixa de desempenho (multi) */}
+                          <MultiSelect
+                            label="Faixa de desempenho"
+                            options={DESEMPENHO_BANDS.map(b => ({ value: b.key, label: b.label }))}
+                            selected={f.desempenho}
+                            onChange={(v) => updateSalaFilter(sala.id, 'desempenho', v)}
+                          />
+
+                          {/* Habilidade (multi) */}
+                          <MultiSelect
+                            label="Habilidade"
+                            options={opts.habilidades}
+                            selected={f.habilidades}
+                            onChange={(v) => updateSalaFilter(sala.id, 'habilidades', v)}
+                            emptyMessage="Carregando dados dos alunos..."
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {(() => {
+                    const alunosFiltrados = getFilteredAlunosDaSala(sala);
+                    const total = sala.sala_de_aula_alunos.length;
+                    const ativos = countActiveFilters(getSalaFilters(sala.id));
+                    return (
+                      <>
+                        {ativos > 0 && (
+                          <p className="mb-2 text-sm text-gray-600">
+                            Mostrando {alunosFiltrados.length} de {total} aluno(s)
+                          </p>
+                        )}
+                        <div className="space-y-2">
+                          {alunosFiltrados.length === 0 ? (
+                            <div className="text-center py-6 text-gray-500 bg-white rounded-lg border border-gray-200">
+                              <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                              <p>Nenhum aluno corresponde aos filtros selecionados</p>
+                            </div>
+                          ) : (
+                            alunosFiltrados.map((aluno) => {
+                              const studentKey = `${aluno.nome_aluno}-${aluno.turma}`;
+                              const studentData = studentsData[studentKey];
+
+                              return (
                         <div key={aluno.id} className="bg-white rounded-lg border border-gray-200">
                           <div className="p-3 flex items-center justify-between">
                             <button
@@ -921,10 +1371,14 @@ Seja específico e prático nas recomendações, considerando que este é um rel
                               Ele representa uma sugestão baseada em dados, mas deve ser lido com análise crítica e adaptado conforme a realidade de cada aluno.
                             </p>
                           )}
+                                  </div>
+                                );
+                              })
+                          )}
                         </div>
-                      );
-                    })}
-                  </div>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
