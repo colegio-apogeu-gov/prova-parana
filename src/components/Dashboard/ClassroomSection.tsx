@@ -44,8 +44,9 @@ const apiMap = (system: SystemKey) => ({
   updateSalaProfessores: pick(system, updateSalaProfessores, updateSalaProfessoresParceiro, updateSalaProfessoresMais),
 });
 
-// Chave do mapa de professores: turma + componente.
-const profKey = (turma: string, componente: string) => `${turma}||${componente}`;
+// Chave do mapa de professores: por componente (a sala já é o escopo).
+// Prefixo "comp||" mantém compatibilidade e evita colisão com chaves antigas.
+const profKey = (componente: string) => `comp||${componente}`;
 
 
 interface ClassroomSectionProps {
@@ -624,11 +625,11 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
     };
   };
 
-  // Média de nota por turma × componente, calculada sobre a lista de alunos
-  // JÁ FILTRADA (portanto condicionada aos filtros ativos da sala).
+  // Média de nota por disciplina (componente) da SALA, calculada sobre a lista
+  // de alunos JÁ FILTRADA (portanto condicionada aos filtros ativos da sala).
+  // A "turma" exibida é o nome da sala de aula, não o código de turma do banco.
   // A média é ponderada por questões (mesma lógica usada no resto do app).
   interface MediaTurmaComp {
-    turma: string;
     componente: string;       // 'LP' | 'MT'
     componenteLabel: string;
     media: number | null;     // percentual (0–100) ou null se sem dados
@@ -636,20 +637,19 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
   }
 
   const getMediasTurmaComponente = (alunos: SalaDeAulaAluno[]): MediaTurmaComp[] => {
-    // acumulador: `${turma}||${comp}` -> { acertos, questoes, alunos:Set }
-    const acc = new Map<string, { turma: string; comp: string; acertos: number; questoes: number; alunos: Set<string> }>();
+    // acumulador: componente -> { acertos, questoes, alunos:Set }
+    const acc = new Map<string, { comp: string; acertos: number; questoes: number; alunos: Set<string> }>();
 
     alunos.forEach(aluno => {
       const data = studentsData[`${aluno.nome_aluno}-${aluno.turma}`];
       if (!data) return;
       Object.entries(data.componentes).forEach(([comp, cData]) => {
         if (cData.total_questoes <= 0) return;
-        const key = profKey(aluno.turma, comp);
-        const entry = acc.get(key) ?? { turma: aluno.turma, comp, acertos: 0, questoes: 0, alunos: new Set<string>() };
+        const entry = acc.get(comp) ?? { comp, acertos: 0, questoes: 0, alunos: new Set<string>() };
         entry.acertos += cData.total_acertos;
         entry.questoes += cData.total_questoes;
         entry.alunos.add(aluno.nome_aluno);
-        acc.set(key, entry);
+        acc.set(comp, entry);
       });
     });
 
@@ -658,16 +658,13 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
 
     return Array.from(acc.values())
       .map(e => ({
-        turma: e.turma,
         componente: e.comp,
         componenteLabel: componenteLabel(e.comp),
         media: e.questoes > 0 ? (e.acertos / e.questoes) * 100 : null,
         totalAlunos: e.alunos.size,
       }))
       .sort((a, b) =>
-        a.turma === b.turma
-          ? a.componente.localeCompare(b.componente)
-          : a.turma.localeCompare(b.turma)
+        a.componente.localeCompare(b.componente)
       );
   };
 
@@ -677,15 +674,15 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
   const [savingProf, setSavingProf] = useState<Set<string>>(new Set());
 
   // Valor atual do campo professor: rascunho local tem prioridade sobre o salvo.
-  const getProfessorValue = (sala: SalaComAlunos, turma: string, componente: string): string => {
-    const key = profKey(turma, componente);
+  const getProfessorValue = (sala: SalaComAlunos, componente: string): string => {
+    const key = profKey(componente);
     const draft = profDraft[sala.id];
     if (draft && key in draft) return draft[key];
     return sala.professores?.[key] ?? '';
   };
 
-  const setProfessorDraft = (salaId: string, turma: string, componente: string, value: string) => {
-    const key = profKey(turma, componente);
+  const setProfessorDraft = (salaId: string, componente: string, value: string) => {
+    const key = profKey(componente);
     setProfDraft(prev => ({
       ...prev,
       [salaId]: { ...(prev[salaId] ?? {}), [key]: value },
@@ -1413,7 +1410,7 @@ Seja específico e prático nas recomendações, considerando que este é um rel
                           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
                             <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
                               <BarChart3 className="w-4 h-4 text-green-600" />
-                              Médias por turma e disciplina
+                              Médias por disciplina
                               {ativos > 0 && (
                                 <span className="text-xs font-normal text-gray-500">(com filtros aplicados)</span>
                               )}
@@ -1455,7 +1452,7 @@ Seja específico e prático nas recomendações, considerando que este é um rel
                               <table className="w-full text-sm">
                                 <thead>
                                   <tr className="text-left text-gray-500 border-b border-gray-100">
-                                    <th className="px-4 py-2 font-medium">Turma</th>
+                                    <th className="px-4 py-2 font-medium">Sala de aula</th>
                                     <th className="px-4 py-2 font-medium">Disciplina</th>
                                     <th className="px-4 py-2 font-medium">Média</th>
                                     <th className="px-4 py-2 font-medium">Alunos</th>
@@ -1470,8 +1467,8 @@ Seja específico e prático nas recomendações, considerando que este é um rel
                                         : m.media >= 50 ? 'text-yellow-600'
                                         : 'text-red-600';
                                     return (
-                                      <tr key={`${m.turma}-${m.componente}`} className="border-b border-gray-50 last:border-b-0">
-                                        <td className="px-4 py-2 font-medium text-gray-900">{m.turma}</td>
+                                      <tr key={m.componente} className="border-b border-gray-50 last:border-b-0">
+                                        <td className="px-4 py-2 font-medium text-gray-900">{sala.nome}</td>
                                         <td className="px-4 py-2 text-gray-700">{m.componenteLabel}</td>
                                         <td className={`px-4 py-2 font-semibold ${mediaColor}`}>
                                           {m.media === null ? '—' : `${m.media.toFixed(1)}%`}
@@ -1480,8 +1477,8 @@ Seja específico e prático nas recomendações, considerando que este é um rel
                                         <td className="px-4 py-2">
                                           <input
                                             type="text"
-                                            value={getProfessorValue(sala, m.turma, m.componente)}
-                                            onChange={(e) => setProfessorDraft(sala.id, m.turma, m.componente, e.target.value)}
+                                            value={getProfessorValue(sala, m.componente)}
+                                            onChange={(e) => setProfessorDraft(sala.id, m.componente, e.target.value)}
                                             placeholder="Nome do professor..."
                                             className="w-full min-w-[10rem] px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                                           />
