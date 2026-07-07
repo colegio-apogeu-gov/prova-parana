@@ -340,7 +340,7 @@ export const getSalasDeAulaMais = async (unidade?: string) => {
   try {
     let query = supabase
       .from('sala_de_aula_mais')
-      .select('id, nome, unidade, sala_de_aula_alunos_mais(nome_aluno, turma)')
+      .select('id, nome, unidade, professores, sala_de_aula_alunos_mais(nome_aluno, turma)')
       .order('nome');
 
     if (unidade) {
@@ -435,6 +435,19 @@ export const deleteSalaDeAulaMais = async (salaId: string) => {
   const { error } = await supabase
     .from('sala_de_aula_mais')
     .delete()
+    .eq('id', salaId);
+
+  if (error) throw error;
+};
+
+// Atualiza o mapa de professores (turma||componente -> nome) de uma sala.
+export const updateSalaProfessoresMais = async (
+  salaId: string,
+  professores: Record<string, string>
+) => {
+  const { error } = await supabase
+    .from('sala_de_aula_mais')
+    .update({ professores })
     .eq('id', salaId);
 
   if (error) throw error;

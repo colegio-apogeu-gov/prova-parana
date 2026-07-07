@@ -674,7 +674,20 @@ export const deleteSalaDeAulaParceiro = async (salaId: string) => {
     .from('sala_de_aula_parceiro')
     .delete()
     .eq('id', salaId);
-  
+
+  if (error) throw error;
+};
+
+// Atualiza o mapa de professores (turma||componente -> nome) de uma sala.
+export const updateSalaProfessoresParceiro = async (
+  salaId: string,
+  professores: Record<string, string>
+) => {
+  const { error } = await supabase
+    .from('sala_de_aula_parceiro')
+    .update({ professores })
+    .eq('id', salaId);
+
   if (error) throw error;
 };
 

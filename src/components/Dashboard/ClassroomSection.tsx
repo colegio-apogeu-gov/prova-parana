@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, ChevronDown, ChevronRight, UserPlus, UserMinus, Trash2, X, Search, Brain, ExternalLink, Download, Filter, SlidersHorizontal } from 'lucide-react';
-import { getSalasDeAula, createSalaDeAula, addAlunoToSala, removeAlunoFromSala, deleteSalaDeAula, getAlunosDisponiveis, fetchProvaData, getLinkByHabilidadeComponente } from '../../lib/supabase';
+import { Users, Plus, ChevronDown, ChevronRight, UserPlus, UserMinus, Trash2, X, Search, Brain, ExternalLink, Download, Filter, SlidersHorizontal, BarChart3, Save } from 'lucide-react';
+import { getSalasDeAula, createSalaDeAula, addAlunoToSala, removeAlunoFromSala, deleteSalaDeAula, getAlunosDisponiveis, fetchProvaData, getLinkByHabilidadeComponente, updateSalaProfessores } from '../../lib/supabase';
 import {
   getSalasDeAulaParceiro,
   addAlunoToSalaParceiro,
@@ -9,7 +9,8 @@ import {
   deleteSalaDeAulaParceiro,
   fetchProvaDataParceiro,
   getLinkByHabilidadeComponenteParceiro,
-  getAlunosDisponivelParceiro
+  getAlunosDisponivelParceiro,
+  updateSalaProfessoresParceiro
 } from '../../lib/supabaseParceiro';
 import {
   getSalasDeAulaMais,
@@ -19,7 +20,8 @@ import {
   deleteSalaDeAulaMais,
   fetchProvaDataMais,
   getLinkByHabilidadeComponenteMais,
-  getAlunosDisponiveisMais
+  getAlunosDisponiveisMais,
+  updateSalaProfessoresMais
 } from '../../lib/supabaseMais';
 
 import { SalaDeAula, SalaDeAulaAluno, DashboardFilters } from '../../types';
@@ -39,7 +41,11 @@ const apiMap = (system: SystemKey) => ({
   deleteSalaDeAula: pick(system, deleteSalaDeAula, deleteSalaDeAulaParceiro, deleteSalaDeAulaMais),
   fetchProvaData: pick(system, fetchProvaData, fetchProvaDataParceiro, fetchProvaDataMais),
   getLinkByHabilidadeComponente: pick(system, getLinkByHabilidadeComponente, getLinkByHabilidadeComponenteParceiro, getLinkByHabilidadeComponenteMais),
+  updateSalaProfessores: pick(system, updateSalaProfessores, updateSalaProfessoresParceiro, updateSalaProfessoresMais),
 });
+
+// Chave do mapa de professores: turma + componente.
+const profKey = (turma: string, componente: string) => `${turma}||${componente}`;
 
 
 interface ClassroomSectionProps {
@@ -61,6 +67,8 @@ interface StudentData {
       componente: string;
       total_acertos: number;
       total_questoes: number;
+      // Nível(is) de desempenho do aluno neste componente específico.
+      niveis: string[];
       habilidades: Array<{
         habilidade_id: string;
         habilidade_codigo: string;
@@ -188,9 +196,15 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
   );
 };
 
+// Sala já normalizada, com alunos e o mapa de professores (turma||componente -> nome).
+type SalaComAlunos = SalaDeAula & {
+  sala_de_aula_alunos: SalaDeAulaAluno[];
+  professores?: Record<string, string>;
+};
+
 // antes: ({ userProfile, filters })
 const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filters, selectedSystem }) => {
-  const [salas, setSalas] = useState<(SalaDeAula & { sala_de_aula_alunos: SalaDeAulaAluno[] })[]>([]);
+  const [salas, setSalas] = useState<SalaComAlunos[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [expandedSalas, setExpandedSalas] = useState<Set<string>>(new Set());
@@ -208,6 +222,8 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
   const [salaFilters, setSalaFilters] = useState<{ [salaId: string]: SalaFilters }>({});
   // Salas cuja barra de filtros está visível.
   const [filtersVisible, setFiltersVisible] = useState<Set<string>>(new Set());
+  // Salas cujos dados de prova (em lote) estão sendo carregados.
+  const [loadingSalaData, setLoadingSalaData] = useState<Set<string>>(new Set());
 
   const [form, setForm] = useState({
     nome: '',
@@ -230,13 +246,14 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
       // Cada sistema retorna os alunos sob uma chave diferente
       // (sala_de_aula_alunos / _parceiros / _mais). Normaliza para que o
       // restante do componente sempre use `sala_de_aula_alunos`.
-      const normalized = (data || []).map((sala: any) => ({
+      const normalized: SalaComAlunos[] = (data || []).map((sala: any) => ({
         ...sala,
         sala_de_aula_alunos:
           sala.sala_de_aula_alunos ??
           sala.sala_de_aula_alunos_parceiros ??
           sala.sala_de_aula_alunos_mais ??
           [],
+        professores: sala.professores ?? {},
       }));
       setSalas(normalized);
     } catch (error) {
@@ -288,6 +305,9 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
       componentes: {}
     };
 
+    // Níveis por componente (para o filtro condicional Componente → Nível).
+    const niveisPorComp: { [comp: string]: Set<string> } = {};
+
     rows.forEach((item: any) => {
       if (item.nome_aluno !== nomeAluno) return;
 
@@ -302,8 +322,12 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
           componente: item.componente === 'LP' ? 'Língua Portuguesa' : 'Matemática',
           total_acertos: 0,
           total_questoes: 0,
+          niveis: [],
           habilidades: []
         };
+      }
+      if (nivel) {
+        (niveisPorComp[componentKey] ||= new Set<string>()).add(String(nivel));
       }
 
       if (item.avaliado) {
@@ -320,6 +344,11 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
     });
 
     groupedData.niveis = Array.from(niveisSet);
+    Object.entries(niveisPorComp).forEach(([comp, set]) => {
+      if (groupedData.componentes[comp]) {
+        groupedData.componentes[comp].niveis = Array.from(set);
+      }
+    });
     return groupedData;
   };
 
@@ -344,11 +373,13 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
   // que os filtros da sala (nível, componente, habilidade, desempenho) possam
   // operar sobre todos os alunos — não apenas os que foram expandidos.
   const loadSalaStudentsData = async (
+    salaId: string,
     alunos: Array<{ nome_aluno: string; turma: string }>
   ) => {
     const pending = alunos.filter(a => !studentsData[`${a.nome_aluno}-${a.turma}`]);
     if (pending.length === 0) return;
 
+    setLoadingSalaData(prev => new Set(prev).add(salaId));
     try {
       const results = await Promise.all(
         pending.map(async (aluno) => {
@@ -373,6 +404,12 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
       });
     } catch (error) {
       console.error('Erro ao carregar dados dos alunos da sala:', error);
+    } finally {
+      setLoadingSalaData(prev => {
+        const next = new Set(prev);
+        next.delete(salaId);
+        return next;
+      });
     }
   };
 
@@ -405,6 +442,7 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
       const sala = salas.find(s => s.id === salaId);
       if (sala) {
         loadSalaStudentsData(
+          salaId,
           sala.sala_de_aula_alunos.map(a => ({ nome_aluno: a.nome_aluno, turma: a.turma }))
         );
       }
@@ -421,10 +459,17 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
     key: K,
     value: SalaFilters[K]
   ) => {
-    setSalaFilters(prev => ({
-      ...prev,
-      [salaId]: { ...getSalaFilters(salaId), [key]: value },
-    }));
+    setSalaFilters(prev => {
+      const current = prev[salaId] ?? EMPTY_SALA_FILTERS;
+      const updated: SalaFilters = { ...current, [key]: value };
+      // Ao mudar o componente, limpa nível e habilidade (que são condicionados
+      // ao componente selecionado) para não manter seleções incompatíveis.
+      if (key === 'componentes') {
+        updated.niveis = [];
+        updated.habilidades = [];
+      }
+      return { ...prev, [salaId]: updated };
+    });
   };
 
   const clearSalaFilters = (salaId: string) => {
@@ -485,22 +530,34 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
 
       if (needsData && !data) return false;
 
-      // 2) Nível de desempenho (multi) — qualquer um dos selecionados
+      // Componentes do aluno que passam pelo filtro de componente.
+      // Quando há componente selecionado, os filtros de nível e habilidade
+      // passam a considerar apenas esse(s) componente(s).
+      const compEntries = Object.entries(data?.componentes ?? {});
+      const compsConsiderados =
+        f.componentes.length > 0
+          ? compEntries.filter(([comp]) => f.componentes.includes(comp))
+          : compEntries;
+
+      // 3) Componente (multi) — o aluno precisa ter ao menos um dos selecionados
+      if (f.componentes.length > 0 && compsConsiderados.length === 0) {
+        return false;
+      }
+
+      // 2) Nível de desempenho (multi) — dentro do(s) componente(s) considerado(s)
       if (f.niveis.length > 0) {
-        if (!data!.niveis.some(n => f.niveis.includes(n))) return false;
+        const niveisDisponiveis = new Set<string>();
+        compsConsiderados.forEach(([, cData]) =>
+          cData.niveis.forEach(n => niveisDisponiveis.add(n))
+        );
+        if (![...niveisDisponiveis].some(n => f.niveis.includes(n))) return false;
       }
 
-      // 3) Componente (multi)
-      if (f.componentes.length > 0) {
-        const comps = Object.keys(data!.componentes);
-        if (!comps.some(c => f.componentes.includes(c))) return false;
-      }
-
-      // 4) Habilidade_codigo (multi)
+      // 4) Habilidade_codigo (multi) — dentro do(s) componente(s) considerado(s)
       if (f.habilidades.length > 0) {
         const codigos = new Set<string>();
-        Object.values(data!.componentes).forEach(c =>
-          c.habilidades.forEach(h => codigos.add(h.habilidade_codigo))
+        compsConsiderados.forEach(([, cData]) =>
+          cData.habilidades.forEach(h => codigos.add(h.habilidade_codigo))
         );
         if (![...codigos].some(c => f.habilidades.includes(c))) return false;
       }
@@ -522,25 +579,31 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
 
   // Opções de nível/componente/habilidade disponíveis para uma sala,
   // derivadas dos dados de prova já carregados dos seus alunos.
+  // `compFiltro` (componentes selecionados) restringe níveis e habilidades ao(s)
+  // componente(s) escolhido(s) — usado para o filtro condicional Componente → Nível.
   const getSalaFilterOptions = (
-    sala: SalaDeAula & { sala_de_aula_alunos: SalaDeAulaAluno[] }
+    sala: SalaDeAula & { sala_de_aula_alunos: SalaDeAulaAluno[] },
+    compFiltro: string[] = []
   ) => {
     const niveis = new Set<string>();
     const componentes = new Set<string>();
     const habilidades = new Map<string, string>(); // codigo -> descricao
 
+    const consideraComp = (c: string) => compFiltro.length === 0 || compFiltro.includes(c);
+
     sala.sala_de_aula_alunos.forEach(aluno => {
       const data = studentsData[`${aluno.nome_aluno}-${aluno.turma}`];
       if (!data) return;
-      data.niveis.forEach(n => niveis.add(n));
       Object.keys(data.componentes).forEach(c => componentes.add(c));
-      Object.values(data.componentes).forEach(c =>
-        c.habilidades.forEach(h => {
+      Object.entries(data.componentes).forEach(([comp, cData]) => {
+        if (!consideraComp(comp)) return;
+        cData.niveis.forEach(n => niveis.add(n));
+        cData.habilidades.forEach(h => {
           if (!habilidades.has(h.habilidade_codigo)) {
             habilidades.set(h.habilidade_codigo, h.descricao || '');
           }
-        })
-      );
+        });
+      });
     });
 
     const componenteLabel = (c: string) =>
@@ -559,6 +622,114 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
           label: descricao ? `${codigo} — ${descricao}` : codigo,
         })),
     };
+  };
+
+  // Média de nota por turma × componente, calculada sobre a lista de alunos
+  // JÁ FILTRADA (portanto condicionada aos filtros ativos da sala).
+  // A média é ponderada por questões (mesma lógica usada no resto do app).
+  interface MediaTurmaComp {
+    turma: string;
+    componente: string;       // 'LP' | 'MT'
+    componenteLabel: string;
+    media: number | null;     // percentual (0–100) ou null se sem dados
+    totalAlunos: number;      // nº de alunos com nota nesse componente
+  }
+
+  const getMediasTurmaComponente = (alunos: SalaDeAulaAluno[]): MediaTurmaComp[] => {
+    // acumulador: `${turma}||${comp}` -> { acertos, questoes, alunos:Set }
+    const acc = new Map<string, { turma: string; comp: string; acertos: number; questoes: number; alunos: Set<string> }>();
+
+    alunos.forEach(aluno => {
+      const data = studentsData[`${aluno.nome_aluno}-${aluno.turma}`];
+      if (!data) return;
+      Object.entries(data.componentes).forEach(([comp, cData]) => {
+        if (cData.total_questoes <= 0) return;
+        const key = profKey(aluno.turma, comp);
+        const entry = acc.get(key) ?? { turma: aluno.turma, comp, acertos: 0, questoes: 0, alunos: new Set<string>() };
+        entry.acertos += cData.total_acertos;
+        entry.questoes += cData.total_questoes;
+        entry.alunos.add(aluno.nome_aluno);
+        acc.set(key, entry);
+      });
+    });
+
+    const componenteLabel = (c: string) =>
+      c === 'LP' ? 'Língua Portuguesa' : c === 'MT' ? 'Matemática' : c;
+
+    return Array.from(acc.values())
+      .map(e => ({
+        turma: e.turma,
+        componente: e.comp,
+        componenteLabel: componenteLabel(e.comp),
+        media: e.questoes > 0 ? (e.acertos / e.questoes) * 100 : null,
+        totalAlunos: e.alunos.size,
+      }))
+      .sort((a, b) =>
+        a.turma === b.turma
+          ? a.componente.localeCompare(b.componente)
+          : a.turma.localeCompare(b.turma)
+      );
+  };
+
+  // ---- Professores por turma/disciplina ----
+  // Rascunho editável (por sala) antes de salvar; salvamento por sala.
+  const [profDraft, setProfDraft] = useState<{ [salaId: string]: Record<string, string> }>({});
+  const [savingProf, setSavingProf] = useState<Set<string>>(new Set());
+
+  // Valor atual do campo professor: rascunho local tem prioridade sobre o salvo.
+  const getProfessorValue = (sala: SalaComAlunos, turma: string, componente: string): string => {
+    const key = profKey(turma, componente);
+    const draft = profDraft[sala.id];
+    if (draft && key in draft) return draft[key];
+    return sala.professores?.[key] ?? '';
+  };
+
+  const setProfessorDraft = (salaId: string, turma: string, componente: string, value: string) => {
+    const key = profKey(turma, componente);
+    setProfDraft(prev => ({
+      ...prev,
+      [salaId]: { ...(prev[salaId] ?? {}), [key]: value },
+    }));
+  };
+
+  // Há alterações não salvas nesta sala?
+  const hasProfChanges = (sala: SalaComAlunos): boolean => {
+    const draft = profDraft[sala.id];
+    if (!draft) return false;
+    return Object.entries(draft).some(([key, value]) => (sala.professores?.[key] ?? '') !== value);
+  };
+
+  const saveProfessores = async (sala: SalaComAlunos) => {
+    const draft = profDraft[sala.id];
+    if (!draft) return;
+    // Mescla o mapa salvo com o rascunho e remove entradas vazias.
+    const merged: Record<string, string> = { ...(sala.professores ?? {}) };
+    Object.entries(draft).forEach(([key, value]) => {
+      const v = value.trim();
+      if (v) merged[key] = v;
+      else delete merged[key];
+    });
+
+    setSavingProf(prev => new Set(prev).add(sala.id));
+    try {
+      await apiMap(selectedSystem).updateSalaProfessores(sala.id, merged);
+      // Atualiza o estado local da sala e limpa o rascunho.
+      setSalas(prev => prev.map(s => (s.id === sala.id ? { ...s, professores: merged } : s)));
+      setProfDraft(prev => {
+        const next = { ...prev };
+        delete next[sala.id];
+        return next;
+      });
+    } catch (error) {
+      console.error('Erro ao salvar professores:', error);
+      alert('Não foi possível salvar o(s) professor(es). Tente novamente.');
+    } finally {
+      setSavingProf(prev => {
+        const next = new Set(prev);
+        next.delete(sala.id);
+        return next;
+      });
+    }
   };
 
   const toggleStudentExpansion = async (studentKey: string, nomeAluno: string, turma: string) => {
@@ -1140,8 +1311,10 @@ Seja específico e prático nas recomendações, considerando que este é um rel
                   {/* Barra de filtros da sala */}
                   {filtersVisible.has(sala.id) && (() => {
                     const f = getSalaFilters(sala.id);
-                    const opts = getSalaFilterOptions(sala);
+                    // Níveis e habilidades são escopados pelo componente selecionado.
+                    const opts = getSalaFilterOptions(sala, f.componentes);
                     const ativos = countActiveFilters(f);
+                    const componenteSelecionado = f.componentes.length > 0;
                     return (
                       <div className="mb-4 p-4 bg-white border border-gray-200 rounded-lg">
                         <div className="flex items-center justify-between mb-3">
@@ -1176,16 +1349,7 @@ Seja específico e prático nas recomendações, considerando que este é um rel
                             </div>
                           </div>
 
-                          {/* Nível de desempenho (multi) */}
-                          <MultiSelect
-                            label="Nível de desempenho"
-                            options={opts.niveis}
-                            selected={f.niveis}
-                            onChange={(v) => updateSalaFilter(sala.id, 'niveis', v)}
-                            emptyMessage="Carregando dados dos alunos..."
-                          />
-
-                          {/* Componente (multi) */}
+                          {/* Componente (multi) — vem primeiro */}
                           <MultiSelect
                             label="Componente"
                             options={opts.componentes}
@@ -1193,6 +1357,18 @@ Seja específico e prático nas recomendações, considerando que este é um rel
                             onChange={(v) => updateSalaFilter(sala.id, 'componentes', v)}
                             emptyMessage="Carregando dados dos alunos..."
                           />
+
+                          {/* Nível de desempenho (multi) — condicional ao componente */}
+                          {componenteSelecionado && (
+                            <MultiSelect
+                              label="Nível de desempenho"
+                              options={opts.niveis}
+                              selected={f.niveis}
+                              onChange={(v) => updateSalaFilter(sala.id, 'niveis', v)}
+                              placeholder="Todos"
+                              emptyMessage="Sem níveis para o componente"
+                            />
+                          )}
 
                           {/* Faixa de desempenho (multi) */}
                           <MultiSelect
@@ -1202,15 +1378,23 @@ Seja específico e prático nas recomendações, considerando que este é um rel
                             onChange={(v) => updateSalaFilter(sala.id, 'desempenho', v)}
                           />
 
-                          {/* Habilidade (multi) */}
-                          <MultiSelect
-                            label="Habilidade"
-                            options={opts.habilidades}
-                            selected={f.habilidades}
-                            onChange={(v) => updateSalaFilter(sala.id, 'habilidades', v)}
-                            emptyMessage="Carregando dados dos alunos..."
-                          />
+                          {/* Habilidade (multi) — também condicional ao componente */}
+                          {componenteSelecionado && (
+                            <MultiSelect
+                              label="Habilidade"
+                              options={opts.habilidades}
+                              selected={f.habilidades}
+                              onChange={(v) => updateSalaFilter(sala.id, 'habilidades', v)}
+                              emptyMessage="Sem habilidades para o componente"
+                            />
+                          )}
                         </div>
+
+                        {!componenteSelecionado && (
+                          <p className="mt-2 text-xs text-gray-500">
+                            Selecione um <strong>componente</strong> para filtrar por nível de desempenho e habilidade.
+                          </p>
+                        )}
                       </div>
                     );
                   })()}
@@ -1219,8 +1403,98 @@ Seja específico e prático nas recomendações, considerando que este é um rel
                     const alunosFiltrados = getFilteredAlunosDaSala(sala);
                     const total = sala.sala_de_aula_alunos.length;
                     const ativos = countActiveFilters(getSalaFilters(sala.id));
+                    const medias = getMediasTurmaComponente(alunosFiltrados);
+                    const salvando = savingProf.has(sala.id);
+                    const carregandoDados = loadingSalaData.has(sala.id);
                     return (
                       <>
+                        {/* Painel: médias por turma × disciplina + professor responsável */}
+                        <div className="mb-4 bg-white border border-gray-200 rounded-lg overflow-hidden">
+                          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                              <BarChart3 className="w-4 h-4 text-green-600" />
+                              Médias por turma e disciplina
+                              {ativos > 0 && (
+                                <span className="text-xs font-normal text-gray-500">(com filtros aplicados)</span>
+                              )}
+                            </div>
+                            {hasProfChanges(sala) && (
+                              <button
+                                onClick={() => saveProfessores(sala)}
+                                disabled={salvando}
+                                className="flex items-center gap-1 bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                              >
+                                {salvando ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                    Salvando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Save className="w-3 h-3" />
+                                    Salvar professores
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
+
+                          {medias.length === 0 ? (
+                            <p className="px-4 py-4 text-sm text-gray-500 flex items-center gap-2">
+                              {carregandoDados ? (
+                                <>
+                                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></span>
+                                  Carregando notas dos alunos...
+                                </>
+                              ) : (
+                                'Sem notas para exibir com os filtros atuais.'
+                              )}
+                            </p>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="text-left text-gray-500 border-b border-gray-100">
+                                    <th className="px-4 py-2 font-medium">Turma</th>
+                                    <th className="px-4 py-2 font-medium">Disciplina</th>
+                                    <th className="px-4 py-2 font-medium">Média</th>
+                                    <th className="px-4 py-2 font-medium">Alunos</th>
+                                    <th className="px-4 py-2 font-medium">Professor responsável</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {medias.map(m => {
+                                    const mediaColor =
+                                      m.media === null ? 'text-gray-400'
+                                        : m.media >= 70 ? 'text-green-600'
+                                        : m.media >= 50 ? 'text-yellow-600'
+                                        : 'text-red-600';
+                                    return (
+                                      <tr key={`${m.turma}-${m.componente}`} className="border-b border-gray-50 last:border-b-0">
+                                        <td className="px-4 py-2 font-medium text-gray-900">{m.turma}</td>
+                                        <td className="px-4 py-2 text-gray-700">{m.componenteLabel}</td>
+                                        <td className={`px-4 py-2 font-semibold ${mediaColor}`}>
+                                          {m.media === null ? '—' : `${m.media.toFixed(1)}%`}
+                                        </td>
+                                        <td className="px-4 py-2 text-gray-600">{m.totalAlunos}</td>
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="text"
+                                            value={getProfessorValue(sala, m.turma, m.componente)}
+                                            onChange={(e) => setProfessorDraft(sala.id, m.turma, m.componente, e.target.value)}
+                                            placeholder="Nome do professor..."
+                                            className="w-full min-w-[10rem] px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                          />
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+
                         {ativos > 0 && (
                           <p className="mb-2 text-sm text-gray-600">
                             Mostrando {alunosFiltrados.length} de {total} aluno(s)
