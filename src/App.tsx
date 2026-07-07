@@ -14,7 +14,6 @@ import Graficos from './components/Graficos/Graficos';
 import ComparacaoProvas from './components/ComparacaoProvas/ComparacaoProvas';
 import ComparativoSemestres from './components/ComparativoSemestres/ComparativoSemestres';
 import ComparacaoAnual from './components/ComparacaoAnual/ComparacaoAnual';
-import VisaoGeral from './components/VisaoGeral/VisaoGeral';
 import { UserProfile } from './types';
 
 function App() {
@@ -24,8 +23,12 @@ function App() {
   const [selectedSystem, setSelectedSystem] = useState<'prova-parana' | 'parceiro' | 'parana-mais' | null>(() => {
     return (localStorage.getItem('selectedSystem') as 'prova-parana' | 'parceiro' | 'parana-mais') || null;
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'visaogeral' | 'comparacao-anual'>(() => {
-    return (localStorage.getItem('activeTab') as 'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'visaogeral' | 'comparacao-anual') || 'dashboard';
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'comparacao-anual'>(() => {
+    const stored = localStorage.getItem('activeTab');
+    // 'visaogeral' foi removido; ignora valores antigos/inválidos salvos no localStorage.
+    const validTabs = ['dashboard', 'upload', 'atividades', 'graficos', 'comparacao', 'semestres', 'comparacao-anual'];
+    return (stored && validTabs.includes(stored) ? stored : 'dashboard') as
+      'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'comparacao-anual';
   });
 
   useEffect(() => {
@@ -59,6 +62,14 @@ function App() {
   useEffect(() => {
     localStorage.setItem('activeTab', activeTab);
   }, [activeTab]);
+
+  // 'Comparação Semestres' só existe para prova-parana. Se o usuário trocar de
+  // sistema (ou tiver essa aba salva), volta para o dashboard.
+  useEffect(() => {
+    if (activeTab === 'semestres' && selectedSystem !== 'prova-parana') {
+      setActiveTab('dashboard');
+    }
+  }, [activeTab, selectedSystem]);
 
   useEffect(() => {
     if (selectedSystem) {
@@ -121,9 +132,7 @@ function App() {
       />
       
       <main className="container mx-auto px-4 py-8">
-        {activeTab === 'visaogeral' ? (
-          <VisaoGeral userProfile={userProfile} selectedSystem={selectedSystem} />
-        ) : activeTab === 'dashboard' ? (
+        {activeTab === 'dashboard' ? (
           <Dashboard userProfile={userProfile} selectedSystem={selectedSystem} />
         ) : activeTab === 'upload' ? (
           selectedSystem === 'prova-parana' ? (
