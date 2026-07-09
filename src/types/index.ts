@@ -100,12 +100,24 @@ export interface UploadFormParceiro {
   file: File | null;
 }
 
+// Tipo de acesso do usuário.
+// - 'admin': dados restritos à unidade (escola) do próprio usuário.
+// - 'gestao': igual ao admin, exceto em "Comparação Anual", onde enxerga
+//   todas as escolas e pode filtrar por múltiplas unidades.
+export type TipoAcesso = 'admin' | 'gestao';
+
 export interface UserProfile {
   id: string;
   email: string;
   unidade: string;
+  tipo_acesso: TipoAcesso;
   created_at: string;
 }
+
+// Perfis antigos (ou criados antes da migration) podem não ter tipo_acesso.
+// Nesse caso o comportamento padrão é o de 'admin'.
+export const isGestao = (profile: { tipo_acesso?: string | null } | null | undefined): boolean =>
+  profile?.tipo_acesso === 'gestao';
 
 export interface UploadForm {
   ano: '9º ano' | '6º ano' | '3º ano';

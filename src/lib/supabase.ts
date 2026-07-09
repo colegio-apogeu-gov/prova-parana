@@ -229,6 +229,10 @@ export const getUserProfile = async (userId: string) => {
   const unidadeCorrigida = UNIDADE_MAPEADA[originalUnidade as keyof typeof UNIDADE_MAPEADA] || originalUnidade;
   data.unidade = unidadeCorrigida;
 
+  // Normaliza o tipo de acesso: perfis antigos (antes da migration) não têm a
+  // coluna preenchida e devem se comportar como 'admin'.
+  data.tipo_acesso = data.tipo_acesso === 'gestao' ? 'gestao' : 'admin';
+
   return data;
 };
 
