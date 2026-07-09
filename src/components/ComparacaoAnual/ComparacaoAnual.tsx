@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, TrendingUp, TrendingDown, Minus, BarChart3, Users, Target } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Calendar, TrendingUp, TrendingDown, Minus, BarChart3, Users, Target, School } from 'lucide-react';
 import { fetchAllProvaData, getAnosProva } from '../../lib/supabase';
 import { fetchAllProvaDataParceiro, getAnosProvaParceiro } from '../../lib/supabaseParceiro';
 import { fetchAllProvaDataMais, getAnosProvaMais } from '../../lib/supabaseMais';
-import { UserProfile } from '../../types';
+import MultiSelect from '../common/MultiSelect';
+import { UserProfile, isGestao } from '../../types';
 
 interface ComparacaoAnualProps {
   userProfile: UserProfile | null;
@@ -29,12 +30,16 @@ interface ComparisonRow {
   trend: 'up' | 'down' | 'flat' | 'n/a';
 }
 
+// Identidade do aluno. No modo multi-escola (gestão) dois alunos homônimos em
+// escolas diferentes NÃO podem colapsar num só — por isso a unidade compõe a chave.
+const alunoKey = (r: any) => `${r.unidade ?? ''}||${r.nome_aluno ?? ''}`;
+
 function computeStats(rows: any[], anoEscolar: string, componente: string): AnoEscolarStats {
   const filtered = rows.filter(
     (r) => r.ano_escolar === anoEscolar && r.componente === componente && r.avaliado
   );
 
-  const alunosUnicos = new Set(filtered.map((r) => r.nome_aluno));
+  const alunosUnicos = new Set(filtered.map(alunoKey));
   const totalAcertos = filtered.reduce((sum, r) => sum + (Number(r.acertos) || 0), 0);
   const totalQuestoes = filtered.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
   const mediaPercentual = totalQuestoes > 0 ? (totalAcertos / totalQuestoes) * 100 : 0;
@@ -50,15 +55,68 @@ function computeStats(rows: any[], anoEscolar: string, componente: string): AnoE
   };
 }
 
+// Monta as linhas de comparação a partir dos dois conjuntos de dados brutos.
+function buildComparisons(dataAno1: any[], dataAno2: any[]): ComparisonRow[] {
+  const anosEscolaresSet = new Set<string>();
+  const componentesSet = new Set<string>();
+
+  [...dataAno1, ...dataAno2].forEach((r) => {
+    if (r.ano_escolar) anosEscolaresSet.add(r.ano_escolar);
+    if (r.componente) componentesSet.add(r.componente);
+  });
+
+  const anosEscolares = Array.from(anosEscolaresSet).sort();
+  const componentes = Array.from(componentesSet).sort();
+
+  const rows: ComparisonRow[] = [];
+
+  for (const ae of anosEscolares) {
+    for (const comp of componentes) {
+      const s1 = computeStats(dataAno1, ae, comp);
+      const s2 = computeStats(dataAno2, ae, comp);
+
+      const hasS1 = s1.totalQuestoes > 0;
+      const hasS2 = s2.totalQuestoes > 0;
+
+      const delta = hasS1 && hasS2 ? s2.mediaPercentual - s1.mediaPercentual : null;
+      let trend: 'up' | 'down' | 'flat' | 'n/a' = 'n/a';
+      if (delta !== null) {
+        if (delta > 0.5) trend = 'up';
+        else if (delta < -0.5) trend = 'down';
+        else trend = 'flat';
+      }
+
+      rows.push({
+        anoEscolar: ae,
+        componente: comp,
+        ano1Stats: hasS1 ? s1 : null,
+        ano2Stats: hasS2 ? s2 : null,
+        delta,
+        trend,
+      });
+    }
+  }
+
+  return rows;
+}
+
 const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selectedSystem }) => {
+  // Usuário "gestão" enxerga todas as escolas nesta tela (e só nesta).
+  const gestao = isGestao(userProfile);
+
   const [anosDisponiveis, setAnosDisponiveis] = useState<string[]>([]);
   const [anoBase, setAnoBase] = useState<string>('');
   const [anoComparacao, setAnoComparacao] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [loadingAnos, setLoadingAnos] = useState(true);
-  const [comparisons, setComparisons] = useState<ComparisonRow[]>([]);
+  // Dados brutos dos dois anos. Guardados para que o filtro de unidades
+  // recalcule as comparações sem refazer a busca no banco.
+  const [rawAno1, setRawAno1] = useState<any[]>([]);
+  const [rawAno2, setRawAno2] = useState<any[]>([]);
   const [filterComponente, setFilterComponente] = useState<string>('');
   const [filterAnoEscolar, setFilterAnoEscolar] = useState<string>('');
+  // Multi-seleção de unidades (apenas para gestão). Vazio = todas.
+  const [selectedUnidades, setSelectedUnidades] = useState<string[]>([]);
 
   const systemColor = selectedSystem === 'prova-parana' ? 'blue' : selectedSystem === 'parceiro' ? 'green' : 'orange';
   const systemTitle =
@@ -76,7 +134,8 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
     setLoadingAnos(true);
     try {
       let anos: string[] = [];
-      const unidade = userProfile?.unidade;
+      // Gestão: sem unidade => anos de todas as escolas.
+      const unidade = gestao ? undefined : userProfile?.unidade;
 
       if (selectedSystem === 'prova-parana') {
         anos = await getAnosProva(unidade);
@@ -105,13 +164,16 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
     if (!anoBase || !anoComparacao) return;
 
     setLoading(true);
-    setComparisons([]);
+    setRawAno1([]);
+    setRawAno2([]);
 
     try {
       const baseFilters: any = { ano_prova: anoBase };
       const compFilters: any = { ano_prova: anoComparacao };
 
-      if (userProfile?.unidade) {
+      // Gestão não vincula a busca a uma escola: omitindo "unidade", as
+      // funções fetchAllProvaData* paginam os dados de todas as unidades.
+      if (!gestao && userProfile?.unidade) {
         baseFilters.unidade = userProfile.unidade;
         compFilters.unidade = userProfile.unidade;
       }
@@ -136,47 +198,8 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
         ]);
       }
 
-      const anosEscolaresSet = new Set<string>();
-      const componentesSet = new Set<string>();
-
-      [...dataAno1, ...dataAno2].forEach((r) => {
-        if (r.ano_escolar) anosEscolaresSet.add(r.ano_escolar);
-        if (r.componente) componentesSet.add(r.componente);
-      });
-
-      const anosEscolares = Array.from(anosEscolaresSet).sort();
-      const componentes = Array.from(componentesSet).sort();
-
-      const rows: ComparisonRow[] = [];
-
-      for (const ae of anosEscolares) {
-        for (const comp of componentes) {
-          const s1 = computeStats(dataAno1, ae, comp);
-          const s2 = computeStats(dataAno2, ae, comp);
-
-          const hasS1 = s1.totalQuestoes > 0;
-          const hasS2 = s2.totalQuestoes > 0;
-
-          const delta = hasS1 && hasS2 ? s2.mediaPercentual - s1.mediaPercentual : null;
-          let trend: 'up' | 'down' | 'flat' | 'n/a' = 'n/a';
-          if (delta !== null) {
-            if (delta > 0.5) trend = 'up';
-            else if (delta < -0.5) trend = 'down';
-            else trend = 'flat';
-          }
-
-          rows.push({
-            anoEscolar: ae,
-            componente: comp,
-            ano1Stats: hasS1 ? s1 : null,
-            ano2Stats: hasS2 ? s2 : null,
-            delta,
-            trend,
-          });
-        }
-      }
-
-      setComparisons(rows);
+      setRawAno1(dataAno1);
+      setRawAno2(dataAno2);
     } catch (error) {
       console.error('Erro ao carregar dados comparativos:', error);
     } finally {
@@ -188,7 +211,40 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
     if (anoBase && anoComparacao && anoBase !== anoComparacao) {
       loadComparison();
     }
-  }, [anoBase, anoComparacao, selectedSystem]);
+  }, [anoBase, anoComparacao, selectedSystem, gestao]);
+
+  // Unidades presentes nos dados carregados (fonte de verdade para o filtro).
+  const unidadesDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    [...rawAno1, ...rawAno2].forEach((r) => {
+      if (r.unidade) set.add(String(r.unidade));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [rawAno1, rawAno2]);
+
+  // Ao trocar de sistema/ano, descarta unidades selecionadas que sumiram.
+  useEffect(() => {
+    if (selectedUnidades.length === 0) return;
+    const validas = selectedUnidades.filter((u) => unidadesDisponiveis.includes(u));
+    if (validas.length !== selectedUnidades.length) {
+      setSelectedUnidades(validas);
+    }
+  }, [unidadesDisponiveis]);
+
+  // Aplica o recorte de unidades (gestão). Vazio = todas as escolas.
+  const filtrarPorUnidade = useMemo(() => {
+    const ativo = gestao && selectedUnidades.length > 0;
+    const permitidas = new Set(selectedUnidades);
+    return (rows: any[]) => (ativo ? rows.filter((r) => permitidas.has(String(r.unidade))) : rows);
+  }, [gestao, selectedUnidades]);
+
+  // Comparações recomputadas quando os dados brutos ou as unidades mudam.
+  const comparisons = useMemo(
+    () => (rawAno1.length === 0 && rawAno2.length === 0
+      ? []
+      : buildComparisons(filtrarPorUnidade(rawAno1), filtrarPorUnidade(rawAno2))),
+    [rawAno1, rawAno2, filtrarPorUnidade]
+  );
 
   const filteredComparisons = comparisons.filter((row) => {
     if (filterComponente && row.componente !== filterComponente) return false;
@@ -199,14 +255,38 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
   const availableAnosEscolares = Array.from(new Set(comparisons.map((r) => r.anoEscolar))).sort();
   const availableComponentes = Array.from(new Set(comparisons.map((r) => r.componente))).sort();
 
+  // Quantas escolas efetivamente entram na conta exibida.
+  const escolasConsideradas =
+    selectedUnidades.length > 0 ? selectedUnidades.length : unidadesDisponiveis.length;
+
   const overallDelta = (() => {
     const valid = filteredComparisons.filter((r) => r.delta !== null);
     if (valid.length === 0) return null;
     return valid.reduce((sum, r) => sum + (r.delta || 0), 0) / valid.length;
   })();
 
-  const totalAlunosAno1 = filteredComparisons.reduce((sum, r) => sum + (r.ano1Stats?.totalAlunos || 0), 0);
-  const totalAlunosAno2 = filteredComparisons.reduce((sum, r) => sum + (r.ano2Stats?.totalAlunos || 0), 0);
+  // Alunos distintos avaliados, honrando os filtros ativos (unidades, ano
+  // escolar e componente). Contar somando `totalAlunos` das linhas duplicaria
+  // quem faz LP e MT — e, no modo multi-escola, inflaria muito o número.
+  const contarAlunosDistintos = (rows: any[]) => {
+    const alunos = new Set<string>();
+    filtrarPorUnidade(rows).forEach((r) => {
+      if (!r.avaliado) return;
+      if (filterAnoEscolar && r.ano_escolar !== filterAnoEscolar) return;
+      if (filterComponente && r.componente !== filterComponente) return;
+      alunos.add(alunoKey(r));
+    });
+    return alunos.size;
+  };
+
+  const totalAlunosAno1 = useMemo(
+    () => contarAlunosDistintos(rawAno1),
+    [rawAno1, filtrarPorUnidade, filterAnoEscolar, filterComponente]
+  );
+  const totalAlunosAno2 = useMemo(
+    () => contarAlunosDistintos(rawAno2),
+    [rawAno2, filtrarPorUnidade, filterAnoEscolar, filterComponente]
+  );
 
   const TrendIcon = ({ trend, size = 'w-5 h-5' }: { trend: string; size?: string }) => {
     if (trend === 'up') return <TrendingUp className={`${size} text-green-600`} />;
@@ -223,9 +303,18 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
             <Calendar className={`w-6 h-6 text-${systemColor}-600`} />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Comparacao Anual</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-semibold text-gray-900">Comparacao Anual</h2>
+              {gestao && (
+                <span className="text-xs font-medium bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                  Gestao
+                </span>
+              )}
+            </div>
             <p className="text-gray-600 text-sm">
-              Compare o desempenho medio por ano escolar entre diferentes anos - {systemTitle}
+              {gestao
+                ? `Compare o desempenho medio por ano escolar entre diferentes anos, em todas as escolas - ${systemTitle}`
+                : `Compare o desempenho medio por ano escolar entre diferentes anos - ${systemTitle}`}
             </p>
           </div>
         </div>
@@ -244,7 +333,28 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className={`grid grid-cols-2 gap-4 ${gestao ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
+              {/* Unidades (somente gestão) */}
+              {gestao && (
+                <div className="col-span-2 md:col-span-1">
+                  <MultiSelect
+                    label="Unidades"
+                    options={unidadesDisponiveis.map((u) => ({ value: u, label: u }))}
+                    selected={selectedUnidades}
+                    onChange={setSelectedUnidades}
+                    placeholder={
+                      unidadesDisponiveis.length > 0
+                        ? `Todas (${unidadesDisponiveis.length})`
+                        : 'Todas'
+                    }
+                    emptyMessage={loading ? 'Carregando escolas...' : 'Nenhuma escola nos dados'}
+                    accent={systemColor as 'blue' | 'green' | 'orange'}
+                    searchable
+                    showSelectAll
+                    largeLabel
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ano Base</label>
                 <select
@@ -299,6 +409,37 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
               </div>
             </div>
 
+            {/* Escopo da comparação (gestão) */}
+            {gestao && !loading && unidadesDisponiveis.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2">
+                <School className="w-4 h-4 text-gray-500 shrink-0" />
+                {selectedUnidades.length === 0 ? (
+                  <span>
+                    Comparando <strong>todas as {unidadesDisponiveis.length} escolas</strong> com dados nos anos selecionados.
+                  </span>
+                ) : (
+                  <>
+                    <span>
+                      Comparando <strong>{escolasConsideradas}</strong> de {unidadesDisponiveis.length} escolas:
+                    </span>
+                    <span className="flex flex-wrap gap-1">
+                      {selectedUnidades.map((u) => (
+                        <span key={u} className="bg-white border border-gray-200 rounded px-2 py-0.5 text-xs text-gray-700">
+                          {u}
+                        </span>
+                      ))}
+                    </span>
+                    <button
+                      onClick={() => setSelectedUnidades([])}
+                      className="ml-auto text-xs font-medium text-red-600 hover:text-red-800"
+                    >
+                      Limpar
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
@@ -308,7 +449,20 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
               </div>
             ) : comparisons.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className={`grid grid-cols-1 gap-4 ${gestao ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
+                  {gestao && (
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                      <div className="flex items-center gap-2 mb-1">
+                        <School className="w-4 h-4 text-gray-500" />
+                        <span className="text-xs text-gray-500 font-medium">Escolas na comparacao</span>
+                      </div>
+                      <span className="text-2xl font-bold text-gray-900">{escolasConsideradas}</span>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {selectedUnidades.length === 0 ? 'Todas as escolas' : `de ${unidadesDisponiveis.length} disponiveis`}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
                     <div className="flex items-center gap-2 mb-1">
                       <BarChart3 className="w-4 h-4 text-gray-500" />
@@ -472,7 +626,9 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
               </>
             ) : anoBase && anoComparacao && anoBase !== anoComparacao ? (
               <div className="text-center py-8 text-gray-500 text-sm">
-                Nenhum dado encontrado para os anos selecionados.
+                {gestao && selectedUnidades.length > 0
+                  ? 'Nenhum dado encontrado para as escolas e anos selecionados.'
+                  : 'Nenhum dado encontrado para os anos selecionados.'}
               </div>
             ) : anoBase === anoComparacao && anoBase ? (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">

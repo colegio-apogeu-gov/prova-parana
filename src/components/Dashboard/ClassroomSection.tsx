@@ -24,6 +24,7 @@ import {
   updateSalaProfessoresMais
 } from '../../lib/supabaseMais';
 
+import MultiSelect from '../common/MultiSelect';
 import { SalaDeAula, SalaDeAulaAluno, DashboardFilters } from '../../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import jsPDF from 'jspdf';
@@ -105,97 +106,6 @@ const DESEMPENHO_BANDS: Array<{ key: string; label: string; min: number; max: nu
   { key: 'medio', label: 'Médio desempenho (50% – 69%)', min: 50, max: 70 },
   { key: 'baixo', label: 'Baixo desempenho (< 50%)', min: -0.0001, max: 50 },
 ];
-
-// Componente reutilizável de seleção múltipla via checkboxes em dropdown.
-interface MultiSelectProps {
-  label: string;
-  options: Array<{ value: string; label: string }>;
-  selected: string[];
-  onChange: (values: string[]) => void;
-  placeholder?: string;
-  emptyMessage?: string;
-}
-
-const MultiSelect: React.FC<MultiSelectProps> = ({
-  label,
-  options,
-  selected,
-  onChange,
-  placeholder = 'Todos',
-  emptyMessage = 'Nenhuma opção disponível',
-}) => {
-  const [open, setOpen] = useState(false);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const toggleValue = (value: string) => {
-    if (selected.includes(value)) {
-      onChange(selected.filter(v => v !== value));
-    } else {
-      onChange([...selected, value]);
-    }
-  };
-
-  const summary =
-    selected.length === 0
-      ? placeholder
-      : selected.length === 1
-      ? options.find(o => o.value === selected[0])?.label ?? selected[0]
-      : `${selected.length} selecionados`;
-
-  return (
-    <div className="relative" ref={containerRef}>
-      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent text-left"
-      >
-        <span className={selected.length === 0 ? 'text-gray-400' : 'text-gray-900'}>
-          {summary}
-        </span>
-        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open && (
-        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
-          {options.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-gray-500">{emptyMessage}</p>
-          ) : (
-            options.map(option => {
-              const isChecked = selected.includes(option.value);
-              return (
-                <label
-                  key={option.value}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${
-                    isChecked ? 'bg-green-50' : ''
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={() => toggleValue(option.value)}
-                    className="text-green-600 focus:ring-green-500"
-                  />
-                  <span className="text-gray-800">{option.label}</span>
-                </label>
-              );
-            })
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
 
 // Sala já normalizada, com alunos e o mapa de professores (turma||componente -> nome).
 type SalaComAlunos = SalaDeAula & {

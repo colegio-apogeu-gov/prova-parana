@@ -3,7 +3,7 @@ import { School, BarChart3, Upload, LogOut, BookOpen, PieChart, RefreshCw, GitCo
 import { auth } from '../../lib/firebase';
 import { signOut } from 'firebase/auth';
 import { User } from 'firebase/auth';
-import { UserProfile } from '../../types';
+import { UserProfile, isGestao } from '../../types';
 
 interface NavbarProps {
   user: User;
@@ -146,7 +146,7 @@ const Navbar: React.FC<NavbarProps> = ({
             </button>
             <div className="text-right">
               <p className="text-sm font-medium text-gray-900">{user.email}</p>
-              <p className="text-xs text-gray-500">Administrador</p>
+              <p className="text-xs text-gray-500">{isGestao(userProfile) ? 'Gestão' : 'Administrador'}</p>
             </div>
             <button
               onClick={onLogout}
