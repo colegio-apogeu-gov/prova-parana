@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { UNIDADE_MAPEADA } from '../types';
+import { UNIDADE_MAPEADA, ComparacaoAnualAgregado } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -726,6 +726,41 @@ export const fetchAllProvaData = async (filters: any = {}) => {
     return allData;
   }
 }
+
+// Erro lançado quando a RPC de agregação ainda não existe no banco.
+export class RpcAusenteError extends Error {
+  constructor(public rpcName: string) {
+    super(`A função ${rpcName} não existe no banco. Rode a migration 20260709130000_add_rpc_comparacao_anual.sql.`);
+    this.name = 'RpcAusenteError';
+  }
+}
+
+// Postgres devolve bigint como string quando excede o inteiro seguro do JS.
+export const normalizeAgregado = (r: any): ComparacaoAnualAgregado => ({
+  ano_prova: String(r.ano_prova),
+  unidade: String(r.unidade),
+  ano_escolar: String(r.ano_escolar),
+  componente: r.componente ?? null,
+  soma_acertos: Number(r.soma_acertos) || 0,
+  soma_total: Number(r.soma_total) || 0,
+  alunos: Number(r.alunos) || 0,
+});
+
+// 42883 = undefined_function (a migration das RPCs não foi aplicada).
+export const isRpcAusente = (error: any) => error?.code === '42883' || error?.code === 'PGRST202';
+
+/**
+ * Agregados da Comparação Anual para TODAS as escolas.
+ * Substitui o download das linhas brutas (que estourava o statement_timeout).
+ */
+export const getComparacaoAnualAgregada = async (): Promise<ComparacaoAnualAgregado[]> => {
+  const { data, error } = await supabase.rpc('rpc_comparacao_anual_prova');
+  if (error) {
+    if (isRpcAusente(error)) throw new RpcAusenteError('rpc_comparacao_anual_prova');
+    throw error;
+  }
+  return (data ?? []).map(normalizeAgregado);
+};
 
 export const getAllUnitsData = async (
   filters: Record<string, any> = {},

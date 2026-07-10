@@ -140,6 +140,19 @@ export interface DashboardFilters {
   ano_prova?: string;
 }
 
+// Linha agregada devolvida pelas RPCs rpc_comparacao_anual_*.
+// `componente === null` identifica a linha de rollup por (ano_prova, unidade,
+// ano_escolar), cujo `alunos` é a contagem DISTINTA somando os componentes.
+export interface ComparacaoAnualAgregado {
+  ano_prova: string;
+  unidade: string;
+  ano_escolar: string;
+  componente: string | null;
+  soma_acertos: number;
+  soma_total: number;
+  alunos: number;
+}
+
 export interface PerformanceInsight {
   total_alunos: number;
   alunos_avaliados: number;
