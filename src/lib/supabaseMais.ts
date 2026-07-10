@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { UNIDADE_MAPEADA } from '../types';
+import { UNIDADE_MAPEADA, ComparacaoAnualAgregado } from '../types';
+import { normalizeAgregado, isRpcAusente, RpcAusenteError } from './supabase';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -429,6 +430,19 @@ export const removeAlunoFromSalaMais = async (alunoId: string) => {
     .eq('id', alunoId);
 
   if (error) throw error;
+};
+
+/**
+ * Agregados da Comparação Anual para TODAS as escolas (sistema Paraná Mais).
+ * Ver supabase/migrations/20260709130000_add_rpc_comparacao_anual.sql
+ */
+export const getComparacaoAnualAgregadaMais = async (): Promise<ComparacaoAnualAgregado[]> => {
+  const { data, error } = await supabase.rpc('rpc_comparacao_anual_mais');
+  if (error) {
+    if (isRpcAusente(error)) throw new RpcAusenteError('rpc_comparacao_anual_mais');
+    throw error;
+  }
+  return (data ?? []).map(normalizeAgregado);
 };
 
 export const deleteSalaDeAulaMais = async (salaId: string) => {

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, TrendingUp, TrendingDown, Minus, BarChart3, Users, Target, School } from 'lucide-react';
-import { fetchAllProvaData, getAnosProva } from '../../lib/supabase';
-import { fetchAllProvaDataParceiro, getAnosProvaParceiro } from '../../lib/supabaseParceiro';
-import { fetchAllProvaDataMais, getAnosProvaMais } from '../../lib/supabaseMais';
+import { Calendar, TrendingUp, TrendingDown, Minus, BarChart3, Users, Target, School, AlertTriangle } from 'lucide-react';
+import { fetchAllProvaData, getAnosProva, getComparacaoAnualAgregada } from '../../lib/supabase';
+import { fetchAllProvaDataParceiro, getAnosProvaParceiro, getComparacaoAnualAgregadaParceiro } from '../../lib/supabaseParceiro';
+import { fetchAllProvaDataMais, getAnosProvaMais, getComparacaoAnualAgregadaMais } from '../../lib/supabaseMais';
 import MultiSelect from '../common/MultiSelect';
-import { UserProfile, isGestao } from '../../types';
+import { UserProfile, isGestao, ComparacaoAnualAgregado } from '../../types';
 
 interface ComparacaoAnualProps {
   userProfile: UserProfile | null;
@@ -55,6 +55,84 @@ function computeStats(rows: any[], anoEscolar: string, componente: string): AnoE
   };
 }
 
+// Uma variação abaixo de 0,5 p.p. é considerada estabilidade.
+function trendOf(delta: number | null): 'up' | 'down' | 'flat' | 'n/a' {
+  if (delta === null) return 'n/a';
+  if (delta > 0.5) return 'up';
+  if (delta < -0.5) return 'down';
+  return 'flat';
+}
+
+/**
+ * Monta as linhas de comparação a partir dos AGREGADOS (perfil gestão).
+ *
+ * Só usa as linhas por componente (as de rollup têm `componente === null`).
+ * Somar `soma_acertos`/`soma_total` entre escolas reproduz exatamente a mesma
+ * média ponderada por questões que o caminho de linhas brutas calcula.
+ * Somar `alunos` entre escolas também é correto: um aluno pertence a uma única
+ * unidade, então os conjuntos são disjuntos.
+ */
+function buildComparisonsFromAgg(
+  rows: ComparacaoAnualAgregado[],
+  anoBase: string,
+  anoComparacao: string,
+  unidadesSel: string[]
+): ComparisonRow[] {
+  // Anos iguais não formam comparação. Sem esta guarda, todas as linhas caem
+  // em `s1` e a tela renderiza uma tabela com a coluna do 2º ano inteira "--"
+  // em vez do aviso "selecione dois anos diferentes". (O caminho admin é
+  // protegido pelo próprio useEffect que dispara loadComparison.)
+  if (!anoBase || !anoComparacao || anoBase === anoComparacao) return [];
+  const permitidas = unidadesSel.length > 0 ? new Set(unidadesSel) : null;
+
+  type Cell = { acertos: number; total: number; alunos: number };
+  const novaCell = (): Cell => ({ acertos: 0, total: 0, alunos: 0 });
+  const acc = new Map<string, { ae: string; comp: string; s1: Cell; s2: Cell }>();
+
+  rows.forEach((r) => {
+    if (r.componente === null) return; // linha de rollup: usada só no KPI
+    if (r.ano_prova !== anoBase && r.ano_prova !== anoComparacao) return;
+    if (permitidas && !permitidas.has(r.unidade)) return;
+
+    const key = `${r.ano_escolar}||${r.componente}`;
+    const e = acc.get(key) ?? { ae: r.ano_escolar, comp: r.componente, s1: novaCell(), s2: novaCell() };
+    const alvo = r.ano_prova === anoBase ? e.s1 : e.s2;
+    alvo.acertos += r.soma_acertos;
+    alvo.total += r.soma_total;
+    alvo.alunos += r.alunos;
+    acc.set(key, e);
+  });
+
+  const toStats = (ae: string, comp: string, c: Cell): AnoEscolarStats => ({
+    anoEscolar: ae,
+    componente: comp,
+    totalAlunos: c.alunos,
+    alunosAvaliados: c.alunos,
+    mediaPercentual: c.total > 0 ? (c.acertos / c.total) * 100 : 0,
+    totalAcertos: c.acertos,
+    totalQuestoes: c.total,
+  });
+
+  return Array.from(acc.values())
+    .sort((a, b) => (a.ae === b.ae ? a.comp.localeCompare(b.comp) : a.ae.localeCompare(b.ae)))
+    .map((e) => {
+      const hasS1 = e.s1.total > 0;
+      const hasS2 = e.s2.total > 0;
+      const s1 = toStats(e.ae, e.comp, e.s1);
+      const s2 = toStats(e.ae, e.comp, e.s2);
+      const delta = hasS1 && hasS2 ? s2.mediaPercentual - s1.mediaPercentual : null;
+
+      return {
+        anoEscolar: e.ae,
+        componente: e.comp,
+        ano1Stats: hasS1 ? s1 : null,
+        ano2Stats: hasS2 ? s2 : null,
+        delta,
+        trend: trendOf(delta),
+      };
+    });
+}
+
 // Monta as linhas de comparação a partir dos dois conjuntos de dados brutos.
 function buildComparisons(dataAno1: any[], dataAno2: any[]): ComparisonRow[] {
   const anosEscolaresSet = new Set<string>();
@@ -79,12 +157,6 @@ function buildComparisons(dataAno1: any[], dataAno2: any[]): ComparisonRow[] {
       const hasS2 = s2.totalQuestoes > 0;
 
       const delta = hasS1 && hasS2 ? s2.mediaPercentual - s1.mediaPercentual : null;
-      let trend: 'up' | 'down' | 'flat' | 'n/a' = 'n/a';
-      if (delta !== null) {
-        if (delta > 0.5) trend = 'up';
-        else if (delta < -0.5) trend = 'down';
-        else trend = 'flat';
-      }
 
       rows.push({
         anoEscolar: ae,
@@ -92,7 +164,7 @@ function buildComparisons(dataAno1: any[], dataAno2: any[]): ComparisonRow[] {
         ano1Stats: hasS1 ? s1 : null,
         ano2Stats: hasS2 ? s2 : null,
         delta,
-        trend,
+        trend: trendOf(delta),
       });
     }
   }
@@ -117,6 +189,11 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
   const [filterAnoEscolar, setFilterAnoEscolar] = useState<string>('');
   // Multi-seleção de unidades (apenas para gestão). Vazio = todas.
   const [selectedUnidades, setSelectedUnidades] = useState<string[]>([]);
+  // Dados AGREGADOS (apenas gestão): uma única chamada de RPC cobre todos os
+  // anos e todas as escolas. Baixar as linhas brutas da rede inteira estourava
+  // o statement_timeout do Postgres.
+  const [agregados, setAgregados] = useState<ComparacaoAnualAgregado[]>([]);
+  const [erro, setErro] = useState<string>('');
 
   const systemColor = selectedSystem === 'prova-parana' ? 'blue' : selectedSystem === 'parceiro' ? 'green' : 'orange';
   const systemTitle =
@@ -127,15 +204,58 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
       : 'Parana Mais';
 
   useEffect(() => {
-    loadAnos();
-  }, [selectedSystem, userProfile]);
+    setErro('');
+    if (gestao) {
+      loadAgregados();
+    } else {
+      loadAnos();
+    }
+  }, [selectedSystem, userProfile, gestao]);
 
+  // --- Caminho GESTÃO: agregação no servidor -------------------------------
+  const loadAgregados = async () => {
+    setLoadingAnos(true);
+    setAgregados([]);
+    try {
+      const fn =
+        selectedSystem === 'prova-parana'
+          ? getComparacaoAnualAgregada
+          : selectedSystem === 'parceiro'
+          ? getComparacaoAnualAgregadaParceiro
+          : getComparacaoAnualAgregadaMais;
+
+      const rows = await fn();
+      setAgregados(rows);
+
+      const anos = Array.from(new Set(rows.map((r) => r.ano_prova)))
+        .sort((a, b) => b.localeCompare(a));
+
+      setAnosDisponiveis(anos);
+      if (anos.length >= 2) {
+        setAnoComparacao(anos[0]);
+        setAnoBase(anos[1]);
+      } else if (anos.length === 1) {
+        setAnoComparacao(anos[0]);
+        setAnoBase('');
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar agregados:', error);
+      setErro(
+        error?.name === 'RpcAusenteError'
+          ? `${error.message}`
+          : 'Nao foi possivel carregar a comparacao de todas as escolas.'
+      );
+    } finally {
+      setLoadingAnos(false);
+    }
+  };
+
+  // --- Caminho ADMIN: comportamento original (uma escola) ------------------
   const loadAnos = async () => {
     setLoadingAnos(true);
     try {
       let anos: string[] = [];
-      // Gestão: sem unidade => anos de todas as escolas.
-      const unidade = gestao ? undefined : userProfile?.unidade;
+      const unidade = userProfile?.unidade;
 
       if (selectedSystem === 'prova-parana') {
         anos = await getAnosProva(unidade);
@@ -171,9 +291,7 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
       const baseFilters: any = { ano_prova: anoBase };
       const compFilters: any = { ano_prova: anoComparacao };
 
-      // Gestão não vincula a busca a uma escola: omitindo "unidade", as
-      // funções fetchAllProvaData* paginam os dados de todas as unidades.
-      if (!gestao && userProfile?.unidade) {
+      if (userProfile?.unidade) {
         baseFilters.unidade = userProfile.unidade;
         compFilters.unidade = userProfile.unidade;
       }
@@ -207,20 +325,32 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
     }
   };
 
+  // Só o admin refaz a busca ao trocar de ano. Gestão já tem tudo agregado.
   useEffect(() => {
-    if (anoBase && anoComparacao && anoBase !== anoComparacao) {
+    if (!gestao && anoBase && anoComparacao && anoBase !== anoComparacao) {
       loadComparison();
     }
   }, [anoBase, anoComparacao, selectedSystem, gestao]);
 
   // Unidades presentes nos dados carregados (fonte de verdade para o filtro).
+  // Para gestão, `agregados` traz TODOS os anos de uma vez; é preciso restringir
+  // aos dois anos comparados, senão o filtro listaria escolas que não têm dado
+  // nenhum no período — e o banner diria "todas as N escolas" mentindo.
   const unidadesDisponiveis = useMemo(() => {
     const set = new Set<string>();
-    [...rawAno1, ...rawAno2].forEach((r) => {
-      if (r.unidade) set.add(String(r.unidade));
-    });
+    if (gestao) {
+      agregados.forEach((r) => {
+        if (r.ano_prova === anoBase || r.ano_prova === anoComparacao) {
+          set.add(r.unidade);
+        }
+      });
+    } else {
+      [...rawAno1, ...rawAno2].forEach((r) => {
+        if (r.unidade) set.add(String(r.unidade));
+      });
+    }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [rawAno1, rawAno2]);
+  }, [gestao, agregados, anoBase, anoComparacao, rawAno1, rawAno2]);
 
   // Ao trocar de sistema/ano, descarta unidades selecionadas que sumiram.
   useEffect(() => {
@@ -238,13 +368,15 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
     return (rows: any[]) => (ativo ? rows.filter((r) => permitidas.has(String(r.unidade))) : rows);
   }, [gestao, selectedUnidades]);
 
-  // Comparações recomputadas quando os dados brutos ou as unidades mudam.
-  const comparisons = useMemo(
-    () => (rawAno1.length === 0 && rawAno2.length === 0
-      ? []
-      : buildComparisons(filtrarPorUnidade(rawAno1), filtrarPorUnidade(rawAno2))),
-    [rawAno1, rawAno2, filtrarPorUnidade]
-  );
+  // Comparações recomputadas quando os dados ou as unidades mudam.
+  // Gestão parte dos agregados (RPC); admin, das linhas brutas.
+  const comparisons = useMemo(() => {
+    if (gestao) {
+      return buildComparisonsFromAgg(agregados, anoBase, anoComparacao, selectedUnidades);
+    }
+    if (rawAno1.length === 0 && rawAno2.length === 0) return [];
+    return buildComparisons(filtrarPorUnidade(rawAno1), filtrarPorUnidade(rawAno2));
+  }, [gestao, agregados, anoBase, anoComparacao, selectedUnidades, rawAno1, rawAno2, filtrarPorUnidade]);
 
   const filteredComparisons = comparisons.filter((row) => {
     if (filterComponente && row.componente !== filterComponente) return false;
@@ -279,13 +411,30 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
     return alunos.size;
   };
 
+  // Versão para gestão: usa os agregados. Quando o filtro de componente está em
+  // "Todos", conta pelas linhas de rollup (componente === null), que já trazem
+  // alunos distintos por série — somar LP + MT contaria duas vezes quem fez as
+  // duas provas. Somar entre unidades é seguro (conjuntos disjuntos).
+  const contarAlunosAgregado = (ano: string) => {
+    const permitidas = selectedUnidades.length > 0 ? new Set(selectedUnidades) : null;
+    return agregados.reduce((soma, r) => {
+      if (r.ano_prova !== ano) return soma;
+      if (permitidas && !permitidas.has(r.unidade)) return soma;
+      if (filterAnoEscolar && r.ano_escolar !== filterAnoEscolar) return soma;
+      const casaComponente = filterComponente
+        ? r.componente === filterComponente
+        : r.componente === null;
+      return casaComponente ? soma + r.alunos : soma;
+    }, 0);
+  };
+
   const totalAlunosAno1 = useMemo(
-    () => contarAlunosDistintos(rawAno1),
-    [rawAno1, filtrarPorUnidade, filterAnoEscolar, filterComponente]
+    () => (gestao ? contarAlunosAgregado(anoBase) : contarAlunosDistintos(rawAno1)),
+    [gestao, agregados, anoBase, selectedUnidades, rawAno1, filtrarPorUnidade, filterAnoEscolar, filterComponente]
   );
   const totalAlunosAno2 = useMemo(
-    () => contarAlunosDistintos(rawAno2),
-    [rawAno2, filtrarPorUnidade, filterAnoEscolar, filterComponente]
+    () => (gestao ? contarAlunosAgregado(anoComparacao) : contarAlunosDistintos(rawAno2)),
+    [gestao, agregados, anoComparacao, selectedUnidades, rawAno2, filtrarPorUnidade, filterAnoEscolar, filterComponente]
   );
 
   const TrendIcon = ({ trend, size = 'w-5 h-5' }: { trend: string; size?: string }) => {
@@ -319,7 +468,15 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
           </div>
         </div>
 
-        {loadingAnos ? (
+        {erro ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-red-800">Nao foi possivel carregar a comparacao</p>
+              <p className="text-sm text-red-700 mt-1">{erro}</p>
+            </div>
+          </div>
+        ) : loadingAnos ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
@@ -347,7 +504,7 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
                         ? `Todas (${unidadesDisponiveis.length})`
                         : 'Todas'
                     }
-                    emptyMessage={loading ? 'Carregando escolas...' : 'Nenhuma escola nos dados'}
+                    emptyMessage={loading || loadingAnos ? 'Carregando escolas...' : 'Nenhuma escola nos dados'}
                     accent={systemColor as 'blue' | 'green' | 'orange'}
                     searchable
                     showSelectAll
