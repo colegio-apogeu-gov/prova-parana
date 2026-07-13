@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { UNIDADE_MAPEADA, ComparacaoAnualAgregado } from '../types';
-import { normalizeAgregado, isRpcAusente, RpcAusenteError } from './supabase';
+import { normalizeAgregado, normalizeNivelAgg, isRpcAusente, RpcAusenteError } from './supabase';
+import { ComparacaoAnualNivel } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -443,6 +444,15 @@ export const getComparacaoAnualAgregadaMais = async (): Promise<ComparacaoAnualA
     throw error;
   }
   return (data ?? []).map(normalizeAgregado);
+};
+
+export const getComparacaoAnualNiveisMais = async (): Promise<ComparacaoAnualNivel[]> => {
+  const { data, error } = await supabase.rpc('rpc_comparacao_anual_niveis_mais');
+  if (error) {
+    if (isRpcAusente(error)) throw new RpcAusenteError('rpc_comparacao_anual_niveis_mais');
+    throw error;
+  }
+  return (data ?? []).map(normalizeNivelAgg);
 };
 
 export const deleteSalaDeAulaMais = async (salaId: string) => {

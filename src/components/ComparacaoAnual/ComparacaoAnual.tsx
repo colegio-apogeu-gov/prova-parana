@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, TrendingUp, TrendingDown, Minus, BarChart3, Users, Target, School, AlertTriangle } from 'lucide-react';
-import { fetchAllProvaData, getAnosProva, getComparacaoAnualAgregada } from '../../lib/supabase';
-import { fetchAllProvaDataParceiro, getAnosProvaParceiro, getComparacaoAnualAgregadaParceiro } from '../../lib/supabaseParceiro';
-import { fetchAllProvaDataMais, getAnosProvaMais, getComparacaoAnualAgregadaMais } from '../../lib/supabaseMais';
+import { Calendar, TrendingUp, TrendingDown, Minus, BarChart3, Users, HelpCircle, School, AlertTriangle } from 'lucide-react';
+import { fetchAllProvaData, getAnosProva, getComparacaoAnualAgregada, getComparacaoAnualNiveis } from '../../lib/supabase';
+import { fetchAllProvaDataParceiro, getAnosProvaParceiro, getComparacaoAnualAgregadaParceiro, getComparacaoAnualNiveisParceiro } from '../../lib/supabaseParceiro';
+import { fetchAllProvaDataMais, getAnosProvaMais, getComparacaoAnualAgregadaMais, getComparacaoAnualNiveisMais } from '../../lib/supabaseMais';
 import MultiSelect from '../common/MultiSelect';
-import { UserProfile, isGestao, ComparacaoAnualAgregado } from '../../types';
+import { UserProfile, isGestao, ComparacaoAnualAgregado, ComparacaoAnualNivel } from '../../types';
 
 interface ComparacaoAnualProps {
   userProfile: UserProfile | null;
@@ -62,6 +62,78 @@ function trendOf(delta: number | null): 'up' | 'down' | 'flat' | 'n/a' {
   if (delta < -0.5) return 'down';
   return 'flat';
 }
+
+// ---- Níveis de aprendizagem: rótulo, ordem (pior→melhor) e cor ----
+const NIVEL_RANK: Record<string, number> = {
+  'Avançado': 4,
+  'Aprendizado Adequado': 4,
+  'Adequado': 3,
+  'Aprendizado Intermediário': 2,
+  'Básico': 2,
+  'Defasagem': 1,
+  'Abaixo do Básico': 1,
+  '-': -1,
+};
+const nivelRank = (n: string) => (n in NIVEL_RANK ? NIVEL_RANK[n] : 0);
+const nivelLabel = (n: string) => (n === '-' || n.trim() === '' ? 'Sem nível' : n);
+const nivelDot = (n: string) => {
+  const r = nivelRank(n);
+  if (r >= 3) return 'bg-green-500';
+  if (r === 2) return 'bg-amber-500';
+  if (r === 1) return 'bg-red-500';
+  return 'bg-gray-400';
+};
+// Melhor nível primeiro; "Sem nível" (-) por último.
+const ordenarNiveis = (arr: string[]) =>
+  [...arr].sort((a, b) => nivelRank(b) - nivelRank(a) || a.localeCompare(b));
+
+type Cell = { acertos: number; total: number; alunos: number };
+
+// Distribuição (%) por nível (denominador = soma dos alunos dos níveis da linha).
+function distribuicao(m: Map<string, Cell>): { nivel: string; pct: number; alunos: number }[] {
+  const totalAlunos = Array.from(m.values()).reduce((s, c) => s + c.alunos, 0);
+  if (totalAlunos <= 0) return [];
+  return ordenarNiveis(Array.from(m.keys())).map((nivel) => {
+    const c = m.get(nivel)!;
+    return { nivel, alunos: c.alunos, pct: (c.alunos / totalAlunos) * 100 };
+  });
+}
+
+function statsFromCell(ae: string, comp: string, c: Cell | undefined): AnoEscolarStats | null {
+  if (!c || c.total <= 0) return null;
+  return {
+    anoEscolar: ae,
+    componente: comp,
+    totalAlunos: c.alunos,
+    alunosAvaliados: c.alunos,
+    mediaPercentual: (c.acertos / c.total) * 100,
+    totalAcertos: c.acertos,
+    totalQuestoes: c.total,
+  };
+}
+
+// "?" com retângulo explicativo no hover (CSS puro, sem dependências).
+const InfoTip: React.FC<{ text: string; align?: 'center' | 'right' }> = ({ text, align = 'center' }) => (
+  <span className="relative inline-flex group align-middle ml-1">
+    <HelpCircle className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+    <span
+      className={`pointer-events-none absolute z-30 top-full mt-2 w-60 rounded-lg bg-gray-900 text-white text-xs font-normal normal-case leading-snug p-2.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-xl ${
+        align === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2'
+      }`}
+    >
+      {text}
+    </span>
+  </span>
+);
+
+const TIP_MEDIA =
+  'Média ponderada por questões: soma dos acertos ÷ soma das questões de todos os alunos avaliados desta série/componente, × 100. Não é a média das notas individuais.';
+const TIP_VARIACAO =
+  'Diferença, em pontos percentuais, entre a Média do ano de comparação e a do ano base (Média do 2º ano − Média do 1º ano). Verde = subiu, vermelho = caiu.';
+const TIP_TENDENCIA =
+  'Baseada na variação: seta para cima = melhora (acima de +0,5 p.p.), para baixo = queda (abaixo de −0,5 p.p.) e traço = estável (entre −0,5 e +0,5 p.p.).';
+const TIP_NIVEL =
+  'Distribuição (%) dos alunos avaliados por nível no ano de comparação (% = alunos do nível ÷ total de alunos avaliados da linha). Ao escolher um nível no filtro, as colunas Média/Variação/Tendência passam a considerar apenas esse nível.';
 
 /**
  * Monta as linhas de comparação a partir dos AGREGADOS (perfil gestão).
@@ -193,6 +265,9 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
   // anos e todas as escolas. Baixar as linhas brutas da rede inteira estourava
   // o statement_timeout do Postgres.
   const [agregados, setAgregados] = useState<ComparacaoAnualAgregado[]>([]);
+  // Agregados por nível (gestão) — alimentam a coluna/filtro "Nível Aprendizagem".
+  const [niveisAgg, setNiveisAgg] = useState<ComparacaoAnualNivel[]>([]);
+  const [filterNivel, setFilterNivel] = useState<string>('');
   const [erro, setErro] = useState<string>('');
 
   const systemColor = selectedSystem === 'prova-parana' ? 'blue' : selectedSystem === 'parceiro' ? 'green' : 'orange';
@@ -216,6 +291,7 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
   const loadAgregados = async () => {
     setLoadingAnos(true);
     setAgregados([]);
+    setNiveisAgg([]);
     try {
       const fn =
         selectedSystem === 'prova-parana'
@@ -223,9 +299,18 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
           : selectedSystem === 'parceiro'
           ? getComparacaoAnualAgregadaParceiro
           : getComparacaoAnualAgregadaMais;
+      const fnNiveis =
+        selectedSystem === 'prova-parana'
+          ? getComparacaoAnualNiveis
+          : selectedSystem === 'parceiro'
+          ? getComparacaoAnualNiveisParceiro
+          : getComparacaoAnualNiveisMais;
 
-      const rows = await fn();
+      // A quebra por nível é complementar: se a RPC ainda não existir, a tela
+      // continua funcionando (a coluna Nível fica vazia).
+      const [rows, niveis] = await Promise.all([fn(), fnNiveis().catch(() => [] as ComparacaoAnualNivel[])]);
       setAgregados(rows);
+      setNiveisAgg(niveis);
 
       const anos = Array.from(new Set(rows.map((r) => r.ano_prova)))
         .sort((a, b) => b.localeCompare(a));
@@ -378,9 +463,114 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
     return buildComparisons(filtrarPorUnidade(rawAno1), filtrarPorUnidade(rawAno2));
   }, [gestao, agregados, anoBase, anoComparacao, selectedUnidades, rawAno1, rawAno2, filtrarPorUnidade]);
 
-  const filteredComparisons = comparisons.filter((row) => {
+  // Nível de aprendizagem por linha bruta: parceiro usa padrao_desempenho;
+  // os demais, nivel_aprendizagem. Vazio vira '-' (Sem nível).
+  const getNivelRaw = (r: any): string => {
+    const v = selectedSystem === 'parceiro' ? r.padrao_desempenho : r.nivel_aprendizagem;
+    const s = (v ?? '').toString().trim();
+    return s === '' ? '-' : s;
+  };
+
+  // Quebra por nível: `${ano_escolar}||${componente}` -> { base, comp } de Map<nivel, Cell>.
+  // Gestão parte dos agregados por nível (RPC); admin, das linhas brutas (alunos distintos).
+  const nivelBreakdown = useMemo(() => {
+    const map = new Map<string, { base: Map<string, Cell>; comp: Map<string, Cell> }>();
+    const ensure = (key: string) => {
+      let e = map.get(key);
+      if (!e) { e = { base: new Map(), comp: new Map() }; map.set(key, e); }
+      return e;
+    };
+    const addCell = (m: Map<string, Cell>, nivel: string, acertos: number, total: number, alunos: number) => {
+      const c = m.get(nivel) ?? { acertos: 0, total: 0, alunos: 0 };
+      c.acertos += acertos; c.total += total; c.alunos += alunos;
+      m.set(nivel, c);
+    };
+
+    if (gestao) {
+      const permitidas = selectedUnidades.length > 0 ? new Set(selectedUnidades) : null;
+      niveisAgg.forEach((r) => {
+        if (r.ano_prova !== anoBase && r.ano_prova !== anoComparacao) return;
+        if (permitidas && !permitidas.has(r.unidade)) return;
+        const e = ensure(`${r.ano_escolar}||${r.componente}`);
+        const alvo = r.ano_prova === anoBase ? e.base : e.comp;
+        addCell(alvo, r.nivel, r.soma_acertos, r.soma_total, r.alunos);
+      });
+    } else {
+      // admin: alunos DISTINTOS por (ano_escolar, componente, nível), via Set.
+      type RawCell = { a: number; t: number; al: Set<string> };
+      const sets = new Map<string, { base: Map<string, RawCell>; comp: Map<string, RawCell> }>();
+      const ensureS = (key: string) => {
+        let e = sets.get(key);
+        if (!e) { e = { base: new Map(), comp: new Map() }; sets.set(key, e); }
+        return e;
+      };
+      const addRaw = (which: 'base' | 'comp', rows: any[]) => {
+        filtrarPorUnidade(rows).forEach((r) => {
+          if (!r.avaliado || !r.ano_escolar || !r.componente) return;
+          const nivel = getNivelRaw(r);
+          const bucket = ensureS(`${r.ano_escolar}||${r.componente}`)[which];
+          const c = bucket.get(nivel) ?? { a: 0, t: 0, al: new Set<string>() };
+          c.a += Number(r.acertos) || 0;
+          c.t += Number(r.total) || 0;
+          c.al.add(alunoKey(r));
+          bucket.set(nivel, c);
+        });
+      };
+      addRaw('base', rawAno1);
+      addRaw('comp', rawAno2);
+      sets.forEach((e, key) => {
+        const dst = ensure(key);
+        e.base.forEach((c, nivel) => addCell(dst.base, nivel, c.a, c.t, c.al.size));
+        e.comp.forEach((c, nivel) => addCell(dst.comp, nivel, c.a, c.t, c.al.size));
+      });
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gestao, niveisAgg, anoBase, anoComparacao, selectedUnidades, rawAno1, rawAno2, filtrarPorUnidade, selectedSystem]);
+
+  const availableNiveis = useMemo(() => {
+    const set = new Set<string>();
+    nivelBreakdown.forEach((e) => {
+      e.base.forEach((_v, n) => set.add(n));
+      e.comp.forEach((_v, n) => set.add(n));
+    });
+    return ordenarNiveis(Array.from(set));
+  }, [nivelBreakdown]);
+
+  // Se o nível filtrado deixar de existir (troca de sistema/ano/unidade), limpa.
+  useEffect(() => {
+    if (filterNivel && !availableNiveis.includes(filterNivel)) setFilterNivel('');
+  }, [availableNiveis, filterNivel]);
+
+  // Linhas exibidas: sempre trazem a distribuição por nível (ano de comparação).
+  // Com um nível filtrado, Média/Alunos/Variação/Tendência passam a ser DAQUELE nível.
+  const displayRows = useMemo(() => {
+    return comparisons.map((row) => {
+      const bd = nivelBreakdown.get(`${row.anoEscolar}||${row.componente}`);
+      const nivelDist = bd ? distribuicao(bd.comp) : [];
+      if (!filterNivel) {
+        return { ...row, nivelDist };
+      }
+      const s1 = statsFromCell(row.anoEscolar, row.componente, bd?.base.get(filterNivel));
+      const s2 = statsFromCell(row.anoEscolar, row.componente, bd?.comp.get(filterNivel));
+      const delta = s1 && s2 ? s2.mediaPercentual - s1.mediaPercentual : null;
+      return {
+        anoEscolar: row.anoEscolar,
+        componente: row.componente,
+        ano1Stats: s1,
+        ano2Stats: s2,
+        delta,
+        trend: trendOf(delta),
+        nivelDist,
+      };
+    });
+  }, [comparisons, nivelBreakdown, filterNivel]);
+
+  const filteredComparisons = displayRows.filter((row) => {
     if (filterComponente && row.componente !== filterComponente) return false;
     if (filterAnoEscolar && row.anoEscolar !== filterAnoEscolar) return false;
+    // Com nível filtrado, esconde linhas sem alunos daquele nível em nenhum dos anos.
+    if (filterNivel && !row.ano1Stats && !row.ano2Stats) return false;
     return true;
   });
 
@@ -490,7 +680,7 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
           </div>
         ) : (
           <div className="space-y-6">
-            <div className={`grid grid-cols-2 gap-4 ${gestao ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
+            <div className={`grid grid-cols-2 gap-4 ${gestao ? 'md:grid-cols-6' : 'md:grid-cols-5'}`}>
               {/* Unidades (somente gestão) */}
               {gestao && (
                 <div className="col-span-2 md:col-span-1">
@@ -561,6 +751,20 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
                   <option value="">Todos</option>
                   {availableComponentes.map((c) => (
                     <option key={c} value={c}>{c === 'LP' ? 'Lingua Portuguesa' : c === 'MT' ? 'Matematica' : c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nivel Aprendizagem</label>
+                <select
+                  value={filterNivel}
+                  onChange={(e) => setFilterNivel(e.target.value)}
+                  disabled={availableNiveis.length === 0}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:bg-gray-100 disabled:text-gray-400"
+                >
+                  <option value="">Todos</option>
+                  {availableNiveis.map((n) => (
+                    <option key={n} value={n}>{nivelLabel(n)}</option>
                   ))}
                 </select>
               </div>
@@ -664,12 +868,23 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
                         <tr className="bg-gray-50 border-b border-gray-200">
                           <th className="px-4 py-3 text-left font-semibold text-gray-700">Ano Escolar</th>
                           <th className="px-4 py-3 text-left font-semibold text-gray-700">Componente</th>
-                          <th className="px-4 py-3 text-center font-semibold text-gray-700">Media {anoBase}</th>
+                          <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                            <span className="inline-flex items-center">Media {anoBase}<InfoTip text={TIP_MEDIA} /></span>
+                          </th>
                           <th className="px-4 py-3 text-center font-semibold text-gray-700">Alunos {anoBase}</th>
-                          <th className="px-4 py-3 text-center font-semibold text-gray-700">Media {anoComparacao}</th>
+                          <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                            <span className="inline-flex items-center">Media {anoComparacao}<InfoTip text={TIP_MEDIA} /></span>
+                          </th>
                           <th className="px-4 py-3 text-center font-semibold text-gray-700">Alunos {anoComparacao}</th>
-                          <th className="px-4 py-3 text-center font-semibold text-gray-700">Variacao</th>
-                          <th className="px-4 py-3 text-center font-semibold text-gray-700">Tendencia</th>
+                          <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                            <span className="inline-flex items-center">Variacao<InfoTip text={TIP_VARIACAO} /></span>
+                          </th>
+                          <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                            <span className="inline-flex items-center">Tendencia<InfoTip text={TIP_TENDENCIA} align="right" /></span>
+                          </th>
+                          <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                            <span className="inline-flex items-center">Nivel Aprendizagem<InfoTip text={TIP_NIVEL} align="right" /></span>
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -712,6 +927,34 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
                               <div className="flex justify-center">
                                 <TrendIcon trend={row.trend} size="w-4 h-4" />
                               </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              {filterNivel ? (
+                                (() => {
+                                  const d = row.nivelDist.find((x) => x.nivel === filterNivel);
+                                  return d ? (
+                                    <div className="flex items-center justify-center gap-1.5 text-xs">
+                                      <span className={`w-2 h-2 rounded-full ${nivelDot(d.nivel)}`} />
+                                      <span className="text-gray-700 tabular-nums">{d.pct.toFixed(0)}%</span>
+                                      <span className="text-gray-500">({d.alunos})</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-400 text-xs flex justify-center">--</span>
+                                  );
+                                })()
+                              ) : row.nivelDist.length > 0 ? (
+                                <div className="flex flex-col gap-0.5 min-w-[9.5rem]">
+                                  {row.nivelDist.map((d) => (
+                                    <div key={d.nivel} className="flex items-center gap-1.5 text-xs" title={`${nivelLabel(d.nivel)}: ${d.alunos} aluno(s)`}>
+                                      <span className={`w-2 h-2 rounded-full shrink-0 ${nivelDot(d.nivel)}`} />
+                                      <span className="text-gray-700 tabular-nums w-8 text-right">{d.pct.toFixed(0)}%</span>
+                                      <span className="text-gray-500 truncate">{nivelLabel(d.nivel)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-xs flex justify-center">--</span>
+                              )}
                             </td>
                           </tr>
                         ))}

@@ -153,6 +153,20 @@ export interface ComparacaoAnualAgregado {
   alunos: number;
 }
 
+// Linha agregada por NÍVEL de aprendizagem (rpc_comparacao_anual_niveis_*).
+// Grão: (ano_prova, unidade, ano_escolar, componente, nivel). `nivel` vem de
+// nivel_aprendizagem (prova/mais) ou padrao_desempenho (parceiro).
+export interface ComparacaoAnualNivel {
+  ano_prova: string;
+  unidade: string;
+  ano_escolar: string;
+  componente: string;
+  nivel: string;
+  soma_acertos: number;
+  soma_total: number;
+  alunos: number;
+}
+
 export interface PerformanceInsight {
   total_alunos: number;
   alunos_avaliados: number;

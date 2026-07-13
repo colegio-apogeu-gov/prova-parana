@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { UNIDADE_MAPEADA, ComparacaoAnualAgregado } from '../types';
+import { UNIDADE_MAPEADA, ComparacaoAnualAgregado, ComparacaoAnualNivel } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -760,6 +760,31 @@ export const getComparacaoAnualAgregada = async (): Promise<ComparacaoAnualAgreg
     throw error;
   }
   return (data ?? []).map(normalizeAgregado);
+};
+
+// Normaliza a linha agregada por nível (bigint pode vir como string).
+export const normalizeNivelAgg = (r: any): ComparacaoAnualNivel => ({
+  ano_prova: String(r.ano_prova),
+  unidade: String(r.unidade),
+  ano_escolar: String(r.ano_escolar),
+  componente: String(r.componente),
+  nivel: String(r.nivel ?? ''),
+  soma_acertos: Number(r.soma_acertos) || 0,
+  soma_total: Number(r.soma_total) || 0,
+  alunos: Number(r.alunos) || 0,
+});
+
+/**
+ * Agregados POR NÍVEL da Comparação Anual (todas as escolas).
+ * Alimenta a coluna e o filtro "Nível Aprendizagem".
+ */
+export const getComparacaoAnualNiveis = async (): Promise<ComparacaoAnualNivel[]> => {
+  const { data, error } = await supabase.rpc('rpc_comparacao_anual_niveis_prova');
+  if (error) {
+    if (isRpcAusente(error)) throw new RpcAusenteError('rpc_comparacao_anual_niveis_prova');
+    throw error;
+  }
+  return (data ?? []).map(normalizeNivelAgg);
 };
 
 export const getAllUnitsData = async (
