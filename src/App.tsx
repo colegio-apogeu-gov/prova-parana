@@ -10,6 +10,7 @@ import Dashboard from './components/Dashboard/Dashboard';
 import UploadForm from './components/Upload/UploadForm';
 import UploadFormParceiro from './components/Upload/UploadFormParceiro';
 import CadastrarAtividades from './components/CadastrarAtividades/CadastrarAtividades';
+import Descritores from './components/Descritores/Descritores';
 import Graficos from './components/Graficos/Graficos';
 import ComparacaoProvas from './components/ComparacaoProvas/ComparacaoProvas';
 import ComparativoSemestres from './components/ComparativoSemestres/ComparativoSemestres';
@@ -23,12 +24,12 @@ function App() {
   const [selectedSystem, setSelectedSystem] = useState<'prova-parana' | 'parceiro' | 'parana-mais' | null>(() => {
     return (localStorage.getItem('selectedSystem') as 'prova-parana' | 'parceiro' | 'parana-mais') || null;
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'comparacao-anual'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'upload' | 'atividades' | 'descritores' | 'graficos' | 'comparacao' | 'semestres' | 'comparacao-anual'>(() => {
     const stored = localStorage.getItem('activeTab');
     // 'visaogeral' foi removido; ignora valores antigos/inválidos salvos no localStorage.
-    const validTabs = ['dashboard', 'upload', 'atividades', 'graficos', 'comparacao', 'semestres', 'comparacao-anual'];
+    const validTabs = ['dashboard', 'upload', 'atividades', 'descritores', 'graficos', 'comparacao', 'semestres', 'comparacao-anual'];
     return (stored && validTabs.includes(stored) ? stored : 'dashboard') as
-      'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'comparacao-anual';
+      'dashboard' | 'upload' | 'atividades' | 'descritores' | 'graficos' | 'comparacao' | 'semestres' | 'comparacao-anual';
   });
 
   useEffect(() => {
@@ -148,6 +149,8 @@ function App() {
           <ComparativoSemestres userProfile={userProfile} selectedSystem={selectedSystem} />
         ) : activeTab === 'comparacao-anual' ? (
           <ComparacaoAnual userProfile={userProfile} selectedSystem={selectedSystem} />
+        ) : activeTab === 'descritores' ? (
+          <Descritores selectedSystem={selectedSystem} userProfile={userProfile} />
         ) : (
           <CadastrarAtividades selectedSystem={selectedSystem} />
         )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { School, BarChart3, Upload, LogOut, BookOpen, PieChart, RefreshCw, GitCompare, Calendar } from 'lucide-react';
+import { School, BarChart3, Upload, LogOut, BookOpen, PieChart, RefreshCw, GitCompare, Calendar, ListChecks } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { signOut } from 'firebase/auth';
 import { User } from 'firebase/auth';
@@ -9,8 +9,8 @@ interface NavbarProps {
   user: User;
   userProfile: UserProfile | null;
   onLogout: () => void;
-  activeTab: 'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'comparacao-anual';
-  onTabChange: (tab: 'dashboard' | 'upload' | 'atividades' | 'graficos' | 'comparacao' | 'semestres' | 'comparacao-anual') => void;
+  activeTab: 'dashboard' | 'upload' | 'atividades' | 'descritores' | 'graficos' | 'comparacao' | 'semestres' | 'comparacao-anual';
+  onTabChange: (tab: 'dashboard' | 'upload' | 'atividades' | 'descritores' | 'graficos' | 'comparacao' | 'semestres' | 'comparacao-anual') => void;
   selectedSystem: 'prova-parana' | 'parceiro' | 'parana-mais';
   onSystemSwitch: () => void;
 }
@@ -120,6 +120,18 @@ const Navbar: React.FC<NavbarProps> = ({
             >
               <Calendar className="w-4 h-4" />
               Comparação Anual
+            </button>
+
+            <button
+              onClick={() => onTabChange('descritores')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'descritores'
+                  ? `bg-${systemColor}-100 text-${systemColor}-700`
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <ListChecks className="w-4 h-4" />
+              Descritores
             </button>
 
             {/*<button
