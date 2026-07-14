@@ -167,6 +167,33 @@ export interface ComparacaoAnualNivel {
   alunos: number;
 }
 
+// ---------- ENEM (ranking de escolas do grupo Apogeu)
+export interface EnemResultado {
+  id: string;
+  ano: string;
+  edicao_enem: string | null;
+  posicao_geral: number | null;   // rank estadual
+  posicao: number | null;         // rank na cidade
+  escola: string;
+  inep_codigo: string | null;
+  cidade: string;
+  regional: string | null;
+  dependencia: string | null;     // 'Estadual' | 'Federal' | 'Privada'
+  localizacao: string | null;     // 'Urbana' | 'Rural'
+  alunos: number;
+  lc: number | null;  // Linguagens
+  ch: number | null;  // Ciências Humanas
+  cn: number | null;  // Ciências da Natureza
+  mt: number | null;  // Matemática
+  rd: number | null;  // Redação
+  media: number | null;
+  is_apogeu: boolean;
+  created_at?: string;
+}
+
+// Área de conhecimento selecionável no dashboard ENEM.
+export type EnemArea = 'media' | 'mt' | 'lc' | 'cn' | 'ch' | 'rd';
+
 export interface PerformanceInsight {
   total_alunos: number;
   alunos_avaliados: number;
