@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS enem_resultados (
   escola text NOT NULL,
   inep_codigo text,
   cidade text NOT NULL,
+  uf text NOT NULL DEFAULT 'PR',
   regional text,
   dependencia text,
   localizacao text,
@@ -33,6 +34,7 @@ CREATE POLICY "enem_all_public" ON enem_resultados FOR ALL TO public USING (true
 CREATE INDEX IF NOT EXISTS idx_enem_ano ON enem_resultados(ano);
 CREATE INDEX IF NOT EXISTS idx_enem_apogeu ON enem_resultados(is_apogeu);
 CREATE INDEX IF NOT EXISTS idx_enem_cidade ON enem_resultados(cidade);
+CREATE INDEX IF NOT EXISTS idx_enem_uf ON enem_resultados(uf);
 
 -- Carga idempotente: limpa e recarrega os 267 registros da planilha.
 DELETE FROM enem_resultados WHERE ano = '2025';

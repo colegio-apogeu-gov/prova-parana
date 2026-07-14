@@ -177,6 +177,7 @@ export interface EnemResultado {
   escola: string;
   inep_codigo: string | null;
   cidade: string;
+  uf: string;
   regional: string | null;
   dependencia: string | null;     // 'Estadual' | 'Federal' | 'Privada'
   localizacao: string | null;     // 'Urbana' | 'Rural'

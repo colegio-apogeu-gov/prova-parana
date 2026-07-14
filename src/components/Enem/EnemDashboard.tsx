@@ -17,6 +17,16 @@ const fmt = (v: number | null | undefined, dec = 1) =>
   v == null || Number.isNaN(v) ? '--' : v.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 const fmtInt = (v: number) => (v || 0).toLocaleString('pt-BR');
 
+// Média nacional por área — valor de referência fixo (mockado; sem cálculo por enquanto).
+const MEDIA_NACIONAL: Record<EnemArea, number> = {
+  media: 541.6,
+  mt: 525.9,
+  lc: 534.8,
+  cn: 499.0,
+  ch: 513.6,
+  rd: 634.8,
+};
+
 // ---------------- Radar (SVG puro) ----------------
 const RadarChart: React.FC<{ labels: string[]; school: number[]; avg: number[]; dmin: number; dmax: number }> = ({
   labels, school, avg, dmin, dmax,
@@ -149,7 +159,9 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
   const scopeApg = useMemo(() => scopeAll.filter((r) => r.is_apogeu), [scopeAll]);
 
   // Cards
-  const mediaNacional = useMemo(() => mediaPonderada(scopeAll, area), [scopeAll, area]);
+  const mediaNacional = MEDIA_NACIONAL[area]; // referência fixa (mockada)
+  const escolasPR = useMemo(() => scopeAll.filter((r) => r.uf === 'PR'), [scopeAll]);
+  const mediaParana = useMemo(() => mediaPonderada(escolasPR, area), [escolasPR, area]);
   const mediaApg = useMemo(() => mediaPonderada(scopeApg, area), [scopeApg, area]);
   const maior = useMemo(() => {
     let best: EnemResultado | null = null;
@@ -308,14 +320,22 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
             </div>
 
             {/* Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
               <div className={cardBase}>
                 <div className="flex items-center gap-2 text-gray-500 mb-1">
                   <div className="bg-emerald-100 p-1.5 rounded-lg"><TrendingUp className="w-4 h-4 text-emerald-600" /></div>
                   <span className="text-xs font-medium">Média nacional</span>
                 </div>
                 <p className="text-2xl font-bold text-gray-900">{fmt(mediaNacional)}</p>
-                <p className="text-xs text-gray-400 mt-1">média de {fmtInt(scopeAll.length)} escolas da base</p>
+                <p className="text-xs text-gray-400 mt-1">referência nacional do ENEM</p>
+              </div>
+              <div className={cardBase}>
+                <div className="flex items-center gap-2 text-gray-500 mb-1">
+                  <div className="bg-teal-100 p-1.5 rounded-lg"><MapPin className="w-4 h-4 text-teal-600" /></div>
+                  <span className="text-xs font-medium">Média Paraná</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">{fmt(mediaParana)}</p>
+                <p className="text-xs text-gray-400 mt-1">{fmtInt(escolasPR.length)} escolas no PR</p>
               </div>
               <div className={`${cardBase} ring-1 ring-emerald-200 bg-emerald-50/40`}>
                 <div className="flex items-center gap-2 text-gray-500 mb-1">
