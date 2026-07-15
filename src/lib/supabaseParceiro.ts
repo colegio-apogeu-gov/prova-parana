@@ -675,8 +675,8 @@ export const removeAlunoFromSalaParceiro = async (alunoId: string) => {
  * Agregados da Comparação Anual para TODAS as escolas (sistema Parceiro).
  * Ver supabase/migrations/20260709130000_add_rpc_comparacao_anual.sql
  */
-export const getComparacaoAnualAgregadaParceiro = async (): Promise<ComparacaoAnualAgregado[]> => {
-  const { data, error } = await supabase.rpc('rpc_comparacao_anual_parceiro');
+export const getComparacaoAnualAgregadaParceiro = async (semestre?: string | null): Promise<ComparacaoAnualAgregado[]> => {
+  const { data, error } = await supabase.rpc('rpc_comparacao_anual_parceiro', { p_semestre: semestre ?? null });
   if (error) {
     if (isRpcAusente(error)) throw new RpcAusenteError('rpc_comparacao_anual_parceiro');
     throw error;
@@ -684,8 +684,8 @@ export const getComparacaoAnualAgregadaParceiro = async (): Promise<ComparacaoAn
   return (data ?? []).map(normalizeAgregado);
 };
 
-export const getComparacaoAnualNiveisParceiro = async (): Promise<ComparacaoAnualNivel[]> => {
-  const { data, error } = await supabase.rpc('rpc_comparacao_anual_niveis_parceiro');
+export const getComparacaoAnualNiveisParceiro = async (semestre?: string | null): Promise<ComparacaoAnualNivel[]> => {
+  const { data, error } = await supabase.rpc('rpc_comparacao_anual_niveis_parceiro', { p_semestre: semestre ?? null });
   if (error) {
     if (isRpcAusente(error)) throw new RpcAusenteError('rpc_comparacao_anual_niveis_parceiro');
     throw error;

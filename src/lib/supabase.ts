@@ -753,8 +753,8 @@ export const isRpcAusente = (error: any) => error?.code === '42883' || error?.co
  * Agregados da Comparação Anual para TODAS as escolas.
  * Substitui o download das linhas brutas (que estourava o statement_timeout).
  */
-export const getComparacaoAnualAgregada = async (): Promise<ComparacaoAnualAgregado[]> => {
-  const { data, error } = await supabase.rpc('rpc_comparacao_anual_prova');
+export const getComparacaoAnualAgregada = async (semestre?: string | null): Promise<ComparacaoAnualAgregado[]> => {
+  const { data, error } = await supabase.rpc('rpc_comparacao_anual_prova', { p_semestre: semestre ?? null });
   if (error) {
     if (isRpcAusente(error)) throw new RpcAusenteError('rpc_comparacao_anual_prova');
     throw error;
@@ -778,8 +778,8 @@ export const normalizeNivelAgg = (r: any): ComparacaoAnualNivel => ({
  * Agregados POR NÍVEL da Comparação Anual (todas as escolas).
  * Alimenta a coluna e o filtro "Nível Aprendizagem".
  */
-export const getComparacaoAnualNiveis = async (): Promise<ComparacaoAnualNivel[]> => {
-  const { data, error } = await supabase.rpc('rpc_comparacao_anual_niveis_prova');
+export const getComparacaoAnualNiveis = async (semestre?: string | null): Promise<ComparacaoAnualNivel[]> => {
+  const { data, error } = await supabase.rpc('rpc_comparacao_anual_niveis_prova', { p_semestre: semestre ?? null });
   if (error) {
     if (isRpcAusente(error)) throw new RpcAusenteError('rpc_comparacao_anual_niveis_prova');
     throw error;

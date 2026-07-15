@@ -268,6 +268,9 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
   // Agregados por nível (gestão) — alimentam a coluna/filtro "Nível Aprendizagem".
   const [niveisAgg, setNiveisAgg] = useState<ComparacaoAnualNivel[]>([]);
   const [filterNivel, setFilterNivel] = useState<string>('');
+  // Semestre da prova (''=todos). Filtra no servidor (RPC p_semestre) no modo gestão
+  // e nos filtros da busca bruta no modo admin.
+  const [semestreSel, setSemestreSel] = useState<string>('');
   const [erro, setErro] = useState<string>('');
 
   const systemColor = selectedSystem === 'prova-parana' ? 'blue' : selectedSystem === 'parceiro' ? 'green' : 'orange';
@@ -281,14 +284,15 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
   useEffect(() => {
     setErro('');
     if (gestao) {
-      loadAgregados();
+      loadAgregados(semestreSel);
     } else {
       loadAnos();
     }
-  }, [selectedSystem, userProfile, gestao]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSystem, userProfile, gestao, semestreSel]);
 
   // --- Caminho GESTÃO: agregação no servidor -------------------------------
-  const loadAgregados = async () => {
+  const loadAgregados = async (semestre: string) => {
     setLoadingAnos(true);
     setAgregados([]);
     setNiveisAgg([]);
@@ -308,7 +312,7 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
 
       // A quebra por nível é complementar: se a RPC ainda não existir, a tela
       // continua funcionando (a coluna Nível fica vazia).
-      const [rows, niveis] = await Promise.all([fn(), fnNiveis().catch(() => [] as ComparacaoAnualNivel[])]);
+      const [rows, niveis] = await Promise.all([fn(semestre || null), fnNiveis(semestre || null).catch(() => [] as ComparacaoAnualNivel[])]);
       setAgregados(rows);
       setNiveisAgg(niveis);
 
@@ -316,13 +320,9 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
         .sort((a, b) => b.localeCompare(a));
 
       setAnosDisponiveis(anos);
-      if (anos.length >= 2) {
-        setAnoComparacao(anos[0]);
-        setAnoBase(anos[1]);
-      } else if (anos.length === 1) {
-        setAnoComparacao(anos[0]);
-        setAnoBase('');
-      }
+      // Preserva a seleção de anos ao trocar de semestre; só usa padrão se inválida.
+      setAnoComparacao((prev) => (prev && anos.includes(prev) ? prev : (anos[0] ?? '')));
+      setAnoBase((prev) => (prev && anos.includes(prev) ? prev : (anos[1] ?? '')));
     } catch (error: any) {
       console.error('Erro ao carregar agregados:', error);
       setErro(
@@ -380,6 +380,10 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
         baseFilters.unidade = userProfile.unidade;
         compFilters.unidade = userProfile.unidade;
       }
+      if (semestreSel) {
+        baseFilters.semestre = semestreSel;
+        compFilters.semestre = semestreSel;
+      }
 
       let dataAno1: any[] = [];
       let dataAno2: any[] = [];
@@ -410,12 +414,13 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
     }
   };
 
-  // Só o admin refaz a busca ao trocar de ano. Gestão já tem tudo agregado.
+  // Só o admin refaz a busca ao trocar de ano/semestre. Gestão já tem tudo agregado.
   useEffect(() => {
     if (!gestao && anoBase && anoComparacao && anoBase !== anoComparacao) {
       loadComparison();
     }
-  }, [anoBase, anoComparacao, selectedSystem, gestao]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anoBase, anoComparacao, selectedSystem, gestao, semestreSel]);
 
   // Unidades presentes nos dados carregados (fonte de verdade para o filtro).
   // Para gestão, `agregados` traz TODOS os anos de uma vez; é preciso restringir
@@ -574,6 +579,104 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
     return true;
   });
 
+  // ---- Ranking consolidado de ESCOLAS (unidade) — reage aos mesmos filtros ----
+  // Agrega por unidade (soma acertos/total ponderada + alunos), honrando ano base/comp,
+  // ano escolar, componente, nível e unidades selecionadas. Ordena pela Média do ano de comparação.
+  const schoolRanking = useMemo(() => {
+    type U = { base: Cell; comp: Cell; baseNiv: Map<string, Cell>; compNiv: Map<string, Cell> };
+    const map = new Map<string, U>();
+    const ensure = (u: string): U => {
+      let e = map.get(u);
+      if (!e) { e = { base: { acertos: 0, total: 0, alunos: 0 }, comp: { acertos: 0, total: 0, alunos: 0 }, baseNiv: new Map(), compNiv: new Map() }; map.set(u, e); }
+      return e;
+    };
+    const addNiv = (m: Map<string, Cell>, nivel: string, a: number, t: number, al: number) => {
+      const c = m.get(nivel) ?? { acertos: 0, total: 0, alunos: 0 };
+      c.acertos += a; c.total += t; c.alunos += al; m.set(nivel, c);
+    };
+
+    if (gestao) {
+      const permitidas = selectedUnidades.length > 0 ? new Set(selectedUnidades) : null;
+      const anoOK = (r: ComparacaoAnualAgregado | ComparacaoAnualNivel) => r.ano_prova === anoBase || r.ano_prova === anoComparacao;
+      const pass = (r: ComparacaoAnualAgregado | ComparacaoAnualNivel) =>
+        (!permitidas || permitidas.has(r.unidade)) && (!filterAnoEscolar || r.ano_escolar === filterAnoEscolar);
+      // Média/total: linhas por componente.
+      agregados.forEach((r) => {
+        if (r.componente === null || !anoOK(r) || !pass(r)) return;
+        if (filterComponente && r.componente !== filterComponente) return;
+        const e = ensure(r.unidade);
+        const cell = r.ano_prova === anoBase ? e.base : e.comp;
+        cell.acertos += r.soma_acertos; cell.total += r.soma_total;
+      });
+      // Níveis (para distribuição e, quando filtrado, média/alunos por nível).
+      niveisAgg.forEach((r) => {
+        if (!anoOK(r) || !pass(r)) return;
+        if (filterComponente && r.componente !== filterComponente) return;
+        const e = ensure(r.unidade);
+        addNiv(r.ano_prova === anoBase ? e.baseNiv : e.compNiv, r.nivel, r.soma_acertos, r.soma_total, r.alunos);
+      });
+      // Alunos distintos: rollup (componente null) quando "Todos", senão o componente filtrado.
+      agregados.forEach((r) => {
+        if (!anoOK(r) || !pass(r)) return;
+        const alvo = filterComponente ? r.componente === filterComponente : r.componente === null;
+        if (!alvo) return;
+        const e = map.get(r.unidade);
+        if (!e) return;
+        (r.ano_prova === anoBase ? e.base : e.comp).alunos += r.alunos;
+      });
+    } else {
+      // Admin: linhas brutas (unidade única) — alunos distintos por Set.
+      const add = (which: 'base' | 'comp', rows: any[]) => {
+        const by = new Map<string, { a: number; t: number; al: Set<string>; niv: Map<string, { a: number; t: number; al: Set<string> }> }>();
+        filtrarPorUnidade(rows).forEach((r) => {
+          if (!r.avaliado || !r.unidade) return;
+          if (filterAnoEscolar && r.ano_escolar !== filterAnoEscolar) return;
+          if (filterComponente && r.componente !== filterComponente) return;
+          let g = by.get(r.unidade);
+          if (!g) { g = { a: 0, t: 0, al: new Set(), niv: new Map() }; by.set(r.unidade, g); }
+          const ac = Number(r.acertos) || 0, tt = Number(r.total) || 0;
+          g.a += ac; g.t += tt; g.al.add(alunoKey(r));
+          const nivel = getNivelRaw(r);
+          let nc = g.niv.get(nivel);
+          if (!nc) { nc = { a: 0, t: 0, al: new Set() }; g.niv.set(nivel, nc); }
+          nc.a += ac; nc.t += tt; nc.al.add(alunoKey(r));
+        });
+        by.forEach((g, u) => {
+          const e = ensure(u);
+          const cell = which === 'base' ? e.base : e.comp;
+          cell.acertos += g.a; cell.total += g.t; cell.alunos += g.al.size;
+          const m = which === 'base' ? e.baseNiv : e.compNiv;
+          g.niv.forEach((nc, nivel) => addNiv(m, nivel, nc.a, nc.t, nc.al.size));
+        });
+      };
+      add('base', rawAno1);
+      add('comp', rawAno2);
+    }
+
+    const med = (c: Cell) => (c.total > 0 ? (c.acertos / c.total) * 100 : null);
+    return Array.from(map.entries())
+      .map(([unidade, e]) => {
+        let baseMed: number | null, compMed: number | null, baseAl: number, compAl: number;
+        if (filterNivel) {
+          const b = e.baseNiv.get(filterNivel), c = e.compNiv.get(filterNivel);
+          baseMed = b && b.total > 0 ? (b.acertos / b.total) * 100 : null;
+          compMed = c && c.total > 0 ? (c.acertos / c.total) * 100 : null;
+          baseAl = b?.alunos ?? 0; compAl = c?.alunos ?? 0;
+        } else {
+          baseMed = med(e.base); compMed = med(e.comp);
+          baseAl = e.base.alunos; compAl = e.comp.alunos;
+        }
+        const delta = baseMed != null && compMed != null ? compMed - baseMed : null;
+        return {
+          unidade, baseMed, compMed, delta, trend: trendOf(delta),
+          alunos: compAl || baseAl || 0, nivelDist: distribuicao(e.compNiv),
+        };
+      })
+      .filter((r) => r.baseMed != null || r.compMed != null)
+      .sort((a, b) => (b.compMed ?? b.baseMed ?? -1) - (a.compMed ?? a.baseMed ?? -1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gestao, agregados, niveisAgg, anoBase, anoComparacao, selectedUnidades, filterAnoEscolar, filterComponente, filterNivel, rawAno1, rawAno2, filtrarPorUnidade, selectedSystem]);
+
   const availableAnosEscolares = Array.from(new Set(comparisons.map((r) => r.anoEscolar))).sort();
   const availableComponentes = Array.from(new Set(comparisons.map((r) => r.componente))).sort();
 
@@ -680,7 +783,7 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
           </div>
         ) : (
           <div className="space-y-6">
-            <div className={`grid grid-cols-2 gap-4 ${gestao ? 'md:grid-cols-6' : 'md:grid-cols-5'}`}>
+            <div className={`grid grid-cols-2 gap-4 ${gestao ? 'md:grid-cols-3 xl:grid-cols-7' : 'md:grid-cols-3 xl:grid-cols-6'}`}>
               {/* Unidades (somente gestão) */}
               {gestao && (
                 <div className="col-span-2 md:col-span-1">
@@ -766,6 +869,18 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
                   {availableNiveis.map((n) => (
                     <option key={n} value={n}>{nivelLabel(n)}</option>
                   ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Semestre</label>
+                <select
+                  value={semestreSel}
+                  onChange={(e) => setSemestreSel(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                >
+                  <option value="">Todos</option>
+                  <option value="1">1º semestre</option>
+                  <option value="2">2º semestre</option>
                 </select>
               </div>
             </div>
@@ -1020,6 +1135,98 @@ const ComparacaoAnual: React.FC<ComparacaoAnualProps> = ({ userProfile, selected
                           </div>
                         );
                       })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Ranking consolidado de escolas (reage aos filtros) */}
+                {schoolRanking.length > 0 && (
+                  <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center gap-2">
+                      <School className="w-4 h-4 text-gray-500" />
+                      <h3 className="text-sm font-semibold text-gray-700">Ranking consolidado de escolas</h3>
+                      <span className="text-xs text-gray-400">
+                        {schoolRanking.length} escola(s) · ordenado por Média {anoComparacao}
+                      </span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">#</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Escola</th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              <span className="inline-flex items-center">Media {anoBase}<InfoTip text={TIP_MEDIA} /></span>
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              <span className="inline-flex items-center">Media {anoComparacao}<InfoTip text={TIP_MEDIA} /></span>
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">Alunos</th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              <span className="inline-flex items-center">Variacao<InfoTip text={TIP_VARIACAO} /></span>
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              <span className="inline-flex items-center">Tendencia<InfoTip text={TIP_TENDENCIA} align="right" /></span>
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              <span className="inline-flex items-center">Nivel Aprendizagem<InfoTip text={TIP_NIVEL} align="right" /></span>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {schoolRanking.map((row, idx) => (
+                            <tr key={row.unidade} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                                  idx === 0 ? 'bg-yellow-100 text-yellow-700' : idx < 3 ? 'bg-gray-100 text-gray-700' : 'text-gray-500'
+                                }`}>{idx + 1}</span>
+                              </td>
+                              <td className="px-4 py-3 font-medium text-gray-900">{row.unidade}</td>
+                              <td className="px-4 py-3 text-center">
+                                {row.baseMed != null ? <span className="font-medium">{row.baseMed.toFixed(1)}%</span> : <span className="text-gray-400">--</span>}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {row.compMed != null ? <span className="font-medium">{row.compMed.toFixed(1)}%</span> : <span className="text-gray-400">--</span>}
+                              </td>
+                              <td className="px-4 py-3 text-center text-gray-600">{row.alunos || '--'}</td>
+                              <td className="px-4 py-3 text-center">
+                                {row.delta != null ? (
+                                  <span className={`font-semibold ${row.delta > 0 ? 'text-green-700' : row.delta < 0 ? 'text-red-700' : 'text-gray-600'}`}>
+                                    {row.delta > 0 ? '+' : ''}{row.delta.toFixed(1)}%
+                                  </span>
+                                ) : <span className="text-gray-400">--</span>}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <div className="flex justify-center"><TrendIcon trend={row.trend} size="w-4 h-4" /></div>
+                              </td>
+                              <td className="px-4 py-3">
+                                {filterNivel ? (
+                                  (() => {
+                                    const d = row.nivelDist.find((x) => x.nivel === filterNivel);
+                                    return d ? (
+                                      <div className="flex items-center justify-center gap-1.5 text-xs">
+                                        <span className={`w-2 h-2 rounded-full ${nivelDot(d.nivel)}`} />
+                                        <span className="text-gray-700 tabular-nums">{d.pct.toFixed(0)}%</span>
+                                        <span className="text-gray-500">({d.alunos})</span>
+                                      </div>
+                                    ) : <span className="text-gray-400 text-xs flex justify-center">--</span>;
+                                  })()
+                                ) : row.nivelDist.length > 0 ? (
+                                  <div className="flex flex-col gap-0.5 min-w-[9.5rem]">
+                                    {row.nivelDist.map((d) => (
+                                      <div key={d.nivel} className="flex items-center gap-1.5 text-xs" title={`${nivelLabel(d.nivel)}: ${d.alunos} aluno(s)`}>
+                                        <span className={`w-2 h-2 rounded-full shrink-0 ${nivelDot(d.nivel)}`} />
+                                        <span className="text-gray-700 tabular-nums w-8 text-right">{d.pct.toFixed(0)}%</span>
+                                        <span className="text-gray-500 truncate">{nivelLabel(d.nivel)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : <span className="text-gray-400 text-xs flex justify-center">--</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 )}
