@@ -1,6 +1,7 @@
 import React from 'react';
 import { Target } from 'lucide-react';
 import { ProvaResultado } from '../../types';
+import { nivelGradient } from '../../lib/niveis';
 
 interface LearningLevelsChartProps {
   data: ProvaResultado[];
@@ -34,17 +35,6 @@ const LearningLevelsChart: React.FC<LearningLevelsChartProps> = ({ data, selecte
       .sort((a, b) => b.count - a.count);
   }, [data, selectedSystem]);
 
-  const getColorClass = (index: number) => {
-    const colors = [
-      'bg-gradient-to-r from-green-400 to-green-600',
-      'bg-gradient-to-r from-yellow-400 to-yellow-600',
-      'bg-gradient-to-r from-red-400 to-red-600',
-      'bg-gradient-to-r from-blue-400 to-blue-600',
-      'bg-gradient-to-r from-purple-400 to-purple-600'
-    ];
-    return colors[index % colors.length];
-  };
-
   const maxCount = Math.max(...levelsData.map(item => item.count), 1);
 
   return (
@@ -76,7 +66,7 @@ const LearningLevelsChart: React.FC<LearningLevelsChartProps> = ({ data, selecte
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
               <div
-                className={`h-3 rounded-full transition-all duration-300 ${getColorClass(index)}`}
+                className={`h-3 rounded-full transition-all duration-300 ${nivelGradient(item.level)}`}
                 style={{ width: `${(item.count / maxCount) * 100}%` }}
               />
             </div>
