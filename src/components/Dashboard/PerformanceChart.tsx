@@ -1,6 +1,7 @@
 import React from 'react';
 import { BarChart3 } from 'lucide-react';
 import { PerformanceInsight } from '../../types';
+import { nivelGradient } from '../../lib/niveis';
 
 interface PerformanceChartProps {
   insights: PerformanceInsight;
@@ -38,7 +39,7 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ insights, selectedS
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
-                  className="bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full transition-all duration-300"
+                  className={`${nivelGradient(nivel.nivel)} h-3 rounded-full transition-all duration-300`}
                   style={{ width: `${(nivel.quantidade / maxQuantidade) * 100}%` }}
                 />
               </div>
