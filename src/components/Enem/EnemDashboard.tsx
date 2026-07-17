@@ -18,6 +18,10 @@ const fmt = (v: number | null | undefined, dec = 1) =>
   v == null || Number.isNaN(v) ? '--' : v.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 const fmtInt = (v: number) => (v || 0).toLocaleString('pt-BR');
 
+// Busca sem acento / caixa (ex.: "sao jose" acha "São José").
+const norm = (s: string) =>
+  (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
 // Média nacional por área — valor de referência fixo (mockado; sem cálculo por enquanto).
 const MEDIA_NACIONAL: Record<EnemArea, number> = {
   media: 541.6,
@@ -121,6 +125,8 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
   const [view, setView] = useState<'dashboard' | 'historico'>('dashboard');
   const [area, setArea] = useState<EnemArea>('media');
   const [busca, setBusca] = useState('');
+  // Escopo do ranking: só o grupo Apogeu ou todas as públicas do PR na base.
+  const [escopo, setEscopo] = useState<'apg' | 'todas'>('apg');
   const [regionalSel, setRegionalSel] = useState('');
   const [cidadeSel, setCidadeSel] = useState('');
   const [selectedId, setSelectedId] = useState('');
@@ -174,14 +180,22 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
   const participantes = useMemo(() => scopeAll.reduce((s, r) => s + (r.alunos || 0), 0), [scopeAll]);
   const participantesApg = useMemo(() => scopeApg.reduce((s, r) => s + (r.alunos || 0), 0), [scopeApg]);
 
-  // Ranking (APG no escopo + busca), ordenado pela área selecionada.
+  // Ranking (escopo + busca), ordenado pela área selecionada.
   const ranking = useMemo(() => {
-    const q = busca.trim().toLowerCase();
-    return scopeApg
-      .filter((r) => !q || r.escola.toLowerCase().includes(q) || r.cidade.toLowerCase().includes(q))
+    const q = norm(busca);
+    const base = escopo === 'apg' ? scopeApg : scopeAll;
+    return base
+      .filter((r) => !q || norm(r.escola).includes(q) || norm(r.cidade).includes(q))
       .map((r) => ({ r, v: areaValue(r, area) ?? 0 }))
       .sort((a, b) => b.v - a.v);
-  }, [scopeApg, busca, area]);
+  }, [scopeApg, scopeAll, escopo, busca, area]);
+
+  // Quando a busca não acha nada no grupo mas acha na rede pública, oferece ampliar o escopo.
+  const foraDoGrupo = useMemo(() => {
+    const q = norm(busca);
+    if (escopo !== 'apg' || !q || ranking.length) return 0;
+    return scopeAll.filter((r) => norm(r.escola).includes(q) || norm(r.cidade).includes(q)).length;
+  }, [escopo, busca, ranking.length, scopeAll]);
 
   const maxRank = ranking.length ? ranking[0].v : 1;
 
@@ -223,7 +237,7 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
 
   const mapaSel = cidadesMapa.find((c) => c.cidade === mapCidade);
 
-  const limpar = () => { setBusca(''); setRegionalSel(''); setCidadeSel(''); };
+  const limpar = () => { setBusca(''); setRegionalSel(''); setCidadeSel(''); setEscopo('apg'); };
 
   const areaLabel = ENEM_AREAS.find((a) => a.key === area)?.label ?? 'Média Geral';
 
@@ -300,7 +314,7 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   value={busca} onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Buscar escola do grupo Apogeu..."
+                  placeholder="Buscar escola (grupo Apogeu ou rede pública do PR)..."
                   className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -394,16 +408,47 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Ranking */}
               <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="text-base font-semibold text-gray-900">Ranking · Grupo Apogeu</h3>
+                    <h3 className="text-base font-semibold text-gray-900">
+                      Ranking · {escopo === 'apg' ? 'Grupo Apogeu' : 'Públicas do PR'}
+                    </h3>
                     <p className="text-xs text-gray-500">Ordenado por {areaLabel} · {ranking.length} escolas</p>
                   </div>
                   <Medal className="w-5 h-5 text-emerald-500" />
                 </div>
+
+                {/* Escopo do ranking */}
+                <div className="inline-flex items-center gap-1 bg-gray-100 rounded-full p-0.5 mb-3">
+                  {([
+                    { k: 'apg', label: 'Grupo Apogeu' },
+                    { k: 'todas', label: 'Todas as públicas' },
+                  ] as const).map((o) => (
+                    <button
+                      key={o.k}
+                      onClick={() => setEscopo(o.k)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                        escopo === o.k ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
                   {ranking.length === 0 ? (
-                    <p className="text-sm text-gray-400 py-8 text-center">Nenhuma escola encontrada.</p>
+                    <div className="py-8 text-center">
+                      <p className="text-sm text-gray-400">Nenhuma escola encontrada.</p>
+                      {foraDoGrupo > 0 && (
+                        <button
+                          onClick={() => setEscopo('todas')}
+                          className="mt-2 text-sm font-medium text-emerald-700 hover:text-emerald-800 underline underline-offset-2"
+                        >
+                          Ver {foraDoGrupo} {foraDoGrupo === 1 ? 'escola' : 'escolas'} fora do grupo
+                        </button>
+                      )}
+                    </div>
                   ) : ranking.map(({ r, v }, idx) => {
                     const isSel = selected?.id === r.id;
                     return (
@@ -420,7 +465,12 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
                           }`}>{idx + 1}</span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
-                              <p className="font-medium text-gray-900 text-sm truncate">{r.escola}</p>
+                              <p className="font-medium text-gray-900 text-sm truncate">
+                                {r.escola}
+                                {escopo === 'todas' && r.is_apogeu && (
+                                  <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 align-middle">APG</span>
+                                )}
+                              </p>
                               <span className="text-sm font-bold text-gray-900 shrink-0">{fmt(v)}</span>
                             </div>
                             <p className="text-xs text-gray-500">{r.cidade}/PR · #{fmtInt(r.posicao_geral || 0)} no PR</p>
@@ -531,7 +581,10 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
 
             <div className="flex items-center gap-2 text-xs text-gray-400 pt-1">
               <Award className="w-3.5 h-3.5" />
-              <span>Base: ENEM 2024 (267 escolas nas cidades do grupo). "Média nacional" = média ponderada das escolas da base no recorte atual.</span>
+              <span>
+                Base: ENEM {ano || '2025'} · {fmtInt(dataAno.length)} escolas públicas do PR nas cidades do grupo.
+                "Média nacional" é uma referência fixa do INEP; "Média Paraná" é calculada sobre as públicas da base no recorte atual.
+              </span>
             </div>
           </>
         )}

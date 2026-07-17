@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, ChevronDown, ChevronRight, UserPlus, UserMinus, Trash2, X, Search, Brain, ExternalLink, Download, Filter, SlidersHorizontal, BarChart3, Save } from 'lucide-react';
+import { Users, Plus, ChevronDown, ChevronRight, UserPlus, UserMinus, Trash2, X, Search, Brain, ExternalLink, Download, Filter, SlidersHorizontal, BarChart3, Save, FileSpreadsheet } from 'lucide-react';
+import ImportarAlunosModal from './ImportarAlunosModal';
 import { getSalasDeAula, createSalaDeAula, addAlunoToSala, removeAlunoFromSala, deleteSalaDeAula, getAlunosDisponiveis, fetchProvaData, getLinkByHabilidadeComponente, updateSalaProfessores } from '../../lib/supabase';
 import {
   getSalasDeAulaParceiro,
@@ -118,6 +119,7 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
   const [salas, setSalas] = useState<SalaComAlunos[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [expandedSalas, setExpandedSalas] = useState<Set<string>>(new Set());
   const [expandedStudents, setExpandedStudents] = useState<Set<string>>(new Set());
   const [expandedComponents, setExpandedComponents] = useState<Set<string>>(new Set());
@@ -188,6 +190,16 @@ const ClassroomSection: React.FC<ClassroomSectionProps> = ({ userProfile, filter
     } catch (error) {
       console.error('Erro ao carregar alunos disponíveis:', error);
     }
+  };
+
+  // Nomes de alunos que a unidade tem nas tabelas de prova. Diferente de
+  // `alunosDisponiveis`, ignora os filtros do dashboard: a importação precisa
+  // enxergar todos os alunos da unidade, senão um filtro ativo (ano, componente)
+  // faria um aluno existente parecer inexistente e ele ficaria fora da sala.
+  const carregarNomesDoBanco = async (): Promise<string[]> => {
+    const getAlunosFn = pick(selectedSystem, getAlunosDisponiveis, getAlunosDisponivelParceiro, getAlunosDisponiveisMais);
+    const alunos = await getAlunosFn({ unidade: userProfile?.unidade });
+    return Array.from(new Set(alunos.map((a: { nome_aluno: string }) => a.nome_aluno)));
   };
 
   // Filtrar alunos baseado no termo de busca
@@ -1015,14 +1027,34 @@ Seja específico e prático nas recomendações, considerando que este é um rel
             Sala de Aula ({salas.length})
           </h3>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Nova Sala de Aula
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowImport(true)}
+            className="border border-green-600 text-green-700 px-4 py-2 rounded-lg font-medium hover:bg-green-50 transition-colors flex items-center gap-2"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Importar alunos
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Sala de Aula
+          </button>
+        </div>
       </div>
+
+      {showImport && userProfile?.unidade && (
+        <ImportarAlunosModal
+          system={selectedSystem}
+          unidade={userProfile.unidade}
+          salasExistentes={salas}
+          carregarNomesDoBanco={carregarNomesDoBanco}
+          onClose={() => setShowImport(false)}
+          onImportado={loadSalas}
+        />
+      )}
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

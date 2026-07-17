@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Building2, TrendingUp, Users, PenLine } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Building2, TrendingUp, Users, PenLine, Search, X } from 'lucide-react';
 import { EnemResultado, EnemArea } from '../../types';
 import { areaValue, mediaPonderada } from '../../lib/enem';
 
@@ -10,6 +10,10 @@ interface EnemHistoricoProps {
 const fmt = (v: number | null | undefined, dec = 1) =>
   v == null || Number.isNaN(v) ? '--' : v.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 const fmtInt = (v: number) => (v || 0).toLocaleString('pt-BR');
+
+// Busca sem acento / caixa (ex.: "sao jose" acha "São José").
+const norm = (s: string) =>
+  (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
 // Disciplinas (sem Redação — ela tem gráfico próprio e escala bem diferente).
 const DISCIPLINAS: { key: EnemArea; label: string }[] = [
@@ -78,25 +82,47 @@ const Card: React.FC<{ title: string; subtitle: string; icon: React.ReactNode; c
 );
 
 const EnemHistorico: React.FC<EnemHistoricoProps> = ({ data }) => {
-  // "" = grupo Apogeu (agregado); senão o INEP da escola.
+  // "" = grupo Apogeu (agregado); senão o INEP da escola (do grupo ou não).
   const [escolaSel, setEscolaSel] = useState('');
+  const [busca, setBusca] = useState('');
+  const [aberto, setAberto] = useState(false);
+  const comboRef = useRef<HTMLDivElement>(null);
+
+  // Fecha o combo ao clicar fora.
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (comboRef.current && !comboRef.current.contains(e.target as Node)) setAberto(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
 
   const anos = useMemo(
     () => Array.from(new Set(data.map((r) => r.ano))).sort((a, b) => a.localeCompare(b)),
     [data]
   );
 
-  // Escolas do grupo (distintas por INEP, nome da edição mais recente).
-  const escolasApg = useMemo(() => {
-    const m = new Map<string, string>();
-    data.filter((r) => r.is_apogeu).sort((a, b) => a.ano.localeCompare(b.ano))
-      .forEach((r) => { if (r.inep_codigo) m.set(r.inep_codigo, r.escola); });
-    return Array.from(m.entries()).map(([inep, escola]) => ({ inep, escola })).sort((a, b) => a.escola.localeCompare(b.escola));
+  // Todas as escolas da base (distintas por INEP, dados da edição mais recente).
+  const escolas = useMemo(() => {
+    const m = new Map<string, { inep: string; escola: string; cidade: string; apg: boolean }>();
+    data.slice().sort((a, b) => a.ano.localeCompare(b.ano))
+      .forEach((r) => {
+        if (r.inep_codigo) m.set(r.inep_codigo, { inep: r.inep_codigo, escola: r.escola, cidade: r.cidade, apg: !!r.is_apogeu });
+      });
+    // Escolas do grupo primeiro, depois alfabética.
+    return Array.from(m.values()).sort((a, b) =>
+      a.apg === b.apg ? a.escola.localeCompare(b.escola) : a.apg ? -1 : 1
+    );
   }, [data]);
 
-  const escolaLabel = escolaSel
-    ? (escolasApg.find((e) => e.inep === escolaSel)?.escola ?? '--')
-    : 'Grupo Apogeu';
+  const escolasFiltradas = useMemo(() => {
+    const q = norm(busca);
+    if (!q) return escolas;
+    return escolas.filter((e) => norm(e.escola).includes(q) || norm(e.cidade).includes(q));
+  }, [escolas, busca]);
+
+  const escolaAtual = escolaSel ? escolas.find((e) => e.inep === escolaSel) : null;
+  const escolaLabel = escolaSel ? (escolaAtual?.escola ?? '--') : 'Grupo Apogeu';
 
   // Linhas do recorte selecionado, por ano.
   const rowsOf = (ano: string): EnemResultado[] => {
@@ -139,7 +165,15 @@ const EnemHistorico: React.FC<EnemHistoricoProps> = ({ data }) => {
         <polyline points={path((s) => s.prMedia)} fill="none" stroke="#9ca3af" strokeWidth={2} strokeDasharray="5 4" />
         <polyline points={path((s) => s.media)} fill="none" stroke="#10b981" strokeWidth={3} />
         {serie.map((s, i) => s.media != null && (
-          <circle key={s.ano} cx={x(i)} cy={y(s.media)} r={4.5} fill="#fff" stroke="#10b981" strokeWidth={2.5} />
+          <g key={s.ano}>
+            {/* Alvo de hover generoso: o ponto visível (r=4.5) é pequeno demais para o mouse. */}
+            <circle cx={x(i)} cy={y(s.media)} r={14} fill="transparent" />
+            <circle cx={x(i)} cy={y(s.media)} r={4.5} fill="#fff" stroke="#10b981" strokeWidth={2.5} />
+            <title>
+              {`${s.ano} · ${escolaLabel}: ${fmt(s.media)}`}
+              {s.prMedia != null ? ` | Média PR (públicas): ${fmt(s.prMedia)} (${s.media >= s.prMedia ? '+' : ''}${fmt(s.media - s.prMedia)})` : ''}
+            </title>
+          </g>
         ))}
         {serie.map((s, i) => s.media != null && (
           <text key={`l${s.ano}`} x={x(i)} y={y(s.media) - 12} fontSize={11} fill="#065f46" textAnchor="middle" fontWeight={600}>
@@ -167,6 +201,7 @@ const EnemHistorico: React.FC<EnemHistoricoProps> = ({ data }) => {
             <g key={s.ano}>
               <rect x={cx - bw / 2} y={y(s.participantes)} width={bw} height={Math.max(0, h - pad.b - y(s.participantes))} fill="#10b981" rx={3} />
               <text x={cx} y={y(s.participantes) - 6} fontSize={11} fill="#065f46" textAnchor="middle" fontWeight={600}>{fmtInt(s.participantes)}</text>
+              <title>{`${s.ano}: ${fmtInt(s.participantes)} participantes em ${s.escolas} escola(s)`}</title>
             </g>
           );
         })}
@@ -183,6 +218,9 @@ const EnemHistorico: React.FC<EnemHistoricoProps> = ({ data }) => {
     const gstep = iw / DISCIPLINAS.length;
     const y = (v: number) => pad.t + (1 - (v - min) / (max - min || 1)) * ih;
     const bw = Math.min(34, (gstep * 0.62) / Math.max(1, serie.length));
+    // Com muitas edições as barras estreitam e os rótulos passariam a se sobrepor;
+    // abaixo desse ponto fica só o tooltip.
+    const mostrarRotulos = bw >= 24;
     return (
       <svg viewBox={`0 0 ${w} ${h}`} className="w-full">
         <Axes w={w} h={h} pad={pad} min={min} max={max} xLabels={DISCIPLINAS.map((d) => d.label)} />
@@ -194,10 +232,17 @@ const EnemHistorico: React.FC<EnemHistoricoProps> = ({ data }) => {
             if (v == null) return null;
             const bx = gx - (total * bw) / 2 + si * bw + bw * 0.1;
             return (
-              <rect key={`${d.key}-${s.ano}`} x={bx} y={y(v)} width={bw * 0.8}
-                height={Math.max(0, h - pad.b - y(v))} fill={yearColor(si)} rx={2}>
+              <g key={`${d.key}-${s.ano}`}>
+                <rect x={bx} y={y(v)} width={bw * 0.8}
+                  height={Math.max(0, h - pad.b - y(v))} fill={yearColor(si)} rx={2} />
+                {/* Fonte menor que a dos outros gráficos: a barra agrupada é estreita. */}
+                {mostrarRotulos && (
+                  <text x={bx + bw * 0.4} y={y(v) - 5} fontSize={9} fill="#4b5563" textAnchor="middle" fontWeight={600}>
+                    {fmt(v)}
+                  </text>
+                )}
                 <title>{`${d.label} · ${s.ano}: ${fmt(v)}`}</title>
-              </rect>
+              </g>
             );
           });
         })}
@@ -224,6 +269,7 @@ const EnemHistorico: React.FC<EnemHistoricoProps> = ({ data }) => {
             <g key={s.ano}>
               <rect x={cx - bw / 2} y={y(s.rd)} width={bw} height={Math.max(0, h - pad.b - y(s.rd))} fill={yearColor(i)} rx={3} />
               <text x={cx} y={y(s.rd) - 6} fontSize={11} fill="#374151" textAnchor="middle" fontWeight={600}>{fmt(s.rd)}</text>
+              <title>{`Redação ${s.ano}: ${fmt(s.rd)}`}</title>
             </g>
           );
         })}
@@ -244,20 +290,80 @@ const EnemHistorico: React.FC<EnemHistoricoProps> = ({ data }) => {
 
   return (
     <div className="space-y-4">
-      {/* Filtro de escola */}
+      {/* Filtro de escola (grupo Apogeu ou qualquer pública do PR na base) */}
       <div className="bg-white rounded-xl border border-gray-200 p-3 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <Building2 className="w-4 h-4 text-gray-400" />
           <span className="text-sm font-medium text-gray-600">Escola:</span>
-          <select
-            value={escolaSel}
-            onChange={(e) => setEscolaSel(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 min-w-[240px]"
-          >
-            <option value="">Grupo Apogeu (todas)</option>
-            {escolasApg.map((e) => <option key={e.inep} value={e.inep}>{e.escola}</option>)}
-          </select>
         </div>
+
+        <div ref={comboRef} className="relative min-w-[280px]">
+          <button
+            type="button"
+            onClick={() => { setAberto((v) => !v); setBusca(''); }}
+            className="w-full flex items-center justify-between gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm text-left hover:bg-gray-50 focus:ring-2 focus:ring-emerald-500"
+          >
+            <span className="truncate">
+              {escolaSel ? escolaLabel : 'Grupo Apogeu (todas)'}
+              {escolaAtual && (
+                <span className="text-gray-400 font-normal"> · {escolaAtual.cidade}</span>
+              )}
+            </span>
+            <span className="flex items-center gap-1 shrink-0">
+              {escolaAtual && !escolaAtual.apg && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">fora do grupo</span>
+              )}
+              <Search className="w-4 h-4 text-gray-400" />
+            </span>
+          </button>
+
+          {aberto && (
+            <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+              <div className="p-2 border-b border-gray-100 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  autoFocus
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar por nome da escola ou cidade..."
+                  className="w-full pl-8 pr-7 py-1.5 border border-gray-200 rounded-md text-sm focus:ring-2 focus:ring-emerald-500"
+                />
+                {busca && (
+                  <button onClick={() => setBusca('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="max-h-72 overflow-y-auto py-1">
+                <button
+                  onClick={() => { setEscolaSel(''); setAberto(false); }}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${!escolaSel ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-700'}`}
+                >
+                  Grupo Apogeu (todas)
+                </button>
+                {escolasFiltradas.length === 0 ? (
+                  <p className="px-3 py-4 text-sm text-gray-400 text-center">Nenhuma escola encontrada.</p>
+                ) : escolasFiltradas.map((e) => (
+                  <button
+                    key={e.inep}
+                    onClick={() => { setEscolaSel(e.inep); setAberto(false); }}
+                    className={`w-full text-left px-3 py-2 hover:bg-gray-50 ${escolaSel === e.inep ? 'bg-emerald-50' : ''}`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className={`text-sm truncate ${escolaSel === e.inep ? 'text-emerald-700 font-medium' : 'text-gray-700'}`}>{e.escola}</span>
+                      {e.apg && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0">APG</span>}
+                    </span>
+                    <span className="text-xs text-gray-400">{e.cidade}/PR</span>
+                  </button>
+                ))}
+              </div>
+              <p className="px-3 py-1.5 text-[11px] text-gray-400 border-t border-gray-100">
+                {escolasFiltradas.length} de {escolas.length} escolas públicas na base
+              </p>
+            </div>
+          )}
+        </div>
+
         <span className="text-xs text-emerald-700">
           {anos.length ? `Evolução histórica de ${anos[0]} a ${anos[anos.length - 1]}` : 'Sem edições na base'}
         </span>
