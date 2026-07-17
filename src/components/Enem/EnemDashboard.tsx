@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   GraduationCap, Search, Building2, MapPin, TrendingUp, Trophy, Users, Award,
-  RefreshCw, LogOut, Eraser, Medal, ChevronRight,
+  RefreshCw, LogOut, Eraser, Medal, ChevronRight, LayoutGrid, LineChart,
 } from 'lucide-react';
+import EnemHistorico from './EnemHistorico';
 import { EnemResultado, EnemArea } from '../../types';
 import {
   getEnemResultados, getEnemAnos, ENEM_AREAS, ENEM_RADAR_AREAS, areaValue, mediaPonderada,
@@ -117,6 +118,7 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
 
+  const [view, setView] = useState<'dashboard' | 'historico'>('dashboard');
   const [area, setArea] = useState<EnemArea>('media');
   const [busca, setBusca] = useState('');
   const [regionalSel, setRegionalSel] = useState('');
@@ -261,8 +263,29 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
           </div>
         </div>
 
+        {/* Alternância Dashboard | Histórico */}
+        <div className="inline-flex items-center gap-1 bg-white border border-gray-200 rounded-full p-1">
+          {([
+            { k: 'dashboard', label: 'Dashboard', icon: <LayoutGrid className="w-4 h-4" /> },
+            { k: 'historico', label: 'Histórico', icon: <LineChart className="w-4 h-4" /> },
+          ] as const).map((t) => (
+            <button
+              key={t.k}
+              onClick={() => setView(t.k)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                view === t.k ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         {erro ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{erro}</div>
+        ) : view === 'historico' ? (
+          <EnemHistorico data={data} />
         ) : (
           <>
             {/* Filtros */}
