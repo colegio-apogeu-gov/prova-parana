@@ -105,7 +105,7 @@ const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => 
               <div className="bg-emerald-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
                 <GraduationCap className="w-8 h-8 text-emerald-600" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">ENEM</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">ENEM APG</h2>
               <p className="text-gray-600 mb-6">
                 Ranking e desempenho das escolas do grupo Apogeu no ENEM, por área de conhecimento.
               </p>
