@@ -2,15 +2,30 @@ import { supabase } from './supabase';
 import { EnemResultado, EnemArea, EnemParceiro } from '../types';
 
 // Busca os resultados ENEM (todas as escolas), opcionalmente filtrando por ano.
+// Pagina em blocos porque o PostgREST limita cada resposta a 1000 linhas — e a
+// base tem ~4 mil escolas/ano. Sem paginar, só as ~1000 de menor posição voltavam
+// (as escolas do grupo, de posição intermediária, sumiam do dashboard).
 export const getEnemResultados = async (ano?: string): Promise<EnemResultado[]> => {
-  let q = supabase
-    .from('enem_resultados')
-    .select('*')
-    .order('posicao_geral', { ascending: true });
-  if (ano) q = q.eq('ano', ano);
-  const { data, error } = await q;
-  if (error) throw error;
-  return (data || []) as EnemResultado[];
+  const pageSize = 1000;
+  const all: EnemResultado[] = [];
+  let page = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    let q = supabase
+      .from('enem_resultados')
+      .select('*')
+      .order('ano', { ascending: false })
+      .order('posicao_geral', { ascending: true })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (ano) q = q.eq('ano', ano);
+    const { data, error } = await q;
+    if (error) throw error;
+    const chunk = (data || []) as EnemResultado[];
+    all.push(...chunk);
+    if (chunk.length < pageSize) break;
+    page++;
+  }
+  return all;
 };
 
 export const getEnemAnos = async (): Promise<string[]> => {
