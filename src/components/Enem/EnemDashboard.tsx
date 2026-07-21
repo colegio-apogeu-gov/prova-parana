@@ -477,7 +477,10 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
                                   <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 align-middle">APG</span>
                                 )}
                               </p>
-                              <span className="text-sm font-bold text-gray-900 shrink-0">{fmt(v)}</span>
+                              <div className="shrink-0 text-right">
+                                <span className="block text-sm font-bold text-gray-900 leading-tight">{fmt(v)}</span>
+                                <span className="block text-[11px] text-gray-500 leading-tight">{fmtInt(r.alunos || 0)} part.</span>
+                              </div>
                             </div>
                             <p className="text-xs text-gray-500">{r.cidade}/PR · #{fmtInt(r.posicao_geral || 0)} no PR</p>
                             <div className="mt-1.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">

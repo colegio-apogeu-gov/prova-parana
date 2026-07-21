@@ -109,7 +109,7 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data }) => {
   const [regionalSel, setRegionalSel] = useState('');
   const [cidadeSel, setCidadeSel] = useState('');
   const [parceirosFiltro, setParceirosFiltro] = useState<EnemParceiro[]>([]); // vazio = todas
-  const [rankGrupo, setRankGrupo] = useState<EnemParceiro>('apg');
+  const [rankGrupo, setRankGrupo] = useState<EnemParceiro | 'todos'>('apg');
   const [skillGrupo, setSkillGrupo] = useState<EnemParceiro>('apg');
   const [mapGrupo, setMapGrupo] = useState<EnemParceiro>('apg');
   const [selectedSkillId, setSelectedSkillId] = useState('');
@@ -162,11 +162,11 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data }) => {
   const participantes = useMemo(() => scopeAll.reduce((s, r) => s + (r.alunos || 0), 0), [scopeAll]);
   const participantesParceiros = useMemo(() => scopeParceiros.reduce((s, r) => s + (r.alunos || 0), 0), [scopeParceiros]);
 
-  // ---- Ranking (grupo próprio) ----
+  // ---- Ranking (grupo próprio; 'todos' = as 3 parceiras juntas) ----
   const ranking = useMemo(() => {
     const q = norm(busca);
     return dataAno
-      .filter((r) => r.parceiro === rankGrupo)
+      .filter((r) => (rankGrupo === 'todos' ? r.parceiro != null : r.parceiro === rankGrupo))
       .filter((r) => (!regionalSel || r.regional === regionalSel) && (!cidadeSel || r.cidade === cidadeSel))
       .filter((r) => !q || norm(r.escola).includes(q) || norm(r.cidade).includes(q))
       .map((r) => ({ r, v: areaValue(r, area) ?? 0 }))
@@ -220,20 +220,27 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data }) => {
   const areaLabel = ENEM_AREAS.find((a) => a.key === area)?.label ?? 'Média Geral';
 
   // Toggle de grupo reutilizável (Apg/Salta/Tom) para ranking, skills e mapa.
-  const GrupoToggle = ({ value, onChange }: { value: EnemParceiro; onChange: (p: EnemParceiro) => void }) => (
-    <div className="inline-flex items-center gap-1 bg-gray-100 rounded-full p-0.5">
-      {PARCEIROS.map((p) => (
-        <button key={p.key} onClick={() => onChange(p.key)}
-          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-            value === p.key
-              ? p.key === 'apg' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-gray-800 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}>
-          {p.label}
-        </button>
-      ))}
-    </div>
-  );
+  // `withTodos` acrescenta a opção "Todos" (usada só no ranking).
+  const GrupoToggle = ({ value, onChange, withTodos }: { value: string; onChange: (p: any) => void; withTodos?: boolean }) => {
+    const opcoes: { key: string; label: string }[] = [
+      ...(withTodos ? [{ key: 'todos', label: 'Todos' }] : []),
+      ...PARCEIROS.map((p) => ({ key: p.key, label: p.label })),
+    ];
+    return (
+      <div className="inline-flex items-center gap-1 bg-gray-100 rounded-full p-0.5">
+        {opcoes.map((p) => (
+          <button key={p.key} onClick={() => onChange(p.key)}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              value === p.key
+                ? p.key === 'apg' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-5">
@@ -370,11 +377,11 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data }) => {
           <div className="flex items-start justify-between mb-3">
             <div>
               <h3 className="text-base font-semibold text-gray-900">Ranking · Parceiros da Escola</h3>
-              <p className="text-xs text-gray-500">{parceiroLabel(rankGrupo)} · ordenado por {areaLabel} · {ranking.length} escolas</p>
+              <p className="text-xs text-gray-500">{rankGrupo === 'todos' ? 'Todos' : parceiroLabel(rankGrupo)} · ordenado por {areaLabel} · {ranking.length} escolas</p>
             </div>
             <Medal className="w-5 h-5 text-blue-500" />
           </div>
-          <div className="mb-3"><GrupoToggle value={rankGrupo} onChange={setRankGrupo} /></div>
+          <div className="mb-3"><GrupoToggle value={rankGrupo} onChange={setRankGrupo} withTodos /></div>
           <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
             {ranking.length === 0 ? (
               <p className="text-sm text-gray-400 py-8 text-center">Nenhuma escola encontrada.</p>
@@ -392,12 +399,18 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data }) => {
                         <p className="font-medium text-gray-900 text-sm truncate">
                           {r.escola}
                           {apg && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 align-middle">APG</span>}
+                          {rankGrupo === 'todos' && !apg && (
+                            <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 align-middle">{parceiroLabel(r.parceiro)}</span>
+                          )}
                         </p>
-                        <span className="text-sm font-bold text-gray-900 shrink-0">{fmt(v)}</span>
+                        <div className="shrink-0 text-right">
+                          <span className="block text-sm font-bold text-gray-900 leading-tight">{fmt(v)}</span>
+                          <span className="block text-[11px] text-gray-500 leading-tight">{fmtInt(r.alunos || 0)} part.</span>
+                        </div>
                       </div>
                       <p className="text-xs text-gray-500">{r.cidade}/{r.uf} · #{fmtInt(r.posicao_geral || 0)} no PR</p>
                       <div className="mt-1.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${maxRank ? (v / maxRank) * 100 : 0}%`, backgroundColor: apg ? APG_BLUE : parceiroColor(rankGrupo) }} />
+                        <div className="h-full rounded-full" style={{ width: `${maxRank ? (v / maxRank) * 100 : 0}%`, backgroundColor: apg ? APG_BLUE : parceiroColor(r.parceiro) }} />
                       </div>
                     </div>
                   </div>
