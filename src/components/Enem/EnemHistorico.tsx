@@ -171,7 +171,7 @@ const EnemHistorico: React.FC<EnemHistoricoProps> = ({ data }) => {
             <circle cx={x(i)} cy={y(s.media)} r={4.5} fill="#fff" stroke="#10b981" strokeWidth={2.5} />
             <title>
               {`${s.ano} · ${escolaLabel}: ${fmt(s.media)}`}
-              {s.prMedia != null ? ` | Média PR (públicas): ${fmt(s.prMedia)} (${s.media >= s.prMedia ? '+' : ''}${fmt(s.media - s.prMedia)})` : ''}
+              {s.prMedia != null ? ` | Média PR (todas): ${fmt(s.prMedia)} (${s.media >= s.prMedia ? '+' : ''}${fmt(s.media - s.prMedia)})` : ''}
             </title>
           </g>
         ))}
@@ -343,7 +343,7 @@ const EnemHistorico: React.FC<EnemHistoricoProps> = ({ data }) => {
                 </button>
                 {escolasFiltradas.length === 0 ? (
                   <p className="px-3 py-4 text-sm text-gray-400 text-center">Nenhuma escola encontrada.</p>
-                ) : escolasFiltradas.map((e) => (
+                ) : escolasFiltradas.slice(0, 80).map((e) => (
                   <button
                     key={e.inep}
                     onClick={() => { setEscolaSel(e.inep); setAberto(false); }}
@@ -358,7 +358,7 @@ const EnemHistorico: React.FC<EnemHistoricoProps> = ({ data }) => {
                 ))}
               </div>
               <p className="px-3 py-1.5 text-[11px] text-gray-400 border-t border-gray-100">
-                {escolasFiltradas.length} de {escolas.length} escolas públicas na base
+                {escolasFiltradas.length > 80 ? `mostrando 80 de ${escolasFiltradas.length} — refine a busca` : `${escolasFiltradas.length} de ${escolas.length} escolas na base`}
               </p>
             </div>
           )}
@@ -378,7 +378,7 @@ const EnemHistorico: React.FC<EnemHistoricoProps> = ({ data }) => {
           {/* 1º Média */}
           <Card title="Evolução das médias" subtitle={`${escolaLabel} · média geral ENEM`} icon={<TrendingUp className="w-5 h-5" />}>
             <LineMedias />
-            <Legend items={[{ color: '#10b981', label: escolaSel ? 'Escola' : 'Grupo Apogeu' }, { color: '#9ca3af', label: 'Média PR (escolas públicas)', dashed: true }]} />
+            <Legend items={[{ color: '#10b981', label: escolaSel ? 'Escola' : 'Grupo Apogeu' }, { color: '#9ca3af', label: 'Média PR (todas as escolas)', dashed: true }]} />
           </Card>
 
           {/* 2º Participantes */}
@@ -407,7 +407,7 @@ const EnemHistorico: React.FC<EnemHistoricoProps> = ({ data }) => {
                   <tr className="bg-gray-50 border-b border-gray-200 text-gray-700">
                     <th className="px-4 py-2.5 text-left font-semibold">Ano</th>
                     <th className="px-4 py-2.5 text-center font-semibold">Média geral</th>
-                    <th className="px-4 py-2.5 text-center font-semibold">Média PR (públicas)</th>
+                    <th className="px-4 py-2.5 text-center font-semibold">Média PR (todas)</th>
                     <th className="px-4 py-2.5 text-center font-semibold">Participantes</th>
                     {DISCIPLINAS.map((d) => <th key={d.key} className="px-4 py-2.5 text-center font-semibold">{d.label}</th>)}
                     <th className="px-4 py-2.5 text-center font-semibold">Redação</th>

@@ -181,16 +181,21 @@ export interface EnemResultado {
   regional: string | null;
   dependencia: string | null;     // 'Estadual' | 'Federal' | 'Privada'
   localizacao: string | null;     // 'Urbana' | 'Rural'
-  alunos: number;
+  participantes: number | null;   // 'Participantes ENEM' (inscritos presentes)
+  alunos: number;                 // 'Alunos (válidos p/ média)'
   lc: number | null;  // Linguagens
   ch: number | null;  // Ciências Humanas
   cn: number | null;  // Ciências da Natureza
   mt: number | null;  // Matemática
   rd: number | null;  // Redação
   media: number | null;
-  is_apogeu: boolean;
+  parceiro: EnemParceiro | null;  // grupo mantenedor (apg = nós); null = escola pública/privada avulsa
+  is_apogeu: boolean;             // = (parceiro === 'apg')
   created_at?: string;
 }
+
+// Grupos parceiros (empresas). 'apg' é o nosso grupo.
+export type EnemParceiro = 'apg' | 'salta' | 'tom';
 
 // Área de conhecimento selecionável no dashboard ENEM.
 export type EnemArea = 'media' | 'mt' | 'lc' | 'cn' | 'ch' | 'rd';
