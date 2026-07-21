@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   GraduationCap, Search, Building2, MapPin, TrendingUp, Trophy, Users, Award,
-  RefreshCw, LogOut, Eraser, Medal, ChevronRight, LayoutGrid, LineChart,
+  RefreshCw, LogOut, Eraser, Medal, ChevronRight, LayoutGrid, LineChart, Handshake,
 } from 'lucide-react';
 import EnemHistorico from './EnemHistorico';
+import EnemConsolidado from './EnemConsolidado';
 import { EnemResultado, EnemArea } from '../../types';
 import {
   getEnemResultados, getEnemAnos, ENEM_AREAS, ENEM_RADAR_AREAS, areaValue, mediaPonderada,
@@ -122,7 +123,7 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
 
-  const [view, setView] = useState<'dashboard' | 'historico'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'consolidado' | 'historico'>('dashboard');
   const [area, setArea] = useState<EnemArea>('media');
   const [busca, setBusca] = useState('');
   // Escopo do ranking: só o grupo Apogeu ou todas as públicas do PR na base.
@@ -154,8 +155,10 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
     () => Array.from(new Set(dataAno.map((r) => r.regional).filter(Boolean) as string[])).sort(),
     [dataAno]
   );
+  // Só cidades com escola do grupo: a base agora tem ~380 municípios do PR, mas
+  // este dashboard é focado no Apogeu (ranking/mapa por escola do grupo).
   const cidades = useMemo(
-    () => Array.from(new Set(dataAno.map((r) => r.cidade))).sort(),
+    () => Array.from(new Set(dataAno.filter((r) => r.is_apogeu).map((r) => r.cidade))).sort(),
     [dataAno]
   );
 
@@ -277,10 +280,11 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
           </div>
         </div>
 
-        {/* Alternância Dashboard | Histórico */}
+        {/* Alternância Dashboard | Consolidado APG-Salta-Tom | Histórico */}
         <div className="inline-flex items-center gap-1 bg-white border border-gray-200 rounded-full p-1">
           {([
             { k: 'dashboard', label: 'Dashboard', icon: <LayoutGrid className="w-4 h-4" /> },
+            { k: 'consolidado', label: 'Consolidado APG-Salta-Tom', icon: <Handshake className="w-4 h-4" /> },
             { k: 'historico', label: 'Histórico', icon: <LineChart className="w-4 h-4" /> },
           ] as const).map((t) => (
             <button
@@ -300,6 +304,8 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{erro}</div>
         ) : view === 'historico' ? (
           <EnemHistorico data={data} />
+        ) : view === 'consolidado' ? (
+          <EnemConsolidado data={data} />
         ) : (
           <>
             {/* Filtros */}
@@ -411,7 +417,7 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3 className="text-base font-semibold text-gray-900">
-                      Ranking · {escopo === 'apg' ? 'Grupo Apogeu' : 'Públicas do PR'}
+                      Ranking · {escopo === 'apg' ? 'Grupo Apogeu' : 'Escolas do PR'}
                     </h3>
                     <p className="text-xs text-gray-500">Ordenado por {areaLabel} · {ranking.length} escolas</p>
                   </div>
@@ -422,7 +428,7 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
                 <div className="inline-flex items-center gap-1 bg-gray-100 rounded-full p-0.5 mb-3">
                   {([
                     { k: 'apg', label: 'Grupo Apogeu' },
-                    { k: 'todas', label: 'Todas as públicas' },
+                    { k: 'todas', label: 'Todas do PR' },
                   ] as const).map((o) => (
                     <button
                       key={o.k}
@@ -582,8 +588,8 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
             <div className="flex items-center gap-2 text-xs text-gray-400 pt-1">
               <Award className="w-3.5 h-3.5" />
               <span>
-                Base: ENEM {ano || '2025'} · {fmtInt(dataAno.length)} escolas públicas do PR nas cidades do grupo.
-                "Média nacional" é uma referência fixa do INEP; "Média Paraná" é calculada sobre as públicas da base no recorte atual.
+                Base: ENEM {ano || '2025'} · {fmtInt(dataAno.length)} escolas do PR (todas as dependências).
+                "Média nacional" é uma referência fixa do INEP; "Média Paraná" é calculada sobre a base no recorte atual.
               </span>
             </div>
           </>
