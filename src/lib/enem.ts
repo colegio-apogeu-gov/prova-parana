@@ -28,14 +28,6 @@ export const getEnemResultados = async (ano?: string): Promise<EnemResultado[]> 
   return all;
 };
 
-export const getEnemAnos = async (): Promise<string[]> => {
-  const { data, error } = await supabase.from('enem_resultados').select('ano').not('ano', 'is', null);
-  if (error) throw error;
-  return [...new Set((data || []).map((r: any) => r.ano).filter(Boolean) as string[])].sort((a, b) =>
-    b.localeCompare(a)
-  );
-};
-
 // ---- Metadados das áreas ENEM (rótulo, campo e cor do radar) ----
 export const ENEM_AREAS: { key: EnemArea; label: string; short: string; field: keyof EnemResultado }[] = [
   { key: 'media', label: 'Média Geral', short: 'Média', field: 'media' },

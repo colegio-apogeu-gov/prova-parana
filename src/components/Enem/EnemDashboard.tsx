@@ -7,7 +7,7 @@ import EnemHistorico from './EnemHistorico';
 import EnemConsolidado from './EnemConsolidado';
 import { EnemResultado, EnemArea } from '../../types';
 import {
-  getEnemResultados, getEnemAnos, ENEM_AREAS, ENEM_RADAR_AREAS, areaValue, mediaPonderada,
+  getEnemResultados, ENEM_AREAS, ENEM_RADAR_AREAS, areaValue, mediaPonderada,
 } from '../../lib/enem';
 
 interface EnemDashboardProps {
@@ -136,8 +136,15 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
   useEffect(() => {
     (async () => {
       try {
-        const [rows, listaAnos] = await Promise.all([getEnemResultados(), getEnemAnos()]);
+        const rows = await getEnemResultados();
         setData(rows);
+        // Deriva os anos disponíveis do próprio conjunto de dados (já paginado
+        // por completo). Buscar os anos numa query separada sem paginação só
+        // enxergava as primeiras 1000 linhas do PostgREST — como há ~4 mil
+        // escolas por ano, os anos mais recentes (ex.: 2025) sumiam da lista.
+        const listaAnos = [...new Set(rows.map((r) => r.ano).filter(Boolean) as string[])].sort(
+          (a, b) => b.localeCompare(a)
+        );
         setAnos(listaAnos.length ? listaAnos : ['2025']);
         setAno(listaAnos[0] || '2025');
       } catch (e: any) {
