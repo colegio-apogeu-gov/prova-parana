@@ -13,7 +13,7 @@ const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => 
           <div className="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
             <School className="w-10 h-10 text-blue-600" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Sistema de Avaliação Educacional</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Radar APG - Sistema de Avaliação Educacional</h1>
           <p className="text-xl text-gray-600">Escolha o sistema que deseja acessar</p>
         </div>
 
