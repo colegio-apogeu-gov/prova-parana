@@ -272,7 +272,7 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
               <GraduationCap className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Apogeu · Dashboard ENEM</h1>
+              <h1 className="text-xl font-bold text-gray-900">APG Gov · Dashboard ENEM</h1>
               <p className="text-sm text-gray-500">Ranking e desempenho das escolas do grupo</p>
             </div>
           </div>
