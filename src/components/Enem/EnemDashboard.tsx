@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   GraduationCap, Search, Building2, MapPin, TrendingUp, Trophy, Users, Award,
-  RefreshCw, LogOut, Eraser, Medal, ChevronRight, LayoutGrid, LineChart, Handshake,
+  RefreshCw, LogOut, Eraser, Medal, ChevronRight, LayoutGrid, LineChart, Handshake, BookOpen,
 } from 'lucide-react';
 import EnemHistorico from './EnemHistorico';
 import EnemConsolidado from './EnemConsolidado';
+import EntendaSistema from '../EntendaSistema/EntendaSistema';
 import { EnemResultado, EnemArea } from '../../types';
 import {
   getEnemResultados, ENEM_AREAS, ENEM_RADAR_AREAS, areaValue, mediaPonderada,
@@ -132,6 +133,7 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
   const [cidadeSel, setCidadeSel] = useState('');
   const [selectedId, setSelectedId] = useState('');
   const [mapCidade, setMapCidade] = useState('');
+  const [showEntenda, setShowEntenda] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -278,6 +280,10 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:block text-sm text-gray-400">Atualizado com resultados de {ano || '2025'}</span>
+            <button onClick={() => setShowEntenda(true)} title="Entenda o Sistema" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg">
+              <BookOpen className="w-5 h-5" />
+              <span className="hidden lg:inline">Entenda o Sistema</span>
+            </button>
             <button onClick={onSystemSwitch} title="Trocar sistema" className="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg">
               <RefreshCw className="w-5 h-5" />
             </button>
@@ -605,6 +611,8 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
           </>
         )}
       </div>
+
+      <EntendaSistema system="enem" open={showEntenda} onClose={() => setShowEntenda(false)} />
     </div>
   );
 };

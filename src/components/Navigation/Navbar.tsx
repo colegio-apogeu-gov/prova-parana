@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { School, BarChart3, Upload, LogOut, BookOpen, PieChart, RefreshCw, GitCompare, Calendar, ListChecks } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { signOut } from 'firebase/auth';
 import { User } from 'firebase/auth';
 import { UserProfile, isGestao } from '../../types';
+import EntendaSistema from '../EntendaSistema/EntendaSistema';
 
 interface NavbarProps {
   user: User;
@@ -24,6 +25,7 @@ const Navbar: React.FC<NavbarProps> = ({
   selectedSystem,
   onSystemSwitch
 }) => {
+  const [showEntenda, setShowEntenda] = useState(false);
   const systemTitle = selectedSystem === 'prova-parana'
     ? 'Prova Paraná Recomposição'
     : selectedSystem === 'parceiro'
@@ -150,6 +152,14 @@ const Navbar: React.FC<NavbarProps> = ({
           
           <div className="flex items-center gap-4">
             <button
+              onClick={() => setShowEntenda(true)}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Entenda o Sistema"
+            >
+              <BookOpen className="w-5 h-5" />
+              <span className="hidden lg:inline">Entenda o Sistema</span>
+            </button>
+            <button
               onClick={onSystemSwitch}
               className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               title="Trocar Sistema"
@@ -170,6 +180,12 @@ const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       </div>
+
+      <EntendaSistema
+        system={selectedSystem}
+        open={showEntenda}
+        onClose={() => setShowEntenda(false)}
+      />
     </nav>
   );
 };
