@@ -29,6 +29,20 @@ export interface EntendaConteudo {
   materiais: MaterialLink[];
 }
 
+// Materiais comuns a todos os sistemas (vídeo e material de explicação geral).
+const MATERIAIS_GERAIS: MaterialLink[] = [
+  {
+    label: 'Vídeo explicativo do sistema',
+    descricao: 'Apresentação do Radar APG como um todo',
+    url: 'https://drive.google.com/file/d/14FvdOE4fft4XVk3SqQBVPmFNh9Theonq/view?usp=sharing',
+  },
+  {
+    label: 'Material de explicação do sistema',
+    descricao: 'Guia do Radar APG como um todo',
+    url: 'https://drive.google.com/file/d/1zjFGDhlBcA6p6E_aGGaB6l0OVZCOyv3W/view?usp=sharing',
+  },
+];
+
 export const ENTENDA: Record<EntendaSystemKey, EntendaConteudo> = {
   'prova-parana': {
     titulo: 'Prova Paraná Recomposição',
@@ -56,7 +70,7 @@ export const ENTENDA: Record<EntendaSystemKey, EntendaConteudo> = {
       'É o único sistema com a aba "Comparação Semestres" (1º vs 2º semestre).',
       'O desempenho é classificado por "Nível de Aprendizagem".',
     ],
-    materiais: [],
+    materiais: MATERIAIS_GERAIS,
   },
 
   'parana-mais': {
@@ -85,7 +99,7 @@ export const ENTENDA: Record<EntendaSystemKey, EntendaConteudo> = {
       'O desempenho é classificado por "Nível de Aprendizagem".',
       'Não possui a aba "Comparação Semestres".',
     ],
-    materiais: [],
+    materiais: MATERIAIS_GERAIS,
   },
 
   parceiro: {
@@ -113,7 +127,7 @@ export const ENTENDA: Record<EntendaSystemKey, EntendaConteudo> = {
       'O desempenho é classificado por "Padrão de Desempenho" (em vez de "Nível de Aprendizagem").',
       'Não possui a aba "Comparação Semestres".',
     ],
-    materiais: [],
+    materiais: MATERIAIS_GERAIS,
   },
 
   enem: {
@@ -140,6 +154,6 @@ export const ENTENDA: Record<EntendaSystemKey, EntendaConteudo> = {
       'Compara os grupos parceiros Apogeu, Salta e Tom, sempre destacando as escolas do grupo Apogeu.',
       'Trabalha com dados públicos de toda a rede estadual do Paraná como referência.',
     ],
-    materiais: [],
+    materiais: MATERIAIS_GERAIS,
   },
 };
