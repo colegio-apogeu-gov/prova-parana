@@ -200,6 +200,55 @@ export type EnemParceiro = 'apg' | 'salta' | 'tom';
 // Área de conhecimento selecionável no dashboard ENEM.
 export type EnemArea = 'media' | 'mt' | 'lc' | 'cn' | 'ch' | 'rd';
 
+// ---------- IDEB / SAEB (INEP) — mesma estrutura de análise do ENEM
+export interface IdebResultado {
+  id: string;
+  ano: string;                     // edição do IDEB (2005, 2007, ..., 2025)
+  etapa: IdebEtapa;
+  inep_codigo: string;
+  escola: string;
+  cidade: string;
+  uf: string;
+  regional: string | null;
+  rede: string | null;             // 'Estadual' | 'Municipal' | 'Federal' | 'Privada'
+  ideb: number | null;             // IDEB observado (N x P)
+  meta: number | null;             // projeção do 1º ciclo (o INEP só publica até 2021)
+  saeb_mt: number | null;          // nota SAEB de Matemática
+  saeb_lp: number | null;          // nota SAEB de Língua Portuguesa
+  aprendizado: number | null;      // N — nota média padronizada (0 a 10)
+  fluxo: number | null;            // P — indicador de rendimento (0 a 1)
+  aprovacao: number | null;        // taxa de aprovação total da etapa (%)
+  parceiro: EnemParceiro | null;   // mesmos grupos do ENEM; null = escola avulsa
+  is_apogeu: boolean;              // = (parceiro === 'apg')
+  posicao_geral: number | null;    // rank no PR por IDEB (dentro de etapa + ano)
+  posicao: number | null;          // rank na cidade por IDEB (dentro de etapa + ano)
+  created_at?: string;
+}
+
+// Etapa avaliada pelo IDEB (cada uma tem sua própria série histórica).
+export type IdebEtapa = 'anos_finais' | 'ensino_medio';
+
+// Indicador selecionável nas telas do IDEB.
+export type IdebIndicador = 'ideb' | 'saeb_mt' | 'saeb_lp' | 'aprendizado' | 'fluxo' | 'aprovacao';
+
+// Médias do Paraná por etapa/edição (tabela ideb_pr_agregado), usadas como
+// referência no Histórico sem baixar a base inteira.
+export interface IdebAgregadoPR {
+  etapa: IdebEtapa;
+  ano: string;
+  escolas: number;
+  ideb: number | null;
+  saeb_mt: number | null;
+  saeb_lp: number | null;
+  aprendizado: number | null;
+  fluxo: number | null;
+  aprovacao: number | null;
+  escolas_estadual: number;
+  ideb_estadual: number | null;
+  saeb_mt_estadual: number | null;
+  saeb_lp_estadual: number | null;
+}
+
 export interface PerformanceInsight {
   total_alunos: number;
   alunos_avaliados: number;

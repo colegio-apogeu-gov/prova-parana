@@ -5,7 +5,7 @@
 // ENTENDA. Para publicar os materiais informativos, basta preencher o array
 // `materiais` de cada sistema com { label, descricao?, url }.
 
-export type EntendaSystemKey = 'prova-parana' | 'parceiro' | 'parana-mais' | 'enem';
+export type EntendaSystemKey = 'prova-parana' | 'parceiro' | 'parana-mais' | 'enem' | 'ideb';
 
 export interface MaterialLink {
   label: string;
@@ -153,6 +153,35 @@ export const ENTENDA: Record<EntendaSystemKey, EntendaConteudo> = {
       'É um painel próprio, em tela cheia, separado das abas dos demais sistemas.',
       'Compara os grupos parceiros Apogeu, Salta e Tom, sempre destacando as escolas do grupo Apogeu.',
       'Trabalha com dados públicos de toda a rede estadual do Paraná como referência.',
+    ],
+    materiais: MATERIAIS_GERAIS,
+  },
+
+  ideb: {
+    titulo: 'IDEB APG',
+    publico: 'Anos finais (6º ao 9º) e Ensino Médio · escolas do PR',
+    resumo:
+      'Painel do IDEB e do SAEB com os dados oficiais do INEP. Mostra o desempenho das escolas ' +
+      'do grupo Apogeu frente à rede do Paraná e à média do Brasil, e acompanha a evolução de ' +
+      'cada edição — inclusive as notas do SAEB em Matemática e Língua Portuguesa.',
+    abas: [
+      { nome: 'Dashboard', desc: 'ranking das escolas, médias por indicador, radar do perfil da escola e mapa do Paraná.' },
+      { nome: 'Consolidado APG-Salta-Tom', desc: 'comparação entre os grupos parceiros (Apogeu, Salta e Tom).' },
+      { nome: 'Histórico', desc: 'evolução do IDEB e das notas do SAEB por edição, com metas do INEP e tabela de notas.' },
+    ],
+    indicadores: [
+      { nome: 'IDEB', desc: 'nota final de 0 a 10, resultado do Aprendizado (N) multiplicado pelo Fluxo (P).' },
+      { nome: 'Notas do SAEB', desc: 'proficiência média em Matemática e em Língua Portuguesa, na escala SAEB.' },
+      { nome: 'Aprendizado (N)', desc: 'nota média padronizada do SAEB, de 0 a 10.' },
+      { nome: 'Fluxo (P)', desc: 'indicador de rendimento — a parcela do fluxo escolar que é aprovada.' },
+      { nome: 'Meta do INEP', desc: 'projeção do 1º ciclo do IDEB, publicada pelo INEP até a edição de 2021.' },
+    ],
+    filtros: ['Etapa (anos finais ou ensino médio)', 'Edição do IDEB', 'Busca por escola', 'Rede', 'Cidade', 'Indicador', 'Escopo (grupo Apogeu ou toda a rede do PR)'],
+    particularidades: [
+      'É um painel próprio, em tela cheia, separado das abas dos demais sistemas.',
+      'Cada etapa tem sua própria série histórica: os anos finais vão de 2005 a 2025 e o ensino médio, de 2017 a 2025.',
+      'O IDEB não publica o nº de participantes por escola, então as médias de grupo são aritméticas (no ENEM elas são ponderadas pelos alunos).',
+      'As escolas são identificadas pelo mesmo código INEP usado no painel do ENEM.',
     ],
     materiais: MATERIAIS_GERAIS,
   },

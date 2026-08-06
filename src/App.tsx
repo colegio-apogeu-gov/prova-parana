@@ -12,18 +12,22 @@ import UploadFormParceiro from './components/Upload/UploadFormParceiro';
 import CadastrarAtividades from './components/CadastrarAtividades/CadastrarAtividades';
 import Descritores from './components/Descritores/Descritores';
 import EnemDashboard from './components/Enem/EnemDashboard';
+import IdebDashboard from './components/Ideb/IdebDashboard';
 import Graficos from './components/Graficos/Graficos';
 import ComparacaoProvas from './components/ComparacaoProvas/ComparacaoProvas';
 import ComparativoSemestres from './components/ComparativoSemestres/ComparativoSemestres';
 import ComparacaoAnual from './components/ComparacaoAnual/ComparacaoAnual';
 import { UserProfile } from './types';
 
+// Sistemas do Radar APG. 'enem' e 'ideb' são dashboards próprios (tela cheia).
+type SelectedSystem = 'prova-parana' | 'parceiro' | 'parana-mais' | 'enem' | 'ideb';
+
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedSystem, setSelectedSystem] = useState<'prova-parana' | 'parceiro' | 'parana-mais' | 'enem' | null>(() => {
-    return (localStorage.getItem('selectedSystem') as 'prova-parana' | 'parceiro' | 'parana-mais' | 'enem') || null;
+  const [selectedSystem, setSelectedSystem] = useState<SelectedSystem | null>(() => {
+    return (localStorage.getItem('selectedSystem') as SelectedSystem) || null;
   });
   const [activeTab, setActiveTab] = useState<'dashboard' | 'upload' | 'atividades' | 'descritores' | 'graficos' | 'comparacao' | 'semestres' | 'comparacao-anual'>(() => {
     const stored = localStorage.getItem('activeTab');
@@ -92,7 +96,7 @@ function App() {
     }
   };
 
-  const handleSystemSelect = (system: 'prova-parana' | 'parceiro' | 'parana-mais' | 'enem') => {
+  const handleSystemSelect = (system: SelectedSystem) => {
     setSelectedSystem(system);
     setActiveTab('dashboard'); // Reset to dashboard when switching systems
   };
@@ -121,9 +125,13 @@ function App() {
     return <SystemSelection onSystemSelect={handleSystemSelect} />;
   }
 
-  // ENEM é um dashboard próprio (tela cheia), independente das abas dos demais sistemas.
+  // ENEM e IDEB são dashboards próprios (tela cheia), independentes das abas dos demais sistemas.
   if (selectedSystem === 'enem') {
     return <EnemDashboard onSystemSwitch={handleSystemSwitch} onLogout={handleLogout} />;
+  }
+
+  if (selectedSystem === 'ideb') {
+    return <IdebDashboard onSystemSwitch={handleSystemSwitch} onLogout={handleLogout} />;
   }
 
   return (

@@ -41,6 +41,13 @@ const ACCENT: Record<EntendaSystemKey, {
     chip: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     ring: 'focus:ring-emerald-500',
   },
+  ideb: {
+    headerBg: 'from-violet-600 to-violet-500',
+    iconWrap: 'bg-violet-100 text-violet-700',
+    dot: 'bg-violet-500',
+    chip: 'bg-violet-50 text-violet-700 border-violet-100',
+    ring: 'focus:ring-violet-500',
+  },
 };
 
 // Bloco de seção com título e lista de itens (nome — descrição).

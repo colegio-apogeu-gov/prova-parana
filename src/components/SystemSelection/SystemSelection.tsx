@@ -1,14 +1,14 @@
 import React from 'react';
-import { School, Users, BookOpen, BarChart3, GraduationCap, Trophy } from 'lucide-react';
+import { School, Users, BookOpen, BarChart3, GraduationCap, Trophy, Target, LineChart } from 'lucide-react';
 
 interface SystemSelectionProps {
-  onSystemSelect: (system: 'prova-parana' | 'parceiro' | 'parana-mais' | 'enem') => void;
+  onSystemSelect: (system: 'prova-parana' | 'parceiro' | 'parana-mais' | 'enem' | 'ideb') => void;
 }
 
 const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="max-w-6xl w-full">
+      <div className="max-w-7xl w-full">
         <div className="text-center mb-12">
           <div className="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
             <School className="w-10 h-10 text-blue-600" />
@@ -17,7 +17,7 @@ const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => 
           <p className="text-xl text-gray-600">Escolha o sistema que deseja acessar</p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
           {/* Prova Paraná */}
           <div
             onClick={() => onSystemSelect('prova-parana')}
@@ -117,6 +117,32 @@ const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => 
                 <div className="flex items-center justify-center gap-2">
                   <BookOpen className="w-4 h-4" />
                   <span>MT, LC, CN, CH e Redação</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* IDEB */}
+          <div
+            onClick={() => onSystemSelect('ideb')}
+            className="bg-white rounded-2xl shadow-xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl border-2 border-transparent hover:border-violet-200"
+          >
+            <div className="text-center">
+              <div className="bg-violet-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Target className="w-8 h-8 text-violet-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">IDEB APG</h2>
+              <p className="text-gray-600 mb-6">
+                IDEB e notas do SAEB das escolas do grupo Apogeu, com a evolução histórica de cada edição.
+              </p>
+              <div className="space-y-2 text-sm text-gray-500">
+                <div className="flex items-center justify-center gap-2">
+                  <Users className="w-4 h-4" />
+                  <span>Anos finais e Ensino Médio</span>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <LineChart className="w-4 h-4" />
+                  <span>IDEB, SAEB, Aprendizado e Fluxo</span>
                 </div>
               </div>
             </div>
