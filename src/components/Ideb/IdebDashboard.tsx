@@ -11,7 +11,7 @@ import EntendaSistema from '../EntendaSistema/EntendaSistema';
 import { IdebResultado, IdebEtapa, IdebIndicador } from '../../types';
 import {
   getIdebResultados, getIdebAgregadoPR, ETAPAS, IDEB_INDICADORES,
-  indicadorValue, indicadorLabel, fmtIndicador, mediaSimples, metasAtingidas, brasilValor,
+  indicadorValue, indicadorLabel, fmtIndicador, fmtIndicadorCeil, mediaSimples, metasAtingidas, brasilValor,
 } from '../../lib/ideb';
 
 interface IdebDashboardProps {
@@ -321,7 +321,7 @@ const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout 
                   <div className="bg-teal-100 p-1.5 rounded-lg"><MapPin className="w-4 h-4 text-teal-600" /></div>
                   <span className="text-xs font-medium">Média Paraná</span>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">{fmtIndicador(mediaParana, indicador)}</p>
+                <p className="text-2xl font-bold text-gray-900">{fmtIndicadorCeil(mediaParana, indicador)}</p>
                 <p className="text-xs text-gray-400 mt-1">{fmtInt(scopeAll.length)} escolas no recorte</p>
               </div>
               <div className={`${cardBase} ring-1 ring-violet-200 bg-violet-50/40`}>
