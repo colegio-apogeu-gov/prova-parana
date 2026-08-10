@@ -43,14 +43,18 @@ export const getIdebResultados = async (etapa: IdebEtapa, ano?: string): Promise
     return q;
   });
 
-// Série histórica completa das escolas dos grupos parceiros (~1,7 mil linhas):
-// cobre o agregado "Grupo Apogeu" e a escolha de qualquer escola parceira no Histórico.
+// Série histórica das escolas dos grupos parceiros + das que têm regional
+// preenchida (~1,7 mil linhas): cobre o agregado "Grupo Apogeu", o filtro por
+// regional e a escolha de qualquer escola parceira no Histórico.
+// Inclui `regional` porque nem toda escola do grupo APG está marcada com
+// parceiro='apg' na base do IDEB (algumas só têm a regional) — sem isso, elas
+// sumiriam do recorte por regional.
 export const getIdebParceiros = async (): Promise<IdebResultado[]> =>
   paginar(() =>
     supabase
       .from('ideb_resultados')
       .select(COLS)
-      .not('parceiro', 'is', null)
+      .or('parceiro.not.is.null,regional.not.is.null')
       .order('ano', { ascending: true })
       .order('id', { ascending: true })
   );

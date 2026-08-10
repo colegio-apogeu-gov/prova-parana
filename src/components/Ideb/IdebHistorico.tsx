@@ -129,6 +129,8 @@ const IdebHistorico: React.FC<IdebHistoricoProps> = ({ etapa }) => {
   // "" = grupo Apogeu (agregado); senão o INEP da escola (do grupo ou não).
   const [escolaSel, setEscolaSel] = useState('');
   const [escolaInfo, setEscolaInfo] = useState<EscolaOpcao | null>(null);
+  // "" = todas as regionais. Filtra o recorte do grupo por regional (SJP/GUA/CWT).
+  const [regionalSel, setRegionalSel] = useState('');
   const [busca, setBusca] = useState('');
   const [aberto, setAberto] = useState(false);
   const [resultadosBusca, setResultadosBusca] = useState<EscolaOpcao[]>([]);
@@ -208,6 +210,17 @@ const IdebHistorico: React.FC<IdebHistoricoProps> = ({ etapa }) => {
   const parceirosEtapa = useMemo(() => parceiros.filter((r) => r.etapa === etapa), [parceiros, etapa]);
   const agregadoEtapa = useMemo(() => agregado.filter((a) => a.etapa === etapa), [agregado, etapa]);
 
+  // Regionais disponíveis nesta etapa (só aparecem quando há dado de regional).
+  const regionais = useMemo(
+    () => Array.from(new Set(parceirosEtapa.map((r) => r.regional).filter(Boolean) as string[])).sort(),
+    [parceirosEtapa]
+  );
+
+  // Se a regional escolhida deixar de existir (ex.: troca de etapa), volta p/ todas.
+  useEffect(() => {
+    if (regionalSel && !regionais.includes(regionalSel)) setRegionalSel('');
+  }, [regionais, regionalSel]);
+
   // Escolas parceiras disponíveis no seletor (APG primeiro, depois alfabética).
   const escolasParceiras = useMemo(() => {
     const m = new Map<string, EscolaOpcao>();
@@ -238,7 +251,12 @@ const IdebHistorico: React.FC<IdebHistoricoProps> = ({ etapa }) => {
   const escolaAtual = escolaSel
     ? escolasParceiras.find((e) => e.inep === escolaSel) ?? escolaInfo
     : null;
-  const escolaLabel = escolaSel ? (escolaAtual?.escola ?? '--') : 'Grupo Apogeu';
+  // Rótulo do recorte: uma escola específica, o grupo por regional, ou o grupo todo.
+  const escolaLabel = escolaSel
+    ? (escolaAtual?.escola ?? '--')
+    : regionalSel
+    ? `Grupo Apogeu · ${regionalSel}`
+    : 'Grupo Apogeu';
 
   // Edições disponíveis nesta etapa (vêm do agregado do PR, que cobre todas).
   const anos = useMemo(
@@ -246,12 +264,17 @@ const IdebHistorico: React.FC<IdebHistoricoProps> = ({ etapa }) => {
     [agregadoEtapa]
   );
 
-  // Linhas do recorte selecionado (uma escola específica ou o agregado do grupo Apogeu).
+  // Linhas do recorte selecionado:
+  // - escola específica → só ela;
+  // - regional escolhida → escolas do grupo daquela regional;
+  // - senão → agregado do grupo Apogeu (is_apogeu), como antes.
   const linhasRecorte = useMemo(
     () => (escolaSel
       ? linhasEscola.filter((r) => r.etapa === etapa)
+      : regionalSel
+      ? parceirosEtapa.filter((r) => r.regional === regionalSel)
       : parceirosEtapa.filter((r) => r.is_apogeu)),
-    [escolaSel, linhasEscola, etapa, parceirosEtapa]
+    [escolaSel, linhasEscola, etapa, parceirosEtapa, regionalSel]
   );
 
   const serie: Ponto[] = useMemo(() => anos.map((ano) => {
@@ -448,6 +471,7 @@ const IdebHistorico: React.FC<IdebHistoricoProps> = ({ etapa }) => {
   const escolherEscola = (e: EscolaOpcao | null) => {
     setEscolaSel(e?.inep ?? '');
     setEscolaInfo(e);
+    setRegionalSel(''); // recorte por escola/grupo limpa o filtro de regional
     setAberto(false);
     setBusca('');
   };
@@ -557,6 +581,27 @@ const IdebHistorico: React.FC<IdebHistoricoProps> = ({ etapa }) => {
             </div>
           )}
         </div>
+
+        {regionais.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">Regional:</span>
+            <select
+              value={regionalSel}
+              onChange={(e) => {
+                const v = e.target.value;
+                setRegionalSel(v);
+                // A regional define o recorte do grupo — limpa a escola específica.
+                if (v) { setEscolaSel(''); setEscolaInfo(null); }
+              }}
+              className="px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500"
+            >
+              <option value="">Todas</option>
+              {regionais.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <span className="text-xs text-violet-700">
           {anos.length ? `${etapaLabel(etapa)} · edições de ${anos[0]} a ${anos[anos.length - 1]}` : 'Sem edições na base'}
