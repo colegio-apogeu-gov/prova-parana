@@ -6,7 +6,7 @@ import IdebRadar from './IdebRadar';
 import IdebMapa from './IdebMapa';
 import { IdebResultado, IdebEtapa, IdebIndicador, EnemParceiro } from '../../types';
 import {
-  IDEB_INDICADORES, indicadorValue, indicadorLabel, fmtIndicador, mediaSimples, metasAtingidas,
+  IDEB_INDICADORES, indicadorValue, indicadorLabel, fmtIndicador, fmtIndicadorCeil, mediaSimples, metasAtingidas,
   brasilValor, PARCEIROS, parceiroLabel, parceiroColor, APG_BLUE, ETAPAS,
 } from '../../lib/ideb';
 
@@ -249,7 +249,7 @@ const IdebConsolidado: React.FC<IdebConsolidadoProps> = ({ data, etapa, ano, ano
             <div className="bg-teal-100 p-1.5 rounded-lg"><MapPin className="w-4 h-4 text-teal-600" /></div>
             <span className="text-xs font-medium">Média Paraná</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{fmtIndicador(mediaParana, indicador)}</p>
+          <p className="text-2xl font-bold text-gray-900">{fmtIndicadorCeil(mediaParana, indicador)}</p>
           <p className="text-xs text-gray-400 mt-1">{fmtInt(scopeAll.length)} escolas no recorte</p>
         </div>
         {/* APG destacado com contorno azul */}

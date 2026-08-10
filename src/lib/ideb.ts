@@ -173,6 +173,23 @@ export const fmtIndicador = (v: number | null | undefined, ind: IdebIndicador): 
   );
 };
 
+// Igual ao fmtIndicador, mas arredonda PARA CIMA na casa exibida
+// (ex.: IDEB 5,034 → 5,1; 5,779 → 5,8). Usado só no card "Média Paraná",
+// por decisão de produto. O epsilon evita empurrar um valor já exato na casa
+// (ex.: 5,1) para a próxima por erro de ponto flutuante.
+export const fmtIndicadorCeil = (v: number | null | undefined, ind: IdebIndicador): string => {
+  if (v == null || Number.isNaN(v)) return '--';
+  const m = indicadorMeta(ind);
+  const valor = m.pct ? v * 100 : v;
+  const dec = m.pct ? 1 : m.dec;
+  const f = Math.pow(10, dec);
+  const arred = Math.ceil(valor * f - 1e-9) / f;
+  return (
+    arred.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec }) +
+    (m.pct ? '%' : m.sufixo ?? '')
+  );
+};
+
 // O IDEB não publica número de participantes por escola, então a média do recorte
 // é aritmética simples (diferente do ENEM, que pondera pelos alunos).
 export const mediaCampo = (rows: IdebResultado[], field: keyof IdebResultado): number | null => {
