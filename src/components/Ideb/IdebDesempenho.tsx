@@ -8,6 +8,8 @@ import {
   buscarEscolasIdeb, ETAPAS, etapaLabel,
 } from '../../lib/ideb';
 import { gerarInsights, Insight, InsightTipo, DadosComparacaoEtapa } from '../../lib/idebInsights';
+import { montarRelatorio, RelatorioIdeb } from '../../lib/idebRelatorio';
+import IdebRelatorio from './IdebRelatorio';
 
 interface EscolaOpcao {
   inep: string;
@@ -32,20 +34,23 @@ const TIPO_META: Record<InsightTipo, { label: string; wrap: string; icon: React.
 interface EdicaoInfo {
   anoAtual: string | null;
   anoAnterior: string | null;
+  anos: string[];
 }
 
 const IdebDesempenho: React.FC = () => {
   // Dados de referência (independentes da escola), carregados uma vez.
   const [parceiros, setParceiros] = useState<IdebResultado[]>([]);
+  const [agregado, setAgregado] = useState<IdebAgregadoPR[]>([]);
   const [baseByEtapa, setBaseByEtapa] = useState<Record<IdebEtapa, IdebResultado[]>>({
     anos_finais: [], ensino_medio: [],
   });
   const [edicoes, setEdicoes] = useState<Record<IdebEtapa, EdicaoInfo>>({
-    anos_finais: { anoAtual: null, anoAnterior: null },
-    ensino_medio: { anoAtual: null, anoAnterior: null },
+    anos_finais: { anoAtual: null, anoAnterior: null, anos: [] },
+    ensino_medio: { anoAtual: null, anoAnterior: null, anos: [] },
   });
   const [loadingBase, setLoadingBase] = useState(true);
   const [erro, setErro] = useState('');
+  const [relatorio, setRelatorio] = useState<RelatorioIdeb | null>(null);
 
   // Escola selecionada + histórico dela.
   const [escolaSel, setEscolaSel] = useState('');
@@ -81,6 +86,7 @@ const IdebDesempenho: React.FC = () => {
         const [ag, pc] = await Promise.all([getIdebAgregadoPR(), getIdebParceiros()]);
         if (cancelado) return;
         setParceiros(pc);
+        setAgregado(ag as IdebAgregadoPR[]);
 
         const info = {} as Record<IdebEtapa, EdicaoInfo>;
         (ETAPAS as { key: IdebEtapa }[]).forEach((e) => {
@@ -91,6 +97,7 @@ const IdebDesempenho: React.FC = () => {
           info[e.key] = {
             anoAtual: anos[anos.length - 1] ?? null,
             anoAnterior: anos[anos.length - 2] ?? null,
+            anos,
           };
         });
         setEdicoes(info);
@@ -188,6 +195,23 @@ const IdebDesempenho: React.FC = () => {
     setRegsAbertos(new Set());
     setAberto(false);
     setBusca('');
+  };
+
+  // Monta o relatório completo (determinístico) e abre o preview/export.
+  const abrirRelatorio = () => {
+    if (!escolaSel) return;
+    setRelatorio(
+      montarRelatorio({
+        inep: escolaSel,
+        hist,
+        parceiros,
+        agregado,
+        baseAtual: baseByEtapa,
+        edicoes,
+        // Data de geração é metadado (não entra em cálculo determinístico).
+        geradoEm: new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+      })
+    );
   };
 
   // Monta a entrada e gera os insights (puro/determinístico).
@@ -327,6 +351,16 @@ const IdebDesempenho: React.FC = () => {
               </div>
             )}
           </div>
+
+          <button
+            onClick={abrirRelatorio}
+            disabled={!escolaSel || loadingHist}
+            className="ml-auto flex items-center gap-2 bg-violet-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={escolaSel ? 'Gerar relatório em PDF' : 'Selecione uma escola'}
+          >
+            <FileText className="w-4 h-4" />
+            Exportar relatório
+          </button>
         </div>
       </div>
 
@@ -408,6 +442,8 @@ const IdebDesempenho: React.FC = () => {
           </p>
         </div>
       )}
+
+      {relatorio && <IdebRelatorio relatorio={relatorio} onClose={() => setRelatorio(null)} />}
     </div>
   );
 };
