@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Target, Search, Building2, MapPin, TrendingUp, Trophy, School, Award,
-  RefreshCw, LogOut, Eraser, Medal, ChevronRight, LayoutGrid, LineChart, Handshake, BookOpen,
+  RefreshCw, LogOut, Eraser, Medal, ChevronRight, LayoutGrid, LineChart, Handshake, BookOpen, Activity,
 } from 'lucide-react';
 import IdebHistorico from './IdebHistorico';
 import IdebConsolidado from './IdebConsolidado';
+import IdebDesempenho from './IdebDesempenho';
 import IdebRadar from './IdebRadar';
 import IdebMapa from './IdebMapa';
 import EntendaSistema from '../EntendaSistema/EntendaSistema';
@@ -35,7 +36,7 @@ const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout 
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
 
-  const [view, setView] = useState<'dashboard' | 'consolidado' | 'historico'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'consolidado' | 'historico' | 'desempenho'>('dashboard');
   const [indicador, setIndicador] = useState<IdebIndicador>('ideb');
   const [busca, setBusca] = useState('');
   // Escopo do ranking: só o grupo Apogeu ou todas as escolas do PR na base.
@@ -207,6 +208,7 @@ const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout 
               { k: 'dashboard', label: 'Dashboard', icon: <LayoutGrid className="w-4 h-4" /> },
               { k: 'consolidado', label: 'Consolidado APG-Salta-Tom', icon: <Handshake className="w-4 h-4" /> },
               { k: 'historico', label: 'Histórico', icon: <LineChart className="w-4 h-4" /> },
+              { k: 'desempenho', label: 'Desempenho', icon: <Activity className="w-4 h-4" /> },
             ] as const).map((t) => (
               <button
                 key={t.k}
@@ -240,6 +242,8 @@ const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout 
 
         {erro ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{erro}</div>
+        ) : view === 'desempenho' ? (
+          <IdebDesempenho />
         ) : view === 'historico' ? (
           <IdebHistorico etapa={etapa} />
         ) : view === 'consolidado' ? (
