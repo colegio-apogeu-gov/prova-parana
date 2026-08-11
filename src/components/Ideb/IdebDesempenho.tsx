@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Building2, Search, X, ChevronDown, Target, GraduationCap, Repeat, CheckCircle, Medal, Info, FileText,
+  Building2, Search, X, ChevronDown, Target, GraduationCap, Repeat, CheckCircle, Medal, Info, FileText, MapPin,
 } from 'lucide-react';
 import { IdebResultado, IdebEtapa, IdebAgregadoPR } from '../../types';
 import {
@@ -8,8 +8,13 @@ import {
   buscarEscolasIdeb, ETAPAS, etapaLabel,
 } from '../../lib/ideb';
 import { gerarInsights, Insight, InsightTipo, DadosComparacaoEtapa } from '../../lib/idebInsights';
+import { gerarInsightsRegional, Insight as InsightReg, DadosRegionalEtapa } from '../../lib/idebRegionalInsights';
 import { montarRelatorio, RelatorioIdeb } from '../../lib/idebRelatorio';
+import {
+  montarRelatorioRegional, RelatorioRegional, rotuloRegional,
+} from '../../lib/idebRegionalRelatorio';
 import IdebRelatorio from './IdebRelatorio';
+import IdebRegionalRelatorio from './IdebRegionalRelatorio';
 
 interface EscolaOpcao {
   inep: string;
@@ -37,6 +42,46 @@ interface EdicaoInfo {
   anos: string[];
 }
 
+// Card de um insight (compartilhado pelos modos escola e regional).
+const InsightCard: React.FC<{
+  tipo: InsightTipo; titulo: string; descricao: string; registros: string[];
+  aberto: boolean; onToggle: () => void;
+}> = ({ tipo, titulo, descricao, registros, aberto, onToggle }) => {
+  const meta = TIPO_META[tipo];
+  return (
+    <div className="border border-gray-200 rounded-lg p-3">
+      <div className="flex items-start gap-3">
+        <div className={`p-1.5 rounded-lg shrink-0 ${meta.wrap}`}>{meta.icon}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-gray-900">{titulo}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${meta.wrap}`}>{meta.label}</span>
+          </div>
+          <p className="text-sm text-gray-700 leading-relaxed mt-1">{descricao}</p>
+          {registros.length > 0 && (
+            <div className="mt-2">
+              <button
+                onClick={onToggle}
+                className="text-[11px] text-gray-400 hover:text-gray-600 flex items-center gap-1"
+              >
+                <ChevronDown className={`w-3 h-3 transition-transform ${aberto ? 'rotate-180' : ''}`} />
+                {registros.length} registro(s) utilizado(s)
+              </button>
+              {aberto && (
+                <ul className="mt-1 space-y-0.5">
+                  {registros.map((r, i) => (
+                    <li key={i} className="text-[11px] text-gray-500 font-mono break-all">• {r}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const IdebDesempenho: React.FC = () => {
   // Dados de referência (independentes da escola), carregados uma vez.
   const [parceiros, setParceiros] = useState<IdebResultado[]>([]);
@@ -51,6 +96,11 @@ const IdebDesempenho: React.FC = () => {
   const [loadingBase, setLoadingBase] = useState(true);
   const [erro, setErro] = useState('');
   const [relatorio, setRelatorio] = useState<RelatorioIdeb | null>(null);
+
+  // Modo de análise: por escola (padrão) ou por regional (SJP/GUA/CWT).
+  const [modo, setModo] = useState<'escola' | 'regional'>('escola');
+  const [regionalSel, setRegionalSel] = useState('');
+  const [relatorioReg, setRelatorioReg] = useState<RelatorioRegional | null>(null);
 
   // Escola selecionada + histórico dela.
   const [escolaSel, setEscolaSel] = useState('');
@@ -235,6 +285,65 @@ const IdebDesempenho: React.FC = () => {
     return grupos;
   }, [insights]);
 
+  // ---- Modo regional ----------------------------------------------------
+  // Regionais disponíveis (código) a partir da base parceira/regional.
+  const regionais = useMemo(
+    () => Array.from(new Set(parceiros.map((r) => r.regional).filter(Boolean) as string[])).sort(),
+    [parceiros]
+  );
+
+  // Nº de escolas distintas por regional (para o rótulo dos chips).
+  const escolasPorRegional = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    parceiros.forEach((r) => {
+      if (r.regional) {
+        if (!m.has(r.regional)) m.set(r.regional, new Set());
+        m.get(r.regional)!.add(r.inep_codigo);
+      }
+    });
+    return m;
+  }, [parceiros]);
+
+  // Se a regional escolhida sumir da base, limpa a seleção.
+  useEffect(() => {
+    if (regionalSel && !regionais.includes(regionalSel)) setRegionalSel('');
+  }, [regionais, regionalSel]);
+
+  // Insights regionais (puros/determinísticos).
+  const insightsReg: InsightReg[] = useMemo(() => {
+    if (!regionalSel || loadingBase) return [];
+    const etapas: DadosRegionalEtapa[] = (ETAPAS as { key: IdebEtapa }[]).map((e) => ({
+      etapa: e.key,
+      anoAtual: edicoes[e.key].anoAtual,
+      anoAnterior: edicoes[e.key].anoAnterior,
+      linhasRegional: parceiros.filter((r) => r.etapa === e.key && r.regional === regionalSel),
+      base: baseByEtapa[e.key],
+    }));
+    return gerarInsightsRegional({ regional: regionalSel, etapas });
+  }, [regionalSel, loadingBase, parceiros, edicoes, baseByEtapa]);
+
+  const insightsRegPorEtapa = useMemo(() => {
+    const grupos: Record<IdebEtapa, InsightReg[]> = { anos_finais: [], ensino_medio: [] };
+    insightsReg.forEach((ins) => {
+      if (ins.etapa === 'anos_finais' || ins.etapa === 'ensino_medio') grupos[ins.etapa].push(ins);
+    });
+    return grupos;
+  }, [insightsReg]);
+
+  const abrirRelatorioRegional = () => {
+    if (!regionalSel) return;
+    setRelatorioReg(
+      montarRelatorioRegional({
+        regional: regionalSel,
+        parceiros,
+        agregado,
+        baseAtual: baseByEtapa,
+        edicoes,
+        geradoEm: new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+      })
+    );
+  };
+
   const toggleRegs = (idx: number) => {
     setRegsAbertos((prev) => {
       const next = new Set(prev);
@@ -262,18 +371,39 @@ const IdebDesempenho: React.FC = () => {
     <div className="space-y-4">
       {/* Cabeçalho + metodologia */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="flex items-start gap-2 mb-3">
-          <div className="bg-violet-100 p-1.5 rounded-lg mt-0.5"><FileText className="w-4 h-4 text-violet-600" /></div>
-          <div>
-            <h3 className="text-base font-semibold text-gray-900">Insights de desempenho</h3>
-            <p className="text-xs text-gray-500">
-              Gerados por regras e cálculos sobre os dados do IDEB/SAEB — sem inteligência artificial. Os mesmos dados
-              produzem sempre os mesmos insights. Dados ausentes aparecem como “sem registro”.
-            </p>
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="flex items-start gap-2">
+            <div className="bg-violet-100 p-1.5 rounded-lg mt-0.5"><FileText className="w-4 h-4 text-violet-600" /></div>
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">Insights de desempenho</h3>
+              <p className="text-xs text-gray-500">
+                Gerados por regras e cálculos sobre os dados do IDEB/SAEB — sem inteligência artificial. Os mesmos dados
+                produzem sempre os mesmos insights. Dados ausentes aparecem como “sem registro”.
+              </p>
+            </div>
+          </div>
+
+          {/* Alternância Escola | Regional */}
+          <div className="inline-flex items-center gap-1 bg-gray-100 rounded-full p-0.5 shrink-0">
+            {([
+              { k: 'escola', label: 'Por escola' },
+              { k: 'regional', label: 'Por regional' },
+            ] as const).map((o) => (
+              <button
+                key={o.k}
+                onClick={() => { setModo(o.k); setRegsAbertos(new Set()); }}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  modo === o.k ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Seletor de escola */}
+        {modo === 'escola' && (
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-gray-400" />
@@ -362,10 +492,53 @@ const IdebDesempenho: React.FC = () => {
             Exportar relatório
           </button>
         </div>
+        )}
+
+        {/* Seletor de regional */}
+        {modo === 'regional' && (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-gray-400" />
+            <span className="text-sm font-medium text-gray-600">Regional:</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {regionais.length === 0 ? (
+              <span className="text-sm text-gray-400">Nenhuma regional na base (verifique a migration de regionais).</span>
+            ) : regionais.map((cod) => (
+              <button
+                key={cod}
+                onClick={() => { setRegionalSel((v) => (v === cod ? '' : cod)); setRegsAbertos(new Set()); }}
+                title={rotuloRegional(cod)}
+                className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  regionalSel === cod
+                    ? 'bg-violet-600 text-white border-violet-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                {cod}
+                <span className={`ml-1.5 text-[11px] ${regionalSel === cod ? 'text-violet-100' : 'text-gray-400'}`}>
+                  {rotuloRegional(cod)} · {escolasPorRegional.get(cod)?.size ?? 0}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={abrirRelatorioRegional}
+            disabled={!regionalSel}
+            className="ml-auto flex items-center gap-2 bg-violet-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={regionalSel ? 'Gerar relatório regional em PDF' : 'Selecione uma regional'}
+          >
+            <FileText className="w-4 h-4" />
+            Exportar relatório
+          </button>
+        </div>
+        )}
       </div>
 
-      {/* Corpo */}
-      {!escolaSel ? (
+      {/* Corpo — modo escola */}
+      {modo === 'escola' && (
+      !escolaSel ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <Info className="w-8 h-8 text-gray-300 mx-auto mb-3" />
           <p className="text-sm text-gray-500">Selecione uma escola para gerar os insights de desempenho.</p>
@@ -441,9 +614,77 @@ const IdebDesempenho: React.FC = () => {
             consideram a rede estadual.
           </p>
         </div>
+      )
+      )}
+
+      {/* Corpo — modo regional */}
+      {modo === 'regional' && (
+      !regionalSel ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <Info className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500">Selecione uma regional para gerar os insights de desempenho.</p>
+        </div>
+      ) : loadingBase ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-violet-600 mx-auto mb-4"></div>
+          <p className="text-gray-500 text-sm">Calculando insights da regional {regionalSel}...</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          <div className="bg-violet-50/60 border border-violet-100 rounded-xl px-4 py-3 flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-violet-600" />
+            <span className="text-sm text-gray-700">
+              Regional <strong>{regionalSel}</strong> · {rotuloRegional(regionalSel)} ·{' '}
+              {escolasPorRegional.get(regionalSel)?.size ?? 0} escola(s) do grupo APG. As notas são médias simples das
+              escolas com resultado (escolas sem dado não entram).
+            </span>
+          </div>
+          {(ETAPAS as { key: IdebEtapa; label: string }[]).map((e) => {
+            const lista = insightsRegPorEtapa[e.key];
+            const ed = edicoes[e.key];
+            return (
+              <div key={e.key} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                  <h3 className="text-base font-semibold text-gray-900">{etapaLabel(e.key)}</h3>
+                  <span className="text-xs text-violet-700">
+                    {ed.anoAtual ? `edição ${ed.anoAtual}${ed.anoAnterior ? ` · anterior ${ed.anoAnterior}` : ''}` : 'sem edições na base'}
+                  </span>
+                </div>
+                <div className="p-4 space-y-3">
+                  {lista.length === 0 ? (
+                    <p className="text-sm text-gray-400">Sem insights para esta etapa.</p>
+                  ) : (
+                    lista.map((ins) => {
+                      const idx = idxGlobal++;
+                      return (
+                        <InsightCard
+                          key={idx}
+                          tipo={ins.tipo}
+                          titulo={ins.titulo}
+                          descricao={ins.descricao}
+                          registros={ins.registrosUtilizados}
+                          aberto={regsAbertos.has(idx)}
+                          onToggle={() => toggleRegs(idx)}
+                        />
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          <p className="text-[11px] text-gray-400 px-1">
+            Fonte: IDEB/SAEB — Inep. A nota da regional em cada indicador é a média simples das escolas do grupo APG na
+            regional com resultado naquela edição (escolas sem dado não entram). Rankings entre regionais por IDEB médio
+            decrescente; empates recebem a mesma posição.
+          </p>
+        </div>
+      )
       )}
 
       {relatorio && <IdebRelatorio relatorio={relatorio} onClose={() => setRelatorio(null)} />}
+      {relatorioReg && <IdebRegionalRelatorio relatorio={relatorioReg} onClose={() => setRelatorioReg(null)} />}
     </div>
   );
 };
