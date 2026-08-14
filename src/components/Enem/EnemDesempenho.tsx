@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Building2, Search, X, ChevronDown, TrendingUp, Layers, PenLine, Users, Medal, Info, FileText,
+  Building2, Search, X, ChevronDown, TrendingUp, Layers, PenLine, Users, Medal, Info, FileText, MapPin,
 } from 'lucide-react';
 import { EnemResultado } from '../../types';
 import { gerarInsightsEnem, Insight, InsightTipo } from '../../lib/enemInsights';
+import { gerarInsightsEnemRegional, Insight as InsightReg } from '../../lib/enemRegionalInsights';
 import { montarRelatorioEnem, RelatorioEnem } from '../../lib/enemRelatorio';
+import { montarRelatorioEnemRegional, RelatorioEnemRegional } from '../../lib/enemRegionalRelatorio';
+import { rotuloRegional } from '../../lib/regionais';
 import EnemRelatorio from './EnemRelatorio';
+import EnemRegionalRelatorio from './EnemRegionalRelatorio';
 
 interface EnemDesempenhoProps {
   data: EnemResultado[];   // todas as escolas, todas as edições (já carregado no dashboard)
@@ -73,6 +77,11 @@ const EnemDesempenho: React.FC<EnemDesempenhoProps> = ({ data, anos }) => {
   const [escolaSel, setEscolaSel] = useState('');
   const [escolaInfo, setEscolaInfo] = useState<EscolaOpcao | null>(null);
   const [relatorio, setRelatorio] = useState<RelatorioEnem | null>(null);
+
+  // Modo de análise: por escola (padrão) ou por regional (SJP/GUA/CWT).
+  const [modo, setModo] = useState<'escola' | 'regional'>('escola');
+  const [regionalSel, setRegionalSel] = useState('');
+  const [relatorioReg, setRelatorioReg] = useState<RelatorioEnemRegional | null>(null);
 
   const [busca, setBusca] = useState('');
   const [aberto, setAberto] = useState(false);
@@ -153,23 +162,83 @@ const EnemDesempenho: React.FC<EnemDesempenhoProps> = ({ data, anos }) => {
     });
   };
 
+  // ---- Modo regional ----------------------------------------------------
+  const regionais = useMemo(
+    () => Array.from(new Set(data.map((r) => r.regional).filter(Boolean) as string[])).sort(),
+    [data]
+  );
+
+  const escolasPorRegional = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    data.forEach((r) => {
+      if (r.regional && r.inep_codigo) {
+        if (!m.has(r.regional)) m.set(r.regional, new Set());
+        m.get(r.regional)!.add(r.inep_codigo);
+      }
+    });
+    return m;
+  }, [data]);
+
+  useEffect(() => {
+    if (regionalSel && !regionais.includes(regionalSel)) setRegionalSel('');
+  }, [regionais, regionalSel]);
+
+  const insightsReg: InsightReg[] = useMemo(() => {
+    if (!regionalSel) return [];
+    return gerarInsightsEnemRegional({ regional: regionalSel, data, anos: anosAsc });
+  }, [regionalSel, data, anosAsc]);
+
+  const abrirRelatorioRegional = () => {
+    if (!regionalSel) return;
+    setRelatorioReg(
+      montarRelatorioEnemRegional({
+        regional: regionalSel,
+        data,
+        anos: anosAsc,
+        geradoEm: new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+      })
+    );
+  };
+
   let idxGlobal = 0;
 
   return (
     <div className="space-y-4">
       {/* Cabeçalho + seletor */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="flex items-start gap-2 mb-3">
-          <div className="bg-emerald-100 p-1.5 rounded-lg mt-0.5"><FileText className="w-4 h-4 text-emerald-600" /></div>
-          <div>
-            <h3 className="text-base font-semibold text-gray-900">Insights de desempenho</h3>
-            <p className="text-xs text-gray-500">
-              Gerados por regras e cálculos sobre os dados do ENEM — sem inteligência artificial. Os mesmos dados produzem
-              sempre os mesmos insights. Dados ausentes aparecem como “sem registro”.
-            </p>
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="flex items-start gap-2">
+            <div className="bg-emerald-100 p-1.5 rounded-lg mt-0.5"><FileText className="w-4 h-4 text-emerald-600" /></div>
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">Insights de desempenho</h3>
+              <p className="text-xs text-gray-500">
+                Gerados por regras e cálculos sobre os dados do ENEM — sem inteligência artificial. Os mesmos dados produzem
+                sempre os mesmos insights. Dados ausentes aparecem como “sem registro”.
+              </p>
+            </div>
+          </div>
+
+          {/* Alternância Escola | Regional */}
+          <div className="inline-flex items-center gap-1 bg-gray-100 rounded-full p-0.5 shrink-0">
+            {([
+              { k: 'escola', label: 'Por escola' },
+              { k: 'regional', label: 'Por regional' },
+            ] as const).map((o) => (
+              <button
+                key={o.k}
+                onClick={() => { setModo(o.k); setRegsAbertos(new Set()); }}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  modo === o.k ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
           </div>
         </div>
 
+        {/* Seletor de escola */}
+        {modo === 'escola' && (
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-gray-400" />
@@ -255,10 +324,50 @@ const EnemDesempenho: React.FC<EnemDesempenhoProps> = ({ data, anos }) => {
             Exportar relatório
           </button>
         </div>
+        )}
+
+        {/* Seletor de regional */}
+        {modo === 'regional' && (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-gray-400" />
+            <span className="text-sm font-medium text-gray-600">Regional:</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {regionais.length === 0 ? (
+              <span className="text-sm text-gray-400">Nenhuma regional na base do ENEM.</span>
+            ) : regionais.map((cod) => (
+              <button
+                key={cod}
+                onClick={() => { setRegionalSel((v) => (v === cod ? '' : cod)); setRegsAbertos(new Set()); }}
+                title={rotuloRegional(cod)}
+                className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  regionalSel === cod ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                {cod}
+                <span className={`ml-1.5 text-[11px] ${regionalSel === cod ? 'text-emerald-100' : 'text-gray-400'}`}>
+                  {rotuloRegional(cod)} · {escolasPorRegional.get(cod)?.size ?? 0}
+                </span>
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={abrirRelatorioRegional}
+            disabled={!regionalSel}
+            className="ml-auto flex items-center gap-2 bg-emerald-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={regionalSel ? 'Gerar relatório regional em PDF' : 'Selecione uma regional'}
+          >
+            <FileText className="w-4 h-4" />
+            Exportar relatório
+          </button>
+        </div>
+        )}
       </div>
 
-      {/* Corpo */}
-      {!escolaSel ? (
+      {/* Corpo — modo escola */}
+      {modo === 'escola' && (
+      !escolaSel ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <Info className="w-8 h-8 text-gray-300 mx-auto mb-3" />
           <p className="text-sm text-gray-500">Selecione uma escola para gerar os insights de desempenho.</p>
@@ -298,9 +407,57 @@ const EnemDesempenho: React.FC<EnemDesempenhoProps> = ({ data, anos }) => {
             nacional é um valor divulgado pelo INEP.
           </p>
         </div>
+      )
+      )}
+
+      {/* Corpo — modo regional */}
+      {modo === 'regional' && (
+      !regionalSel ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <Info className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500">Selecione uma regional para gerar os insights de desempenho.</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl px-4 py-3 flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-emerald-600" />
+            <span className="text-sm text-gray-700">
+              Regional <strong>{regionalSel}</strong> · {rotuloRegional(regionalSel)} ·{' '}
+              {escolasPorRegional.get(regionalSel)?.size ?? 0} escola(s) do grupo APG · edição {anoAtual ?? '—'}. As notas
+              da regional são médias ponderadas pelo nº de alunos válidos (escolas sem resultado não entram).
+            </span>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+            {insightsReg.length === 0 ? (
+              <p className="text-sm text-gray-400">Sem insights para esta regional.</p>
+            ) : (
+              insightsReg.map((ins) => {
+                const idx = idxGlobal++;
+                return (
+                  <InsightCard
+                    key={idx}
+                    tipo={ins.tipo}
+                    titulo={ins.titulo}
+                    descricao={ins.descricao}
+                    registros={ins.registrosUtilizados}
+                    aberto={regsAbertos.has(idx)}
+                    onToggle={() => toggleRegs(idx)}
+                  />
+                );
+              })
+            )}
+          </div>
+          <p className="text-[11px] text-gray-400 px-1">
+            Fonte: microdados do ENEM por escola — Inep. A nota da regional em cada indicador é a média ponderada pelo nº
+            de alunos válidos das escolas do grupo APG na regional. Rankings entre regionais por média geral ponderada;
+            empates recebem a mesma posição.
+          </p>
+        </div>
+      )
       )}
 
       {relatorio && <EnemRelatorio relatorio={relatorio} onClose={() => setRelatorio(null)} />}
+      {relatorioReg && <EnemRegionalRelatorio relatorio={relatorioReg} onClose={() => setRelatorioReg(null)} />}
     </div>
   );
 };

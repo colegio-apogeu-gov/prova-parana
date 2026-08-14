@@ -93,14 +93,9 @@ export interface DadosRelatorioRegional {
   geradoEm: string;
 }
 
-// Rótulo legível da regional (código → nome). Mantido conservador: se o código
-// não for conhecido, exibe o próprio código (não inventa nome).
-export const REGIONAL_LABEL: Record<string, string> = {
-  SJP: 'São José dos Pinhais',
-  CWT: 'Curitiba',
-  GUA: 'Área Metropolitana',
-};
-export const rotuloRegional = (cod: string): string => REGIONAL_LABEL[cod] ?? cod;
+// Rótulo legível da regional (código → nome). Fonte única em ./regionais,
+// compartilhada com o relatório regional do ENEM.
+export { REGIONAL_LABEL, rotuloRegional } from './regionais';
 
 // ---------------------------------------------------------------------------
 function montarEtapaRegional(dados: DadosRelatorioRegional, etapa: IdebEtapa): RelatorioRegionalEtapa {
