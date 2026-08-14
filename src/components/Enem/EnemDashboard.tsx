@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   GraduationCap, Search, Building2, MapPin, TrendingUp, Trophy, Users, Award,
-  RefreshCw, LogOut, Eraser, Medal, ChevronRight, LayoutGrid, LineChart, Handshake, BookOpen,
+  RefreshCw, LogOut, Eraser, Medal, ChevronRight, LayoutGrid, LineChart, Handshake, BookOpen, Activity,
 } from 'lucide-react';
 import EnemHistorico from './EnemHistorico';
 import EnemConsolidado from './EnemConsolidado';
+import EnemDesempenho from './EnemDesempenho';
 import EntendaSistema from '../EntendaSistema/EntendaSistema';
 import { EnemResultado, EnemArea } from '../../types';
 import {
@@ -124,7 +125,7 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
 
-  const [view, setView] = useState<'dashboard' | 'consolidado' | 'historico'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'consolidado' | 'historico' | 'desempenho'>('dashboard');
   const [area, setArea] = useState<EnemArea>('media');
   const [busca, setBusca] = useState('');
   // Escopo do ranking: só o grupo Apogeu ou todas as públicas do PR na base.
@@ -299,6 +300,7 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
             { k: 'dashboard', label: 'Dashboard', icon: <LayoutGrid className="w-4 h-4" /> },
             { k: 'consolidado', label: 'Consolidado APG-Salta-Tom', icon: <Handshake className="w-4 h-4" /> },
             { k: 'historico', label: 'Histórico', icon: <LineChart className="w-4 h-4" /> },
+            { k: 'desempenho', label: 'Desempenho', icon: <Activity className="w-4 h-4" /> },
           ] as const).map((t) => (
             <button
               key={t.k}
@@ -315,6 +317,8 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
 
         {erro ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{erro}</div>
+        ) : view === 'desempenho' ? (
+          <EnemDesempenho data={data} anos={anos} />
         ) : view === 'historico' ? (
           <EnemHistorico data={data} />
         ) : view === 'consolidado' ? (
