@@ -405,7 +405,15 @@ const IdebRelatorio: React.FC<{ relatorio: RelatorioIdeb; onClose: () => void }>
               sub="A série mostra a escola, a média APG e a média das escolas estaduais do Paraná." />
             {[af, em].map((e) => (
               <div key={e.etapa} style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 4 }}>{e.label}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{e.label}</div>
+                  {e.selBase && e.selComp && (
+                    <div style={{ fontSize: 10.5, color: C.gray }}>
+                      Comparação {e.selBase}→{e.selComp}: {num(e.idebSelBase, 1)} → {num(e.idebSelComp, 1)}{' '}
+                      <span style={{ fontWeight: 700, color: e.deltaSel != null && e.deltaSel >= 0 ? C.green : '#ef4444' }}>({delta(e.deltaSel)})</span>
+                    </div>
+                  )}
+                </div>
                 <LinhaSerie etapa={e} />
               </div>
             ))}

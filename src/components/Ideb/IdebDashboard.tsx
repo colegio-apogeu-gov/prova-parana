@@ -11,7 +11,7 @@ import IdebMapa from './IdebMapa';
 import EntendaSistema from '../EntendaSistema/EntendaSistema';
 import { IdebResultado, IdebEtapa, IdebIndicador } from '../../types';
 import {
-  getIdebResultados, getIdebAgregadoPR, ETAPAS, IDEB_INDICADORES,
+  getIdebResultados, getIdebAgregadoPR, getIdebParceiros, ETAPAS, IDEB_INDICADORES,
   indicadorValue, indicadorLabel, fmtIndicador, fmtIndicadorCeil, mediaSimples, metasAtingidas, brasilValor,
 } from '../../lib/ideb';
 
@@ -30,6 +30,7 @@ const cardBase = 'bg-white rounded-xl border border-gray-200 p-4';
 
 const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout }) => {
   const [data, setData] = useState<IdebResultado[]>([]);
+  const [historico, setHistorico] = useState<IdebResultado[]>([]); // série das parceiras (todas as edições)
   const [anos, setAnos] = useState<string[]>([]);
   const [ano, setAno] = useState<string>('');
   const [etapa, setEtapa] = useState<IdebEtapa>('ensino_medio');
@@ -37,6 +38,9 @@ const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout 
   const [erro, setErro] = useState('');
 
   const [view, setView] = useState<'dashboard' | 'consolidado' | 'historico' | 'desempenho'>('dashboard');
+  // Escola aberta a partir de um clique nas tabelas do Consolidado (abre no Desempenho).
+  const [desempenhoEscola, setDesempenhoEscola] = useState<string | undefined>(undefined);
+  const verEscolaNoDesempenho = (inep: string) => { setDesempenhoEscola(inep); setView('desempenho'); };
   const [indicador, setIndicador] = useState<IdebIndicador>('ideb');
   const [busca, setBusca] = useState('');
   // Escopo do ranking: só o grupo Apogeu ou todas as escolas do PR na base.
@@ -90,6 +94,21 @@ const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout 
     })();
     return () => { cancelado = true; };
   }, [etapa, ano, anos]);
+
+  // Série histórica das escolas parceiras (todas as edições) — base do comparativo
+  // no Consolidado. Carregada uma vez; independe da etapa/edição selecionada.
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      try {
+        const rows = await getIdebParceiros();
+        if (!cancelado) setHistorico(rows);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+    return () => { cancelado = true; };
+  }, []);
 
   const redes = useMemo(
     () => Array.from(new Set(data.map((r) => r.rede).filter(Boolean) as string[])).sort(),
@@ -243,11 +262,14 @@ const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout 
         {erro ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{erro}</div>
         ) : view === 'desempenho' ? (
-          <IdebDesempenho />
+          <IdebDesempenho escolaInicial={desempenhoEscola} />
         ) : view === 'historico' ? (
           <IdebHistorico etapa={etapa} />
         ) : view === 'consolidado' ? (
-          <IdebConsolidado data={data} etapa={etapa} ano={ano} anos={anos} onAnoChange={setAno} loading={loading} />
+          <IdebConsolidado
+            data={data} historico={historico} etapa={etapa} ano={ano} anos={anos}
+            onAnoChange={setAno} onVerEscola={verEscolaNoDesempenho} loading={loading}
+          />
         ) : loading ? (
           <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-violet-600 mx-auto mb-4"></div>

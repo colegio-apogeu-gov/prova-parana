@@ -70,6 +70,13 @@ export interface RelatorioEtapa {
   scatter: PontoScatter[];
   // Cenário interno (projeção)
   cenarioIdeb: number | null;
+  // Comparação selecionada pelo usuário (base × comparada) — pode diferir do
+  // par anoAnterior→anoAtual acima.
+  selBase: string | null;
+  selComp: string | null;
+  idebSelBase: number | null;
+  idebSelComp: number | null;
+  deltaSel: number | null;
 }
 
 export interface RelatorioIdeb {
@@ -92,6 +99,10 @@ export interface DadosRelatorio {
   baseAtual: Record<IdebEtapa, IdebResultado[]>;
   edicoes: Record<IdebEtapa, { anoAtual: string | null; anoAnterior: string | null; anos: string[] }>;
   geradoEm: string;
+  // Par base × comparada escolhido no Desempenho (opcional). Sem ele, o relatório
+  // usa o par padrão anoAnterior→anoAtual.
+  base?: string;
+  comparada?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -131,6 +142,14 @@ function montarEtapa(dados: DadosRelatorio, etapa: IdebEtapa): RelatorioEtapa {
   const cenarioIdeb =
     ehNumero(nAtual) && ehNumero(pAtual) ? arred((nAtual + INCREMENTO_N_CENARIO) * pAtual, 1) : null;
 
+  // Comparação selecionada (base × comparada). Fallback = par padrão da etapa.
+  const selBase = dados.base ?? anoAnterior;
+  const selComp = dados.comparada ?? anoAtual;
+  const idebSelBase = selBase ? (linhas.find((r) => r.ano === selBase)?.ideb ?? null) : null;
+  const idebSelComp = selComp ? (linhas.find((r) => r.ano === selComp)?.ideb ?? null) : null;
+  const deltaSel =
+    ehNumero(idebSelBase) && ehNumero(idebSelComp) ? arred(arred(idebSelComp, 1) - arred(idebSelBase, 1), 1) : null;
+
   return {
     etapa,
     label: rotuloEtapa(etapa),
@@ -158,6 +177,11 @@ function montarEtapa(dados: DadosRelatorio, etapa: IdebEtapa): RelatorioEtapa {
     rankPr: ranking(gPr, inep),
     scatter,
     cenarioIdeb,
+    selBase,
+    selComp,
+    idebSelBase,
+    idebSelComp,
+    deltaSel,
   };
 }
 
@@ -201,6 +225,16 @@ export function montarRelatorio(dados: DadosRelatorio): RelatorioIdeb {
     `O rendimento (P) na edição atual foi ${pctFluxo(af.pAtual)} nos anos finais e ${pctFluxo(em.pAtual)} no ensino médio.`,
     `A aprendizagem (N) na edição atual foi ${nFmt(af.nAtual)} nos anos finais e ${nFmt(em.nAtual)} no ensino médio (escala 0–10).`,
   ];
+  // Insight adicional: comparação base × comparada escolhida no painel (quando
+  // difere do par padrão anoAnterior→anoAtual).
+  const parSelDiferente =
+    (dados.base && dados.base !== af.anoAnterior) || (dados.comparada && dados.comparada !== af.anoAtual);
+  if (parSelDiferente && af.selBase && af.selComp) {
+    leituraExecutiva.push(
+      `Na comparação selecionada ${af.selBase}→${af.selComp}, o IDEB variou ${descreveDelta(af.deltaSel)} nos anos finais ` +
+        `e ${descreveDelta(em.deltaSel)} no ensino médio.`
+    );
+  }
 
   return {
     inep: dados.inep,

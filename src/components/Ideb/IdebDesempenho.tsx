@@ -10,6 +10,10 @@ import {
 import { gerarInsights, Insight, InsightTipo, DadosComparacaoEtapa } from '../../lib/idebInsights';
 import { gerarInsightsRegional, Insight as InsightReg, DadosRegionalEtapa } from '../../lib/idebRegionalInsights';
 import { montarRelatorio, RelatorioIdeb } from '../../lib/idebRelatorio';
+import { aplicarPreset, PresetEdicoes, serieEscola } from '../../lib/idebComparacao';
+import IdebComparacaoControls from './IdebComparacaoControls';
+import IdebSerieChart from './IdebSerieChart';
+import { fmtIndicador } from '../../lib/ideb';
 import {
   montarRelatorioRegional, RelatorioRegional, rotuloRegional,
 } from '../../lib/idebRegionalRelatorio';
@@ -25,6 +29,12 @@ interface EscolaOpcao {
 
 const norm = (s: string) =>
   (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
+const fmtIdebD = (v: number | null | undefined) => fmtIndicador(v, 'ideb');
+const fmtDelta = (v: number | null | undefined) =>
+  v == null || Number.isNaN(v)
+    ? '—'
+    : (v >= 0 ? '+' : '−') + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // Aparência por tipo de insight (classes LITERAIS — o purge do Tailwind não
 // sobrevive a interpolação de cor).
@@ -82,7 +92,12 @@ const InsightCard: React.FC<{
   );
 };
 
-const IdebDesempenho: React.FC = () => {
+interface IdebDesempenhoProps {
+  // INEP de uma escola aberta a partir do Consolidado (clique nas tabelas de variação).
+  escolaInicial?: string;
+}
+
+const IdebDesempenho: React.FC<IdebDesempenhoProps> = ({ escolaInicial }) => {
   // Dados de referência (independentes da escola), carregados uma vez.
   const [parceiros, setParceiros] = useState<IdebResultado[]>([]);
   const [agregado, setAgregado] = useState<IdebAgregadoPR[]>([]);
@@ -117,6 +132,11 @@ const IdebDesempenho: React.FC = () => {
 
   // Registros utilizados visíveis por insight (índice → aberto).
   const [regsAbertos, setRegsAbertos] = useState<Set<number>>(new Set());
+
+  // Comparativo base × comparada (edições) — dirige o par-resumo e a trajetória.
+  const [cmpBase, setCmpBase] = useState('');
+  const [cmpComp, setCmpComp] = useState('');
+  const [cmpEdicoes, setCmpEdicoes] = useState<string[]>([]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -247,6 +267,16 @@ const IdebDesempenho: React.FC = () => {
     setBusca('');
   };
 
+  // Pré-seleção vinda do Consolidado: assim que a lista de parceiras carrega,
+  // abre a escola clicada (é sempre uma escola parceira).
+  useEffect(() => {
+    if (!escolaInicial) return;
+    const found = escolasParceiras.find((e) => e.inep === escolaInicial) ?? null;
+    setEscolaSel(escolaInicial);
+    setEscolaInfo(found);
+    setModo('escola');
+  }, [escolaInicial, escolasParceiras]);
+
   // Monta o relatório completo (determinístico) e abre o preview/export.
   const abrirRelatorio = () => {
     if (!escolaSel) return;
@@ -258,6 +288,8 @@ const IdebDesempenho: React.FC = () => {
         agregado,
         baseAtual: baseByEtapa,
         edicoes,
+        base: cmpBase,
+        comparada: cmpComp,
         // Data de geração é metadado (não entra em cálculo determinístico).
         geradoEm: new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
       })
@@ -284,6 +316,39 @@ const IdebDesempenho: React.FC = () => {
     });
     return grupos;
   }, [insights]);
+
+  // ---- Comparativo base × comparada (edições) ----
+  // Opções = união das edições das duas etapas (2005..2025).
+  const edTodas = useMemo(() => {
+    const s = new Set<string>();
+    (['anos_finais', 'ensino_medio'] as IdebEtapa[]).forEach((et) => edicoes[et].anos.forEach((a) => s.add(a)));
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [edicoes]);
+  useEffect(() => {
+    if (!edTodas.length) return;
+    setCmpComp((c) => (c && edTodas.includes(c) ? c : edTodas[edTodas.length - 1]));
+    setCmpBase((b) => (b && edTodas.includes(b) ? b : edTodas[edTodas.length - 2] ?? edTodas[0]));
+    setCmpEdicoes((prev) => (prev.length ? prev : edTodas));
+  }, [edTodas]);
+  const cmpPreset = (p: PresetEdicoes) => setCmpEdicoes(aplicarPreset(edTodas, p, cmpBase, cmpComp));
+  const cmpToggle = (a: string) => setCmpEdicoes((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
+  const edPlot = useMemo(() => edTodas.filter((a) => cmpEdicoes.includes(a)), [edTodas, cmpEdicoes]);
+
+  // Par (base, comparada) do IDEB da escola numa etapa + variação.
+  const parEtapa = (et: IdebEtapa) => {
+    const b = (hist.find((r) => r.etapa === et && r.ano === cmpBase)?.ideb ?? null) as number | null;
+    const c = (hist.find((r) => r.etapa === et && r.ano === cmpComp)?.ideb ?? null) as number | null;
+    return { base: b, comp: c, delta: b != null && c != null ? c - b : null };
+  };
+  // Resumo primário (ao lado do Exportar): prefere anos finais.
+  const parPrimario = useMemo(() => {
+    for (const et of ['anos_finais', 'ensino_medio'] as IdebEtapa[]) {
+      const p = parEtapa(et);
+      if (p.base != null && p.comp != null) return { etapa: et, ...p };
+    }
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hist, cmpBase, cmpComp]);
 
   // ---- Modo regional ----------------------------------------------------
   // Regionais disponíveis (código) a partir da base parceira/regional.
@@ -369,6 +434,16 @@ const IdebDesempenho: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      {/* Filtro base × comparada (no topo, modo escola) */}
+      {modo === 'escola' && edTodas.length > 0 && (
+        <IdebComparacaoControls
+          base={cmpBase} comparada={cmpComp} opcoesEdicao={edTodas}
+          chartEdicoes={edTodas} edicoesSel={cmpEdicoes}
+          onBase={setCmpBase} onComparada={setCmpComp}
+          onToggleEdicao={cmpToggle} onPreset={cmpPreset}
+        />
+      )}
+
       {/* Cabeçalho + metodologia */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-start justify-between gap-2 mb-3">
@@ -491,6 +566,22 @@ const IdebDesempenho: React.FC = () => {
             <FileText className="w-4 h-4" />
             Exportar relatório
           </button>
+
+          {/* Resumo base × comparada (abaixo do Exportar) */}
+          {escolaSel && parPrimario && (
+            <div className="w-full flex flex-wrap items-center justify-end gap-x-2 gap-y-1 text-sm">
+              <span className="text-gray-500">{cmpBase}:</span>
+              <span className="font-semibold text-gray-800">{fmtIdebD(parPrimario.base)}</span>
+              <span className="text-gray-500 ml-2">{cmpComp}:</span>
+              <span className="font-semibold text-gray-800">{fmtIdebD(parPrimario.comp)}</span>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                (parPrimario.delta ?? 0) >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+              }`}>
+                {fmtDelta(parPrimario.delta)}
+              </span>
+              <span className="text-[11px] text-gray-400">· {etapaLabel(parPrimario.etapa)}</span>
+            </div>
+          )}
         </div>
         )}
 
@@ -562,6 +653,37 @@ const IdebDesempenho: React.FC = () => {
                   </span>
                 </div>
                 <div className="p-4 space-y-3">
+                  {/* Trajetória do IDEB (período selecionado) + variação base × comparada */}
+                  {escolaSel && hist.some((r) => r.etapa === e.key && r.ideb != null) && (() => {
+                    const par = parEtapa(e.key);
+                    const pts = serieEscola(hist, escolaSel, e.key, edPlot).map((p) => ({ ano: p.ano, valor: p.ideb }));
+                    return (
+                      <div className="border border-gray-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
+                          <h4 className="text-sm font-semibold text-gray-800">Trajetória do IDEB — {etapaLabel(e.key)}</h4>
+                          <span className="text-xs text-gray-500">
+                            {cmpBase}: <b className="text-gray-800">{fmtIdebD(par.base)}</b> · {cmpComp}: <b className="text-gray-800">{fmtIdebD(par.comp)}</b>
+                            {par.delta != null && (
+                              <span className={par.delta >= 0 ? 'text-emerald-600 ml-1' : 'text-red-500 ml-1'}>({fmtDelta(par.delta)})</span>
+                            )}
+                          </span>
+                        </div>
+                        {edPlot.length === 0 ? (
+                          <p className="text-sm text-gray-400 py-6 text-center">Selecione ao menos uma edição no histórico.</p>
+                        ) : (
+                          <IdebSerieChart
+                            series={[{ label: escolaAtual?.escola ?? 'Escola', color: '#7c3aed', pontos: pts }]}
+                            domainMax={10} area height={210}
+                          />
+                        )}
+                        <p className="text-sm text-gray-700 mt-1">
+                          {par.base != null && par.comp != null
+                            ? `O IDEB de ${etapaLabel(e.key)} ${par.delta! >= 0 ? 'subiu' : 'caiu'} de ${fmtIdebD(par.base)} em ${cmpBase} para ${fmtIdebD(par.comp)} em ${cmpComp} (variação de ${fmtDelta(par.delta)}).`
+                            : `Sem registro do IDEB de ${etapaLabel(e.key)} em ${cmpBase} e/ou ${cmpComp} para comparar.`}
+                        </p>
+                      </div>
+                    );
+                  })()}
                   {lista.length === 0 ? (
                     <p className="text-sm text-gray-400">Sem insights para esta etapa.</p>
                   ) : (
