@@ -108,8 +108,11 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data }) => {
   const [busca, setBusca] = useState('');
   const [regionalSel, setRegionalSel] = useState('');
   const [cidadeSel, setCidadeSel] = useState('');
-  const [parceirosFiltro, setParceirosFiltro] = useState<EnemParceiro[]>([]); // vazio = todas
-  const [rankGrupo, setRankGrupo] = useState<EnemParceiro | 'todos'>('apg');
+  // Padrão: todas as unidades parceiras pré-selecionadas. "Todas selecionadas"
+  // (ou vazio) = sem recorte, para os cards de referência (Média Paraná /
+  // Participantes) continuarem cobrindo todo o PR, não só os parceiros.
+  const [parceirosFiltro, setParceirosFiltro] = useState<EnemParceiro[]>(PARCEIROS.map((p) => p.key));
+  const [rankGrupo, setRankGrupo] = useState<EnemParceiro | 'todos'>('todos');
   const [skillGrupo, setSkillGrupo] = useState<EnemParceiro>('apg');
   const [mapGrupo, setMapGrupo] = useState<EnemParceiro>('apg');
   const [selectedSkillId, setSelectedSkillId] = useState('');
@@ -141,7 +144,7 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data }) => {
     () => dataAno.filter((r) =>
       (!regionalSel || r.regional === regionalSel) &&
       (!cidadeSel || r.cidade === cidadeSel) &&
-      (parceirosFiltro.length === 0 || (r.parceiro != null && parceirosFiltro.includes(r.parceiro)))
+      (parceirosFiltro.length === 0 || parceirosFiltro.length === PARCEIROS.length || (r.parceiro != null && parceirosFiltro.includes(r.parceiro)))
     ),
     [dataAno, regionalSel, cidadeSel, parceirosFiltro]
   );
@@ -216,7 +219,7 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data }) => {
   const mapaSel = cidadesMapa.find((c) => c.cidade === mapCidade);
   const semCoord = cidadesMapa.filter((c) => !CITY_COORDS[c.cidade]).length;
 
-  const limpar = () => { setBusca(''); setRegionalSel(''); setCidadeSel(''); setParceirosFiltro([]); };
+  const limpar = () => { setBusca(''); setRegionalSel(''); setCidadeSel(''); setParceirosFiltro(PARCEIROS.map((p) => p.key)); };
   const areaLabel = ENEM_AREAS.find((a) => a.key === area)?.label ?? 'Média Geral';
 
   // Toggle de grupo reutilizável (Apg/Salta/Tom) para ranking, skills e mapa.
@@ -299,8 +302,8 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data }) => {
               </button>
             );
           })}
-          {parceirosFiltro.length > 0 && (
-            <button onClick={() => setParceirosFiltro([])} className="text-xs text-gray-400 hover:text-gray-600 underline">todos</button>
+          {parceirosFiltro.length > 0 && parceirosFiltro.length < PARCEIROS.length && (
+            <button onClick={() => setParceirosFiltro(PARCEIROS.map((p) => p.key))} className="text-xs text-gray-400 hover:text-gray-600 underline">todos</button>
           )}
         </div>
         <div className="flex flex-wrap gap-2">

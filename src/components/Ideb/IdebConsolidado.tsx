@@ -120,8 +120,11 @@ const IdebConsolidado: React.FC<IdebConsolidadoProps> = ({ data, historico, etap
   const [busca, setBusca] = useState('');
   const [redeSel, setRedeSel] = useState('');
   const [cidadeSel, setCidadeSel] = useState('');
-  const [parceirosFiltro, setParceirosFiltro] = useState<EnemParceiro[]>([]); // vazio = todos
-  const [rankGrupo, setRankGrupo] = useState<EnemParceiro | 'todos'>('apg');
+  // Padrão: todas as unidades parceiras pré-selecionadas. "Todas selecionadas"
+  // (ou vazio) = sem recorte, para o card de referência "Média Paraná" continuar
+  // cobrindo todo o PR, não só os parceiros.
+  const [parceirosFiltro, setParceirosFiltro] = useState<EnemParceiro[]>(PARCEIROS.map((p) => p.key));
+  const [rankGrupo, setRankGrupo] = useState<EnemParceiro | 'todos'>('todos');
   const [skillGrupo, setSkillGrupo] = useState<EnemParceiro>('apg');
   const [mapGrupo, setMapGrupo] = useState<EnemParceiro>('apg');
   const [selectedSkillId, setSelectedSkillId] = useState('');
@@ -145,7 +148,7 @@ const IdebConsolidado: React.FC<IdebConsolidadoProps> = ({ data, historico, etap
     () => data.filter((r) =>
       (!redeSel || r.rede === redeSel) &&
       (!cidadeSel || r.cidade === cidadeSel) &&
-      (parceirosFiltro.length === 0 || (r.parceiro != null && parceirosFiltro.includes(r.parceiro)))
+      (parceirosFiltro.length === 0 || parceirosFiltro.length === PARCEIROS.length || (r.parceiro != null && parceirosFiltro.includes(r.parceiro)))
     ),
     [data, redeSel, cidadeSel, parceirosFiltro]
   );
@@ -211,7 +214,7 @@ const IdebConsolidado: React.FC<IdebConsolidadoProps> = ({ data, historico, etap
   }, [cidadesMapa]);
   const mapaSel = cidadesMapa.find((c) => c.cidade === mapCidade);
 
-  const limpar = () => { setBusca(''); setRedeSel(''); setCidadeSel(''); setParceirosFiltro([]); };
+  const limpar = () => { setBusca(''); setRedeSel(''); setCidadeSel(''); setParceirosFiltro(PARCEIROS.map((p) => p.key)); };
   const indLabel = indicadorLabel(indicador);
 
   // ---- Comparativo entre edições ----
@@ -336,8 +339,8 @@ const IdebConsolidado: React.FC<IdebConsolidadoProps> = ({ data, historico, etap
               </button>
             );
           })}
-          {parceirosFiltro.length > 0 && (
-            <button onClick={() => setParceirosFiltro([])} className="text-xs text-gray-400 hover:text-gray-600 underline">todos</button>
+          {parceirosFiltro.length > 0 && parceirosFiltro.length < PARCEIROS.length && (
+            <button onClick={() => setParceirosFiltro(PARCEIROS.map((p) => p.key))} className="text-xs text-gray-400 hover:text-gray-600 underline">todos</button>
           )}
         </div>
         <div className="flex flex-wrap gap-2">
