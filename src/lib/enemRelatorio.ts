@@ -66,6 +66,12 @@ export interface RelatorioEnem {
   mediaAtual: number | null;
   mediaAnterior: number | null;
   deltaMedia: number | null;
+  // Comparação selecionada (base × comparada) — pode diferir de anoAnterior→anoAtual.
+  selBase: string | null;
+  selComp: string | null;
+  mediaSelBase: number | null;
+  mediaSelComp: number | null;
+  deltaSel: number | null;
   alunosAtual: number | null;
   participantesAtual: number | null;
   redacaoAtual: number | null;
@@ -97,6 +103,10 @@ export interface DadosRelatorioEnem {
   data: EnemResultado[];   // todas as escolas, todas as edições
   anos: string[];          // ascendente
   geradoEm: string;
+  // Par base × comparada escolhido no Desempenho (opcional). Sem ele, usa o par
+  // padrão anoAnterior→anoAtual.
+  base?: string;
+  comparada?: string;
 }
 
 const delta1 = (d: number | null): string => (d === null ? 'sem registro' : `${d >= 0 ? '+' : '−'}${Math.abs(d).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`);
@@ -167,6 +177,13 @@ export function montarRelatorioEnem(dados: DadosRelatorioEnem): RelatorioEnem {
   const mediaAnterior = escAnt?.media ?? null;
   const deltaMedia = ehNumero(mediaAtual) && ehNumero(mediaAnterior) ? arred(arred(mediaAtual, 1) - arred(mediaAnterior, 1), 1) : null;
 
+  // Comparação selecionada (base × comparada). Fallback = par padrão.
+  const selBase = dados.base ?? anoAnterior;
+  const selComp = dados.comparada ?? anoAtual;
+  const mediaSelBase = selBase ? (linhas.find((r) => r.ano === selBase)?.media ?? null) : null;
+  const mediaSelComp = selComp ? (linhas.find((r) => r.ano === selComp)?.media ?? null) : null;
+  const deltaSel = ehNumero(mediaSelBase) && ehNumero(mediaSelComp) ? arred(arred(mediaSelComp, 1) - arred(mediaSelBase, 1), 1) : null;
+
   const scatter: PontoScatterEnem[] = gApg
     .filter((r) => ehNumero(r.media) && ehNumero(r.alunos))
     .map((r) => ({ alunos: r.alunos as number, media: r.media as number, destaque: r.inep_codigo === inep }));
@@ -190,6 +207,13 @@ export function montarRelatorioEnem(dados: DadosRelatorioEnem): RelatorioEnem {
       ? `A maior distância abaixo da média do grupo APG está em ${oportunidadeArea} (escola ${n1(oportunidadeEscola)} × APG ${n1(oportunidadeApg)}).`
       : `Na edição atual, a escola está igual ou acima da média do grupo APG nas áreas com registro.`,
   ];
+  // Insight adicional quando o par selecionado difere do par padrão.
+  const parSelDiferente = (dados.base && dados.base !== anoAnterior) || (dados.comparada && dados.comparada !== anoAtual);
+  if (parSelDiferente && selBase && selComp) {
+    leituraExecutiva.push(
+      `Na comparação selecionada ${selBase}→${selComp}, a média geral variou ${delta1(deltaSel)} (de ${n1(mediaSelBase)} para ${n1(mediaSelComp)}).`
+    );
+  }
 
   return {
     inep,
@@ -206,6 +230,11 @@ export function montarRelatorioEnem(dados: DadosRelatorioEnem): RelatorioEnem {
     mediaAtual,
     mediaAnterior,
     deltaMedia,
+    selBase,
+    selComp,
+    mediaSelBase,
+    mediaSelComp,
+    deltaSel,
     alunosAtual: escAtual?.alunos ?? null,
     participantesAtual: escAtual?.participantes ?? null,
     redacaoAtual: escAtual?.rd ?? null,

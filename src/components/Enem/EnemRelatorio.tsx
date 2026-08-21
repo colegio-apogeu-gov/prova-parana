@@ -416,6 +416,12 @@ const EnemRelatorio: React.FC<{ relatorio: RelatorioEnem; onClose: () => void }>
           <Pagina>
             <Secao n="3" kicker="Evolução histórica" titulo="Trajetória da média geral"
               sub="A série mostra a escola, a média ponderada do grupo APG e a média das escolas do Paraná." />
+            {r.selBase && r.selComp && (
+              <div style={{ fontSize: 10.5, color: C.gray, marginBottom: 6, textAlign: 'right' }}>
+                Comparação {r.selBase}→{r.selComp}: {num(r.mediaSelBase, 1)} → {num(r.mediaSelComp, 1)}{' '}
+                <span style={{ fontWeight: 700, color: r.deltaSel != null && r.deltaSel >= 0 ? C.green : '#ef4444' }}>({delta(r.deltaSel)})</span>
+              </div>
+            )}
             <LinhaSerie serie={r.serie} />
             <Legenda itens={[{ cor: C.green, label: 'Escola' }, { cor: C.blue, label: 'APG' }, { cor: C.amber, label: 'Paraná' }]} />
             <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 18 }}>
