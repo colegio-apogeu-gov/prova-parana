@@ -126,6 +126,9 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
   const [erro, setErro] = useState('');
 
   const [view, setView] = useState<'dashboard' | 'consolidado' | 'historico' | 'desempenho'>('dashboard');
+  // Escola aberta a partir de um clique nas tabelas do Consolidado (abre no Desempenho).
+  const [desempenhoEscola, setDesempenhoEscola] = useState<string | undefined>(undefined);
+  const verEscolaNoDesempenho = (inep: string) => { setDesempenhoEscola(inep); setView('desempenho'); };
   const [area, setArea] = useState<EnemArea>('media');
   const [busca, setBusca] = useState('');
   // Escopo do ranking: só o grupo Apogeu ou todas as públicas do PR na base.
@@ -318,11 +321,11 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
         {erro ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{erro}</div>
         ) : view === 'desempenho' ? (
-          <EnemDesempenho data={data} anos={anos} />
+          <EnemDesempenho data={data} anos={anos} escolaInicial={desempenhoEscola} />
         ) : view === 'historico' ? (
           <EnemHistorico data={data} />
         ) : view === 'consolidado' ? (
-          <EnemConsolidado data={data} />
+          <EnemConsolidado data={data} onVerEscola={verEscolaNoDesempenho} />
         ) : (
           <>
             {/* Filtros */}

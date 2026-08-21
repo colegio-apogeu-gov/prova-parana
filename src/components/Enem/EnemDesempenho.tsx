@@ -8,13 +8,25 @@ import { gerarInsightsEnemRegional, Insight as InsightReg } from '../../lib/enem
 import { montarRelatorioEnem, RelatorioEnem } from '../../lib/enemRelatorio';
 import { montarRelatorioEnemRegional, RelatorioEnemRegional } from '../../lib/enemRegionalRelatorio';
 import { rotuloRegional } from '../../lib/regionais';
+import { areaValue } from '../../lib/enem';
+import { edicoesTodas, aplicarPreset, PresetEdicoes, serieEscola } from '../../lib/enemComparacao';
+import EnemComparacaoControls from './EnemComparacaoControls';
+import EnemSerieChart from './EnemSerieChart';
 import EnemRelatorio from './EnemRelatorio';
 import EnemRegionalRelatorio from './EnemRegionalRelatorio';
 
 interface EnemDesempenhoProps {
   data: EnemResultado[];   // todas as escolas, todas as edições (já carregado no dashboard)
   anos: string[];          // edições disponíveis (descendente, como no dashboard)
+  escolaInicial?: string;  // INEP aberto a partir do Consolidado (clique nas tabelas de variação)
 }
+
+const fmtMedia = (v: number | null | undefined) =>
+  v == null || Number.isNaN(v) ? '--' : v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const fmtDelta = (v: number | null | undefined) =>
+  v == null || Number.isNaN(v)
+    ? '—'
+    : (v >= 0 ? '+' : '−') + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 interface EscolaOpcao {
   inep: string;
@@ -73,10 +85,14 @@ const InsightCard: React.FC<{
   );
 };
 
-const EnemDesempenho: React.FC<EnemDesempenhoProps> = ({ data, anos }) => {
+const EnemDesempenho: React.FC<EnemDesempenhoProps> = ({ data, anos, escolaInicial }) => {
   const [escolaSel, setEscolaSel] = useState('');
   const [escolaInfo, setEscolaInfo] = useState<EscolaOpcao | null>(null);
   const [relatorio, setRelatorio] = useState<RelatorioEnem | null>(null);
+  // Comparativo base × comparada (edições) — dirige o par-resumo e a trajetória.
+  const [cmpBase, setCmpBase] = useState('');
+  const [cmpComp, setCmpComp] = useState('');
+  const [cmpEdicoes, setCmpEdicoes] = useState<string[]>([]);
 
   // Modo de análise: por escola (padrão) ou por regional (SJP/GUA/CWT).
   const [modo, setModo] = useState<'escola' | 'regional'>('escola');
@@ -137,6 +153,38 @@ const EnemDesempenho: React.FC<EnemDesempenhoProps> = ({ data, anos }) => {
     setBusca('');
   };
 
+  // Pré-seleção vinda do Consolidado (clique nas tabelas de melhoras/quedas).
+  useEffect(() => {
+    if (!escolaInicial) return;
+    const found = escolas.find((e) => e.inep === escolaInicial) ?? null;
+    setEscolaSel(escolaInicial);
+    setEscolaInfo(found);
+    setModo('escola');
+  }, [escolaInicial, escolas]);
+
+  // ---- Comparativo base × comparada (edições) ----
+  const edTodas = useMemo(() => edicoesTodas(data), [data]);
+  useEffect(() => {
+    if (!edTodas.length) return;
+    setCmpComp((c) => (c && edTodas.includes(c) ? c : edTodas[edTodas.length - 1]));
+    setCmpBase((b) => (b && edTodas.includes(b) ? b : edTodas[edTodas.length - 2] ?? edTodas[0]));
+    setCmpEdicoes((prev) => (prev.length ? prev : edTodas));
+  }, [edTodas]);
+  const cmpPreset = (p: PresetEdicoes) => setCmpEdicoes(aplicarPreset(edTodas, p, cmpBase, cmpComp));
+  const cmpToggle = (a: string) => setCmpEdicoes((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
+  const edPlot = useMemo(() => edTodas.filter((a) => cmpEdicoes.includes(a)), [edTodas, cmpEdicoes]);
+
+  // Média geral da escola nas edições base/comparada + variação.
+  const par = useMemo(() => {
+    if (!escolaSel) return { base: null as number | null, comp: null as number | null, delta: null as number | null };
+    const val = (ano: string) => {
+      const r = data.find((x) => (x.inep_codigo ?? x.id) === escolaSel && x.ano === ano);
+      return r ? areaValue(r, 'media') : null;
+    };
+    const b = val(cmpBase), c = val(cmpComp);
+    return { base: b, comp: c, delta: b != null && c != null ? c - b : null };
+  }, [escolaSel, data, cmpBase, cmpComp]);
+
   const insights: Insight[] = useMemo(() => {
     if (!escolaSel) return [];
     return gerarInsightsEnem({ inep: escolaSel, data, anos: anosAsc });
@@ -149,6 +197,8 @@ const EnemDesempenho: React.FC<EnemDesempenhoProps> = ({ data, anos }) => {
         inep: escolaSel,
         data,
         anos: anosAsc,
+        base: cmpBase,
+        comparada: cmpComp,
         geradoEm: new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
       })
     );
@@ -204,6 +254,16 @@ const EnemDesempenho: React.FC<EnemDesempenhoProps> = ({ data, anos }) => {
 
   return (
     <div className="space-y-4">
+      {/* Filtro base × comparada (no topo, modo escola) */}
+      {modo === 'escola' && edTodas.length > 0 && (
+        <EnemComparacaoControls
+          base={cmpBase} comparada={cmpComp} opcoesEdicao={edTodas}
+          chartEdicoes={edTodas} edicoesSel={cmpEdicoes}
+          onBase={setCmpBase} onComparada={setCmpComp}
+          onToggleEdicao={cmpToggle} onPreset={cmpPreset}
+        />
+      )}
+
       {/* Cabeçalho + seletor */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-start justify-between gap-2 mb-3">
@@ -323,6 +383,22 @@ const EnemDesempenho: React.FC<EnemDesempenhoProps> = ({ data, anos }) => {
             <FileText className="w-4 h-4" />
             Exportar relatório
           </button>
+
+          {/* Resumo base × comparada (abaixo do Exportar) */}
+          {escolaSel && (
+            <div className="w-full flex flex-wrap items-center justify-end gap-x-2 gap-y-1 text-sm">
+              <span className="text-gray-500">{cmpBase}:</span>
+              <span className="font-semibold text-gray-800">{fmtMedia(par.base)}</span>
+              <span className="text-gray-500 ml-2">{cmpComp}:</span>
+              <span className="font-semibold text-gray-800">{fmtMedia(par.comp)}</span>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                (par.delta ?? 0) >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+              }`}>
+                {fmtDelta(par.delta)}
+              </span>
+              <span className="text-[11px] text-gray-400">· média geral</span>
+            </div>
+          )}
         </div>
         )}
 
@@ -380,6 +456,31 @@ const EnemDesempenho: React.FC<EnemDesempenhoProps> = ({ data, anos }) => {
               <strong>{escolaAtual?.escola}</strong> · {escolaAtual?.cidade}/PR · edição {anoAtual ?? '—'}. As médias de grupo
               (APG, município, Paraná) são ponderadas pelo nº de alunos válidos.
             </span>
+          </div>
+          {/* Trajetória da média geral (período selecionado) + variação base × comparada */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
+              <h4 className="text-sm font-semibold text-gray-800">Trajetória da média geral do ENEM</h4>
+              <span className="text-xs text-gray-500">
+                {cmpBase}: <b className="text-gray-800">{fmtMedia(par.base)}</b> · {cmpComp}: <b className="text-gray-800">{fmtMedia(par.comp)}</b>
+                {par.delta != null && (
+                  <span className={par.delta >= 0 ? 'text-emerald-600 ml-1' : 'text-red-500 ml-1'}>({fmtDelta(par.delta)})</span>
+                )}
+              </span>
+            </div>
+            {edPlot.length === 0 ? (
+              <p className="text-sm text-gray-400 py-6 text-center">Selecione ao menos uma edição no histórico.</p>
+            ) : (
+              <EnemSerieChart
+                series={[{ label: escolaAtual?.escola ?? 'Escola', color: '#059669', pontos: serieEscola(data, escolaSel, edPlot, 'media') }]}
+                area height={210}
+              />
+            )}
+            <p className="text-sm text-gray-700 mt-1">
+              {par.base != null && par.comp != null
+                ? `A média geral ${par.delta! >= 0 ? 'subiu' : 'caiu'} de ${fmtMedia(par.base)} em ${cmpBase} para ${fmtMedia(par.comp)} em ${cmpComp} (variação de ${fmtDelta(par.delta)}).`
+                : `Sem registro da média geral em ${cmpBase} e/ou ${cmpComp} para comparar.`}
+            </p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
             {insights.length === 0 ? (
