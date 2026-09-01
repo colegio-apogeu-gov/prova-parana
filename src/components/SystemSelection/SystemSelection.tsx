@@ -1,11 +1,12 @@
 import React from 'react';
-import { School, Users, BookOpen, BarChart3, GraduationCap, Trophy, Target, LineChart } from 'lucide-react';
+import { School, Users, BookOpen, BarChart3, GraduationCap, Trophy, Target, LineChart, ShieldCheck, Clock } from 'lucide-react';
 
 interface SystemSelectionProps {
-  onSystemSelect: (system: 'prova-parana' | 'parceiro' | 'parana-mais' | 'enem' | 'ideb') => void;
+  onSystemSelect: (system: 'prova-parana' | 'parceiro' | 'parana-mais' | 'enem' | 'ideb' | 'auditoria') => void;
+  canAudit?: boolean; // mostra o card "Auditoria" só para quem tem permissão
 }
 
-const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => {
+const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect, canAudit }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-7xl w-full">
@@ -147,6 +148,34 @@ const SystemSelection: React.FC<SystemSelectionProps> = ({ onSystemSelect }) => 
               </div>
             </div>
           </div>
+
+          {/* Auditoria (somente para admins/gestão autorizados) */}
+          {canAudit && (
+            <div
+              onClick={() => onSystemSelect('auditoria')}
+              className="bg-white rounded-2xl shadow-xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl border-2 border-transparent hover:border-indigo-200"
+            >
+              <div className="text-center">
+                <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <ShieldCheck className="w-8 h-8 text-indigo-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">Auditoria</h2>
+                <p className="text-gray-600 mb-6">
+                  Acompanhamento de acesso dos usuários: último login e última interação com o sistema, com exportação em planilha.
+                </p>
+                <div className="space-y-2 text-sm text-gray-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <Users className="w-4 h-4" />
+                    <span>Todos os usuários</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    <span>Último login e última interação</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="text-center mt-8">

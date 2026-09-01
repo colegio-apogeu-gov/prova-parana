@@ -13,14 +13,16 @@ import CadastrarAtividades from './components/CadastrarAtividades/CadastrarAtivi
 import Descritores from './components/Descritores/Descritores';
 import EnemDashboard from './components/Enem/EnemDashboard';
 import IdebDashboard from './components/Ideb/IdebDashboard';
+import AuditoriaDashboard from './components/Auditoria/AuditoriaDashboard';
 import Graficos from './components/Graficos/Graficos';
 import ComparacaoProvas from './components/ComparacaoProvas/ComparacaoProvas';
 import ComparativoSemestres from './components/ComparativoSemestres/ComparativoSemestres';
 import ComparacaoAnual from './components/ComparacaoAnual/ComparacaoAnual';
 import { UserProfile } from './types';
+import { podeAuditar, registrarLogin, registrarInteracao, sistemaLabel } from './lib/auditoria';
 
-// Sistemas do Radar APG. 'enem' e 'ideb' são dashboards próprios (tela cheia).
-type SelectedSystem = 'prova-parana' | 'parceiro' | 'parana-mais' | 'enem' | 'ideb';
+// Sistemas do Radar APG. 'enem', 'ideb' e 'auditoria' são dashboards próprios (tela cheia).
+type SelectedSystem = 'prova-parana' | 'parceiro' | 'parana-mais' | 'enem' | 'ideb' | 'auditoria';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -42,6 +44,8 @@ function App() {
       setUser(firebaseUser);
       
       if (firebaseUser) {
+        // Registra o login na auditoria (fire-and-forget; nunca bloqueia o fluxo).
+        registrarLogin(firebaseUser.uid, firebaseUser.metadata?.lastSignInTime ?? null);
         try {
           // Load user profile
           try {
@@ -83,6 +87,22 @@ function App() {
     }
   }, [selectedSystem]);
 
+  // Auditoria: registra a "última interação" do usuário. Grava ao trocar de
+  // sistema e a cada atividade (clique/tecla), com throttle interno (~2 min) para
+  // não sobrecarregar o banco. O rótulo é o sistema atual (ou "Seleção de sistema").
+  useEffect(() => {
+    if (!user) return;
+    const label = sistemaLabel(selectedSystem);
+    registrarInteracao(user.uid, label);
+    const handler = () => registrarInteracao(user.uid, label);
+    window.addEventListener('pointerdown', handler);
+    window.addEventListener('keydown', handler);
+    return () => {
+      window.removeEventListener('pointerdown', handler);
+      window.removeEventListener('keydown', handler);
+    };
+  }, [user, selectedSystem]);
+
   const handleLogout = async () => {
     try {
       await auth.signOut();
@@ -122,16 +142,25 @@ function App() {
   }
 
   if (!selectedSystem) {
-    return <SystemSelection onSystemSelect={handleSystemSelect} />;
+    return <SystemSelection onSystemSelect={handleSystemSelect} canAudit={podeAuditar(userProfile)} />;
   }
 
-  // ENEM e IDEB são dashboards próprios (tela cheia), independentes das abas dos demais sistemas.
+  // ENEM, IDEB e Auditoria são dashboards próprios (tela cheia).
   if (selectedSystem === 'enem') {
     return <EnemDashboard onSystemSwitch={handleSystemSwitch} onLogout={handleLogout} />;
   }
 
   if (selectedSystem === 'ideb') {
     return <IdebDashboard onSystemSwitch={handleSystemSwitch} onLogout={handleLogout} />;
+  }
+
+  if (selectedSystem === 'auditoria') {
+    // Guarda de acesso: se não tiver permissão (ex.: seleção antiga no
+    // localStorage), volta para a tela de seleção em vez de abrir a Auditoria.
+    if (!podeAuditar(userProfile)) {
+      return <SystemSelection onSystemSelect={handleSystemSelect} canAudit={false} />;
+    }
+    return <AuditoriaDashboard userProfile={userProfile} onSystemSwitch={handleSystemSwitch} onLogout={handleLogout} />;
   }
 
   return (
