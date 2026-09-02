@@ -8,26 +8,36 @@ export interface SerieChart {
 
 interface Props {
   series: SerieChart[];
-  domainMax?: number;   // IDEB vai de 0 a 10
+  domainMax?: number;   // IDEB vai de 0 a 10; outros indicadores usam sua própria escala
+  domainMin?: number;   // padrão 0
+  ticks?: number[];     // marcações do eixo Y (se omitido, deriva de min/max)
+  dec?: number;         // casas decimais no tooltip (padrão: 2 se escala ≤ 1, senão 1)
   area?: boolean;       // preenche sob a linha (usado no gráfico de 1 série)
   height?: number;
 }
 
-const fmt = (v: number | null | undefined) =>
-  v == null || Number.isNaN(v) ? '—' : v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-
 // Gráfico de linhas em SVG puro, com guia vertical e tooltip ao passar o mouse
 // mostrando o valor de cada série na edição sob o cursor. Edições sem registro
 // viram lacuna (a linha "pula" o ponto nulo).
-const IdebSerieChart: React.FC<Props> = ({ series, domainMax = 10, area = false, height = 280 }) => {
+const IdebSerieChart: React.FC<Props> = ({ series, domainMax = 10, domainMin = 0, ticks, dec, area = false, height = 280 }) => {
   const [hover, setHover] = useState<number | null>(null);
-  const w = 900, h = height, pad = { t: 18, r: 16, b: 30, l: 34 };
+  const w = 900, h = height, pad = { t: 18, r: 16, b: 30, l: 40 };
   const anos = series[0]?.pontos.map((p) => p.ano) ?? [];
   const n = anos.length;
   const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
   const x = (i: number) => (n <= 1 ? pad.l + iw / 2 : pad.l + (iw * i) / (n - 1));
-  const y = (v: number) => pad.t + (1 - v / domainMax) * ih;
-  const ticks = [0, 2, 4, 6, 8, 10].filter((t) => t <= domainMax);
+  const span = (domainMax - domainMin) || 1;
+  const y = (v: number) => pad.t + (1 - (v - domainMin) / span) * ih;
+  const casas = dec ?? (domainMax <= 1 ? 2 : 1);
+  const fmt = (v: number | null | undefined) =>
+    v == null || Number.isNaN(v) ? '—' : v.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+  const fmtTick = (t: number) => (Number.isInteger(t) ? String(t) : t.toLocaleString('pt-BR', { maximumFractionDigits: 2 }));
+  // Ticks: usa os informados; senão preserva o visual clássico do IDEB (0..10) e,
+  // para outras escalas, gera 5 marcações uniformes de min a max.
+  const tickVals = ticks
+    ?? (domainMin === 0 && domainMax === 10
+      ? [0, 2, 4, 6, 8, 10]
+      : Array.from({ length: 5 }, (_, i) => domainMin + (span * i) / 4));
 
   // Caminho da linha ignorando lacunas (quebra em segmentos contínuos).
   const pathOf = (pts: { valor: number | null }[]) => {
@@ -44,10 +54,10 @@ const IdebSerieChart: React.FC<Props> = ({ series, domainMax = 10, area = false,
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full" onMouseLeave={() => setHover(null)}>
       {/* grades + eixo Y */}
-      {ticks.map((t) => (
+      {tickVals.map((t) => (
         <g key={t}>
           <line x1={pad.l} x2={w - pad.r} y1={y(t)} y2={y(t)} stroke="#eef2f7" strokeWidth={1} />
-          <text x={pad.l - 8} y={y(t)} fontSize={10} fill="#9ca3af" textAnchor="end" dominantBaseline="middle">{t}</text>
+          <text x={pad.l - 8} y={y(t)} fontSize={10} fill="#9ca3af" textAnchor="end" dominantBaseline="middle">{fmtTick(t)}</text>
         </g>
       ))}
       {/* rótulos X */}
@@ -65,7 +75,7 @@ const IdebSerieChart: React.FC<Props> = ({ series, domainMax = 10, area = false,
         <g key={s.label}>
           {area && (
             <path
-              d={`${pathOf(s.pontos)} L${x(n - 1)},${y(0)} L${x(0)},${y(0)} Z`}
+              d={`${pathOf(s.pontos)} L${x(n - 1)},${y(domainMin)} L${x(0)},${y(domainMin)} Z`}
               fill={s.color} fillOpacity={0.12} stroke="none"
             />
           )}

@@ -2,8 +2,8 @@
 // Desempenho. Tudo aqui é PURO/determinístico — recebe a série histórica das
 // escolas parceiras (getIdebParceiros) e devolve tabelas/séries prontas.
 
-import { IdebResultado, IdebEtapa, EnemParceiro } from '../types';
-import { PARCEIROS } from './ideb';
+import { IdebResultado, IdebEtapa, IdebIndicador, EnemParceiro } from '../types';
+import { PARCEIROS, indicadorField } from './ideb';
 
 const media = (vals: number[]): number | null =>
   vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
@@ -30,11 +30,14 @@ export interface ConsolidadoLinha {
   pctMelhoraram: number | null; // melhoraram / escolas
 }
 
-// Mapa inep→ideb de uma edição (só escolas com nota).
-const idebPorInep = (rows: IdebResultado[], ano: string): Map<string, number> => {
+// Mapa inep→valor (do indicador) de uma edição (só escolas com nota).
+const valorPorInep = (rows: IdebResultado[], ano: string, field: keyof IdebResultado): Map<string, number> => {
   const m = new Map<string, number>();
   rows.forEach((r) => {
-    if (r.ano === ano && r.ideb != null) m.set(r.inep_codigo, r.ideb as number);
+    if (r.ano === ano) {
+      const v = r[field];
+      if (typeof v === 'number' && !Number.isNaN(v)) m.set(r.inep_codigo, v);
+    }
   });
   return m;
 };
@@ -42,15 +45,19 @@ const idebPorInep = (rows: IdebResultado[], ano: string): Map<string, number> =>
 export const consolidadoGrupoEtapa = (
   hist: IdebResultado[],
   base: string,
-  comparada: string
+  comparada: string,
+  indicador: IdebIndicador = 'ideb',
+  grupos?: EnemParceiro[]     // se informado, só estes grupos entram (filtro Parceiros)
 ): ConsolidadoLinha[] => {
+  const field = indicadorField(indicador);
   const etapas: IdebEtapa[] = ['anos_finais', 'ensino_medio'];
+  const parcs = PARCEIROS.filter((p) => !grupos || grupos.includes(p.key));
   const linhas: ConsolidadoLinha[] = [];
   etapas.forEach((etapa) => {
-    PARCEIROS.forEach((p) => {
+    parcs.forEach((p) => {
       const rows = hist.filter((r) => r.etapa === etapa && r.parceiro === p.key);
-      const bmap = idebPorInep(rows, base);
-      const cmap = idebPorInep(rows, comparada);
+      const bmap = valorPorInep(rows, base, field);
+      const cmap = valorPorInep(rows, comparada, field);
       const mediaBase = media(Array.from(bmap.values()));
       const mediaComp = media(Array.from(cmap.values()));
       let escolas = 0;
@@ -88,9 +95,12 @@ export interface SerieGrupo {
 export const seriePorGrupo = (
   hist: IdebResultado[],
   etapa: IdebEtapa,
-  edicoes: string[]
-): SerieGrupo[] =>
-  PARCEIROS.map((p) => ({
+  edicoes: string[],
+  indicador: IdebIndicador = 'ideb',
+  grupos?: EnemParceiro[]
+): SerieGrupo[] => {
+  const field = indicadorField(indicador);
+  return PARCEIROS.filter((p) => !grupos || grupos.includes(p.key)).map((p) => ({
     grupo: p.key,
     label: p.label,
     color: p.color,
@@ -98,11 +108,13 @@ export const seriePorGrupo = (
       ano,
       media: media(
         hist
-          .filter((r) => r.etapa === etapa && r.parceiro === p.key && r.ano === ano && r.ideb != null)
-          .map((r) => r.ideb as number)
+          .filter((r) => r.etapa === etapa && r.parceiro === p.key && r.ano === ano)
+          .map((r) => r[field])
+          .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v))
       ),
     })),
   }));
+};
 
 // ---- Maiores melhoras / quedas por escola (base → comparada) ----
 export interface VariacaoEscola {
@@ -119,13 +131,16 @@ export const variacaoEscolas = (
   hist: IdebResultado[],
   etapa: IdebEtapa,
   base: string,
-  comparada: string
+  comparada: string,
+  indicador: IdebIndicador = 'ideb',
+  grupos?: EnemParceiro[]
 ): VariacaoEscola[] => {
-  // Só escolas dos grupos parceiros (apg/salta/tom); ignora escolas avulsas que
-  // entram no histórico apenas por terem regional preenchida.
-  const rows = hist.filter((r) => r.etapa === etapa && r.parceiro != null);
-  const bmap = idebPorInep(rows, base);
-  const cmap = idebPorInep(rows, comparada);
+  // Só escolas dos grupos parceiros (apg/salta/tom), respeitando o filtro; ignora
+  // escolas avulsas que entram no histórico apenas por terem regional preenchida.
+  const field = indicadorField(indicador);
+  const rows = hist.filter((r) => r.etapa === etapa && r.parceiro != null && (!grupos || grupos.includes(r.parceiro)));
+  const bmap = valorPorInep(rows, base, field);
+  const cmap = valorPorInep(rows, comparada, field);
   const info = new Map<string, IdebResultado>();
   rows.forEach((r) => { if (!info.has(r.inep_codigo)) info.set(r.inep_codigo, r); });
   const out: VariacaoEscola[] = [];

@@ -320,14 +320,21 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data, onVerEscola }) 
     setEdicoesSel((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
   const edicoesPlot = useMemo(() => edTodas.filter((a) => edicoesSel.includes(a)), [edTodas, edicoesSel]);
 
-  const consolidado = useMemo(() => consolidadoPorGrupo(data, base, comparada, 'media'), [data, base, comparada]);
+  // Grupos efetivos do filtro Parceiros (vazio = todos). O Comparativo entre
+  // edições (consolidado, série, melhoras/quedas) respeita este recorte e a área.
+  const gruposSel = useMemo<EnemParceiro[]>(
+    () => (parceirosFiltro.length === 0 ? PARCEIROS.map((p) => p.key) : parceirosFiltro),
+    [parceirosFiltro]
+  );
+
+  const consolidado = useMemo(() => consolidadoPorGrupo(data, base, comparada, area, gruposSel), [data, base, comparada, area, gruposSel]);
   const serieChart = useMemo(
-    () => seriePorGrupo(data, edicoesPlot, 'media').map((s) => ({
+    () => seriePorGrupo(data, edicoesPlot, area, gruposSel).map((s) => ({
       label: s.label, color: s.color, pontos: s.pontos.map((p) => ({ ano: p.ano, valor: p.media })),
     })),
-    [data, edicoesPlot]
+    [data, edicoesPlot, area, gruposSel]
   );
-  const variacoes = useMemo(() => variacaoEscolas(data, base, comparada, 'media'), [data, base, comparada]);
+  const variacoes = useMemo(() => variacaoEscolas(data, base, comparada, area, gruposSel), [data, base, comparada, area, gruposSel]);
   const melhoras = useMemo(() => topMelhoras(variacoes, 10), [variacoes]);
   const quedas = useMemo(() => topQuedas(variacoes, 10), [variacoes]);
 
@@ -598,7 +605,7 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data, onVerEscola }) 
           <h3 className="text-base font-semibold text-gray-900">Consolidado por grupo</h3>
         </div>
         <p className="text-xs text-gray-500 mb-3">
-          Média geral do ENEM das escolas de cada grupo e percentual de escolas que melhoraram entre {base} e {comparada}.
+          {areaLabel} das escolas de cada grupo e percentual de escolas que melhoraram entre {base} e {comparada}.
         </p>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -643,7 +650,7 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data, onVerEscola }) 
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <div className="flex items-center gap-2 mb-1">
           <div className="bg-emerald-100 p-1.5 rounded-lg"><LineChartIcon className="w-4 h-4 text-emerald-600" /></div>
-          <h3 className="text-base font-semibold text-gray-900">Média geral do ENEM por grupo</h3>
+          <h3 className="text-base font-semibold text-gray-900">{areaLabel} do ENEM por grupo</h3>
         </div>
         <p className="text-xs text-gray-500 mb-2">Série das edições selecionadas. Edições sem registro aparecem como lacuna na linha.</p>
         {edicoesPlot.length === 0 ? (

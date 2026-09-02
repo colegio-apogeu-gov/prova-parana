@@ -40,9 +40,10 @@ export const consolidadoPorGrupo = (
   data: EnemResultado[],
   base: string,
   comparada: string,
-  area: EnemArea = 'media'
+  area: EnemArea = 'media',
+  grupos?: EnemParceiro[]     // se informado, só estes grupos entram (filtro Parceiros)
 ): ConsolidadoLinha[] =>
-  PARCEIROS.map((p) => {
+  PARCEIROS.filter((p) => !grupos || grupos.includes(p.key)).map((p) => {
     const rows = data.filter((r) => r.parceiro === p.key);
     const bmap = valorPorInep(rows, base, area);
     const cmap = valorPorInep(rows, comparada, area);
@@ -79,9 +80,10 @@ export interface SerieGrupo {
 export const seriePorGrupo = (
   data: EnemResultado[],
   edicoes: string[],
-  area: EnemArea = 'media'
+  area: EnemArea = 'media',
+  grupos?: EnemParceiro[]
 ): SerieGrupo[] =>
-  PARCEIROS.map((p) => ({
+  PARCEIROS.filter((p) => !grupos || grupos.includes(p.key)).map((p) => ({
     grupo: p.key,
     label: p.label,
     color: p.color,
@@ -106,10 +108,11 @@ export const variacaoEscolas = (
   data: EnemResultado[],
   base: string,
   comparada: string,
-  area: EnemArea = 'media'
+  area: EnemArea = 'media',
+  grupos?: EnemParceiro[]
 ): VariacaoEscola[] => {
-  // Só escolas dos grupos parceiros (apg/salta/tom).
-  const rows = data.filter((r) => r.parceiro != null);
+  // Só escolas dos grupos parceiros (apg/salta/tom), respeitando o filtro.
+  const rows = data.filter((r) => r.parceiro != null && (!grupos || grupos.includes(r.parceiro)));
   const bmap = valorPorInep(rows, base, area);
   const cmap = valorPorInep(rows, comparada, area);
   const info = new Map<string, EnemResultado>();

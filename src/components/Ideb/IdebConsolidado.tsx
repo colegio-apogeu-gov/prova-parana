@@ -29,7 +29,6 @@ interface IdebConsolidadoProps {
 }
 
 const fmtInt = (v: number) => (v || 0).toLocaleString('pt-BR');
-const fmtIdeb = (v: number | null | undefined) => fmtIndicador(v, 'ideb');
 // Variação com sinal e seta (verde sobe, vermelho desce).
 const fmtVar = (v: number | null | undefined): { txt: string; up: boolean | null } => {
   if (v == null || Number.isNaN(v)) return { txt: '—', up: null };
@@ -50,7 +49,8 @@ const VariacaoTabela: React.FC<{
   base: string;
   comparada: string;
   onVerEscola: (inep: string) => void;
-}> = ({ titulo, tipo, linhas, base, comparada, onVerEscola }) => {
+  fmtValor: (v: number | null | undefined) => string;
+}> = ({ titulo, tipo, linhas, base, comparada, onVerEscola, fmtValor }) => {
   const melhora = tipo === 'melhora';
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -92,8 +92,8 @@ const VariacaoTabela: React.FC<{
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-gray-500 font-mono text-xs">{l.inep}</td>
-                    <td className="px-2 py-2.5 text-right text-gray-600">{fmtIdeb(l.base)}</td>
-                    <td className="px-2 py-2.5 text-right font-semibold text-gray-900">{fmtIdeb(l.comparada)}</td>
+                    <td className="px-2 py-2.5 text-right text-gray-600">{fmtValor(l.base)}</td>
+                    <td className="px-2 py-2.5 text-right font-semibold text-gray-900">{fmtValor(l.comparada)}</td>
                     <td className="px-3 py-2.5 text-center">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${melhora ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
                         {melhora ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
@@ -234,17 +234,39 @@ const IdebConsolidado: React.FC<IdebConsolidadoProps> = ({ data, historico, etap
     setEdicoesSel((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
   const edicoesPlot = useMemo(() => chartEdicoes.filter((a) => edicoesSel.includes(a)), [chartEdicoes, edicoesSel]);
 
-  const consolidado = useMemo(() => consolidadoGrupoEtapa(historico, base, comparada), [historico, base, comparada]);
+  // Grupos efetivos do filtro Parceiros (vazio = todos). O Comparativo entre
+  // edições (consolidado, série, melhoras/quedas) respeita este recorte e o indicador.
+  const gruposSel = useMemo<EnemParceiro[]>(
+    () => (parceirosFiltro.length === 0 ? PARCEIROS.map((p) => p.key) : parceirosFiltro),
+    [parceirosFiltro]
+  );
+
+  const consolidado = useMemo(() => consolidadoGrupoEtapa(historico, base, comparada, indicador, gruposSel), [historico, base, comparada, indicador, gruposSel]);
   const serieChart = useMemo(
-    () => seriePorGrupo(historico, etapa, edicoesPlot).map((s) => ({
+    () => seriePorGrupo(historico, etapa, edicoesPlot, indicador, gruposSel).map((s) => ({
       label: s.label, color: s.color, pontos: s.pontos.map((p) => ({ ano: p.ano, valor: p.media })),
     })),
-    [historico, etapa, edicoesPlot]
+    [historico, etapa, edicoesPlot, indicador, gruposSel]
   );
-  const variacoes = useMemo(() => variacaoEscolas(historico, etapa, base, comparada), [historico, etapa, base, comparada]);
+  const variacoes = useMemo(() => variacaoEscolas(historico, etapa, base, comparada, indicador, gruposSel), [historico, etapa, base, comparada, indicador, gruposSel]);
   const melhoras = useMemo(() => topMelhoras(variacoes, 10), [variacoes]);
   const quedas = useMemo(() => topQuedas(variacoes, 10), [variacoes]);
   const etLabel = ETAPAS.find((e) => e.key === etapa)?.label ?? etapaLabel(etapa);
+
+  // Domínio do gráfico por indicador (IDEB/Aprendizado 0–10; Fluxo 0–1; Aprovação
+  // 0–100%; SAEB usa a escala dos próprios valores).
+  const serieDominio = useMemo(() => {
+    if (indicador === 'fluxo') return { min: 0, max: 1, ticks: [0, 0.25, 0.5, 0.75, 1] };
+    if (indicador === 'aprovacao') return { min: 0, max: 100, ticks: [0, 25, 50, 75, 100] };
+    if (indicador === 'saeb_mt' || indicador === 'saeb_lp') {
+      const vals = serieChart.flatMap((s) => s.pontos.map((p) => p.valor)).filter((v): v is number => v != null);
+      if (!vals.length) return { min: 100, max: 400, ticks: [100, 175, 250, 325, 400] };
+      const lo = Math.min(...vals), hi = Math.max(...vals);
+      const min = Math.max(0, Math.floor((lo - 20) / 25) * 25), max = Math.ceil((hi + 20) / 25) * 25;
+      return { min, max, ticks: Array.from({ length: 5 }, (_, i) => min + ((max - min) * i) / 4) };
+    }
+    return { min: 0, max: 10, ticks: [0, 2, 4, 6, 8, 10] };
+  }, [indicador, serieChart]);
 
   // Toggle de grupo reutilizável (Apg/Salta/Tom) para ranking, perfil e mapa.
   // `withTodos` acrescenta a opção "Todos" (usada só no ranking).
@@ -513,7 +535,7 @@ const IdebConsolidado: React.FC<IdebConsolidadoProps> = ({ data, historico, etap
           <h3 className="text-base font-semibold text-gray-900">Consolidado por grupo e etapa</h3>
         </div>
         <p className="text-xs text-gray-500 mb-3">
-          Média do IDEB das escolas de cada grupo e percentual de escolas que melhoraram entre {base} e {comparada}.
+          {indLabel} das escolas de cada grupo e percentual de escolas que melhoraram entre {base} e {comparada}.
         </p>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -521,8 +543,8 @@ const IdebConsolidado: React.FC<IdebConsolidadoProps> = ({ data, historico, etap
               <tr className="text-gray-500 border-b border-gray-200">
                 <th className="px-3 py-2 text-left font-medium">Grupo</th>
                 <th className="px-3 py-2 text-left font-medium">Etapa</th>
-                <th className="px-3 py-2 text-right font-medium">IDEB {base}</th>
-                <th className="px-3 py-2 text-right font-medium">IDEB {comparada}</th>
+                <th className="px-3 py-2 text-right font-medium">{indLabel} {base}</th>
+                <th className="px-3 py-2 text-right font-medium">{indLabel} {comparada}</th>
                 <th className="px-3 py-2 text-center font-medium">Variação</th>
                 <th className="px-3 py-2 text-right font-medium">% melhoraram</th>
                 <th className="px-3 py-2 text-right font-medium">Escolas</th>
@@ -536,8 +558,8 @@ const IdebConsolidado: React.FC<IdebConsolidadoProps> = ({ data, historico, etap
                   <tr key={`${l.grupo}-${l.etapa}`} className={`border-b border-gray-50 ${apg ? 'bg-blue-50/40' : ''}`}>
                     <td className="px-3 py-2.5 font-semibold" style={{ color: parceiroColor(l.grupo) }}>{parceiroLabel(l.grupo)}</td>
                     <td className="px-3 py-2.5 text-gray-600">{etapaLabel(l.etapa)}</td>
-                    <td className="px-3 py-2.5 text-right text-gray-700">{fmtIdeb(l.mediaBase)}</td>
-                    <td className="px-3 py-2.5 text-right font-semibold text-gray-900">{fmtIdeb(l.mediaComp)}</td>
+                    <td className="px-3 py-2.5 text-right text-gray-700">{fmtIndicador(l.mediaBase, indicador)}</td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-gray-900">{fmtIndicador(l.mediaComp, indicador)}</td>
                     <td className="px-3 py-2.5 text-center">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
                         v.up === true ? 'bg-emerald-50 text-emerald-700' : v.up === false ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'
@@ -560,14 +582,14 @@ const IdebConsolidado: React.FC<IdebConsolidadoProps> = ({ data, historico, etap
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <div className="flex items-center gap-2 mb-1">
           <div className="bg-violet-100 p-1.5 rounded-lg"><LineChartIcon className="w-4 h-4 text-violet-600" /></div>
-          <h3 className="text-base font-semibold text-gray-900">Média do IDEB por grupo — {etLabel}</h3>
+          <h3 className="text-base font-semibold text-gray-900">{indLabel} por grupo — {etLabel}</h3>
         </div>
         <p className="text-xs text-gray-500 mb-2">Série das edições selecionadas. Edições sem registro aparecem como lacuna na linha.</p>
         {edicoesPlot.length === 0 ? (
           <p className="text-sm text-gray-400 py-10 text-center">Selecione ao menos uma edição no histórico.</p>
         ) : (
           <>
-            <IdebSerieChart series={serieChart} domainMax={10} />
+            <IdebSerieChart series={serieChart} domainMin={serieDominio.min} domainMax={serieDominio.max} ticks={serieDominio.ticks} />
             <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-gray-500 mt-1">
               {serieChart.map((s) => (
                 <span key={s.label} className="flex items-center gap-1.5">
@@ -582,8 +604,8 @@ const IdebConsolidado: React.FC<IdebConsolidadoProps> = ({ data, historico, etap
 
       {/* Maiores melhoras / quedas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <VariacaoTabela titulo="10 maiores melhoras de desempenho" tipo="melhora" linhas={melhoras} base={base} comparada={comparada} onVerEscola={onVerEscola} />
-        <VariacaoTabela titulo="10 maiores quedas de desempenho" tipo="queda" linhas={quedas} base={base} comparada={comparada} onVerEscola={onVerEscola} />
+        <VariacaoTabela titulo="10 maiores melhoras de desempenho" tipo="melhora" linhas={melhoras} base={base} comparada={comparada} onVerEscola={onVerEscola} fmtValor={(v) => fmtIndicador(v, indicador)} />
+        <VariacaoTabela titulo="10 maiores quedas de desempenho" tipo="queda" linhas={quedas} base={base} comparada={comparada} onVerEscola={onVerEscola} fmtValor={(v) => fmtIndicador(v, indicador)} />
       </div>
 
       {/* Mapa de escolas · Parceiros da escola */}
