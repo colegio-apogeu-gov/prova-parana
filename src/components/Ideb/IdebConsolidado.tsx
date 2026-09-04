@@ -160,12 +160,13 @@ const IdebConsolidado: React.FC<IdebConsolidadoProps> = ({ data, historico, etap
   const mediaParana = useMemo(() => mediaSimples(scopeAll, indicador), [scopeAll, indicador]);
   const mediaApg = useMemo(() => mediaSimples(scopeApg, indicador), [scopeApg, indicador]);
   const mediaParceiros = useMemo(() => mediaSimples(scopeParceiros, indicador), [scopeParceiros, indicador]);
+  // "Maior média" considera todas as escolas dos parceiros selecionados (não só APG).
   const maior = useMemo(() => {
     let best: IdebResultado | null = null;
     let bv = -Infinity;
-    scopeApg.forEach((r) => { const v = indicadorValue(r, indicador); if (v != null && v > bv) { bv = v; best = r; } });
+    scopeParceiros.forEach((r) => { const v = indicadorValue(r, indicador); if (v != null && v > bv) { bv = v; best = r; } });
     return best ? { escola: (best as IdebResultado).escola, valor: bv } : null;
-  }, [scopeApg, indicador]);
+  }, [scopeParceiros, indicador]);
   const metas = useMemo(() => metasAtingidas(scopeParceiros), [scopeParceiros]);
 
   // ---- Ranking (grupo próprio; 'todos' = os 3 grupos juntos) ----
@@ -399,7 +400,7 @@ const IdebConsolidado: React.FC<IdebConsolidadoProps> = ({ data, historico, etap
         <div className={`${cardBase} ring-2 ring-blue-500 bg-blue-50/40`}>
           <div className="flex items-center gap-2 text-gray-500 mb-1">
             <div className="bg-blue-100 p-1.5 rounded-lg"><Building2 className="w-4 h-4 text-blue-600" /></div>
-            <span className="text-xs font-medium">Média parceiros APG</span>
+            <span className="text-xs font-medium">Média APG</span>
           </div>
           <p className="text-2xl font-bold text-blue-700">{fmtIndicador(mediaApg, indicador)}</p>
           <p className="text-xs text-gray-400 mt-1">
@@ -411,7 +412,7 @@ const IdebConsolidado: React.FC<IdebConsolidadoProps> = ({ data, historico, etap
         <div className={cardBase}>
           <div className="flex items-center gap-2 text-gray-500 mb-1">
             <div className="bg-violet-100 p-1.5 rounded-lg"><Handshake className="w-4 h-4 text-violet-600" /></div>
-            <span className="text-xs font-medium">Média Parceiros da Escola</span>
+            <span className="text-xs font-medium">Média Parceiros</span>
           </div>
           <p className="text-2xl font-bold text-gray-900">{fmtIndicador(mediaParceiros, indicador)}</p>
           <p className="text-xs text-gray-400 mt-1">Apg + Salta + Tom · {scopeParceiros.length} escolas</p>

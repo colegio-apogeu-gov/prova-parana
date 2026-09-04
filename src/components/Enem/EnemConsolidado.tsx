@@ -242,11 +242,12 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data, onVerEscola }) 
   const mediaParana = useMemo(() => mediaPonderada(escolasPR, area), [escolasPR, area]);
   const mediaApg = useMemo(() => mediaPonderada(scopeApg, area), [scopeApg, area]);
   const mediaParceiros = useMemo(() => mediaPonderada(scopeParceiros, area), [scopeParceiros, area]);
+  // "Maior média" considera todas as escolas dos parceiros selecionados (não só APG).
   const maior = useMemo(() => {
     let best: EnemResultado | null = null, bv = -Infinity;
-    scopeApg.forEach((r) => { const v = areaValue(r, area); if (v != null && v > bv) { bv = v; best = r; } });
+    scopeParceiros.forEach((r) => { const v = areaValue(r, area); if (v != null && v > bv) { bv = v; best = r; } });
     return best ? { escola: (best as EnemResultado).escola, valor: bv } : null;
-  }, [scopeApg, area]);
+  }, [scopeParceiros, area]);
   const participantes = useMemo(() => scopeAll.reduce((s, r) => s + (r.alunos || 0), 0), [scopeAll]);
   const participantesParceiros = useMemo(() => scopeParceiros.reduce((s, r) => s + (r.alunos || 0), 0), [scopeParceiros]);
 
@@ -456,7 +457,7 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data, onVerEscola }) 
         <div className={`${cardBase} ring-2 ring-blue-500 bg-blue-50/40`}>
           <div className="flex items-center gap-2 text-gray-500 mb-1">
             <div className="bg-blue-100 p-1.5 rounded-lg"><Building2 className="w-4 h-4 text-blue-600" /></div>
-            <span className="text-xs font-medium">Média parceiros APG</span>
+            <span className="text-xs font-medium">Média APG</span>
           </div>
           <p className="text-2xl font-bold text-blue-700">{fmt(mediaApg)}</p>
           <p className="text-xs text-gray-400 mt-1">
@@ -466,7 +467,7 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data, onVerEscola }) 
         <div className={cardBase}>
           <div className="flex items-center gap-2 text-gray-500 mb-1">
             <div className="bg-violet-100 p-1.5 rounded-lg"><Handshake className="w-4 h-4 text-violet-600" /></div>
-            <span className="text-xs font-medium">Média Parceiros da Escola</span>
+            <span className="text-xs font-medium">Média Parceiros</span>
           </div>
           <p className="text-2xl font-bold text-gray-900">{fmt(mediaParceiros)}</p>
           <p className="text-xs text-gray-400 mt-1">Apg + Salta + Tom · {scopeParceiros.length} escolas</p>
