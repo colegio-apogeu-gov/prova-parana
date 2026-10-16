@@ -3,8 +3,9 @@ import { School, BarChart3, Upload, LogOut, BookOpen, PieChart, RefreshCw, GitCo
 import { auth } from '../../lib/firebase';
 import { signOut } from 'firebase/auth';
 import { User } from 'firebase/auth';
-import { UserProfile, isGestao } from '../../types';
+import { UserProfile, isGestao, isCsc } from '../../types';
 import EntendaSistema from '../EntendaSistema/EntendaSistema';
+import { SeletorEscola } from '../common/SeletorEscola';
 
 interface NavbarProps {
   user: User;
@@ -48,7 +49,11 @@ const Navbar: React.FC<NavbarProps> = ({
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">{systemTitle}</h1>
-                <p className="text-xs text-gray-500">{userProfile?.unidade}</p>
+                {isCsc(userProfile) ? (
+                  <SeletorEscola className="mt-0.5 max-w-xs text-xs text-gray-700 bg-white border border-gray-300 rounded-md px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-gray-300" />
+                ) : (
+                  <p className="text-xs text-gray-500">{userProfile?.unidade}</p>
+                )}
               </div>
             </div>
           </div>
@@ -168,7 +173,9 @@ const Navbar: React.FC<NavbarProps> = ({
             </button>
             <div className="text-right">
               <p className="text-sm font-medium text-gray-900">{user.email}</p>
-              <p className="text-xs text-gray-500">{isGestao(userProfile) ? 'Gestão' : 'Administrador'}</p>
+              <p className="text-xs text-gray-500">
+                {isCsc(userProfile) ? 'CSC' : isGestao(userProfile) ? 'Gestão' : 'Administrador'}
+              </p>
             </div>
             <button
               onClick={onLogout}

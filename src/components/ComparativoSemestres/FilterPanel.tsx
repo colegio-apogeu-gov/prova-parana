@@ -3,6 +3,8 @@ import { Filter, Search } from 'lucide-react';
 import { SemesterFilters } from './ComparativoSemestres';
 import { searchStudents, getFilterOptions } from '../../lib/supabase';
 import { searchStudentsParceiro, getFilterOptionsParceiro } from '../../lib/supabaseParceiro';
+import { useEscolaCsc } from '../../lib/escolaCsc';
+import { SeletorEscola } from '../common/SeletorEscola';
 
 interface FilterPanelProps {
   filters: SemesterFilters;
@@ -30,6 +32,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     padroes: [],
     habilidades: []
   });
+  const escolaCsc = useEscolaCsc();
 
   useEffect(() => {
     if (searchTerm.length > 0) {
@@ -103,17 +106,21 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
       </div>
 
       <div className="grid md:grid-cols-6 gap-4">
-        {/* Unidade */}
+        {/* Unidade (fixa para a escola; o CSC escolhe) */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Unidade
           </label>
-          <input
-            type="text"
-            value={userProfile?.unidade || ''}
-            disabled
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-          />
+          {escolaCsc ? (
+            <SeletorEscola className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+          ) : (
+            <input
+              type="text"
+              value={userProfile?.unidade || ''}
+              disabled
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+            />
+          )}
         </div>
 
         {/* Sala de Aula */}

@@ -119,6 +119,15 @@ export interface UserProfile {
 export const isGestao = (profile: { tipo_acesso?: string | null } | null | undefined): boolean =>
   profile?.tipo_acesso === 'gestao';
 
+// CSC (Centro de Serviços Compartilhados): a parte administrativa da empresa.
+// É cadastrado como uma "unidade", mas não tem escola fixa: vê os resultados de
+// qualquer escola, escolhendo qual ver (o App repassa às telas um perfil com a
+// unidade = escola escolhida).
+export const UNIDADE_CSC = 'CSC';
+
+export const isCsc = (profile: { unidade?: string | null } | null | undefined): boolean =>
+  (profile?.unidade ?? '').trim().toUpperCase() === UNIDADE_CSC;
+
 export interface UploadForm {
   ano: '9º ano' | '6º ano' | '3º ano';
   componente: 'MT' | 'LP';
@@ -337,6 +346,9 @@ export const UNIDADE_MAPEADA: Record<(typeof UNIDADES_ESCOLARES)[number], string
   'TEREZA DA S RAMOS, C E PROFA-EF M': 'TEREZA DA S RAMOS C E PROFA EF M',
   'VICTOR DO AMARAL C E PROF EFM ETI PROFI': 'VICTOR DO AMARAL C E PROF EFM ETI PROFI'
 };
+
+// Nomes das escolas como gravados no banco (grafia padronizada), em ordem alfabética.
+export const UNIDADES_PADRONIZADAS: string[] = Object.values(UNIDADE_MAPEADA);
 
 // ---------- Skills mapping
 export const HABILIDADES_3_ANO = {
