@@ -4,6 +4,8 @@ import { DashboardFilters } from '../../types';
 import { searchStudents, getFilterOptions, getAnosProva } from '../../lib/supabase';
 import { searchStudentsParceiro, getFilterOptionsParceiro, getAnosProvaParceiro } from '../../lib/supabaseParceiro';
 import { searchStudentsMais, getFilterOptionsMais, getAnosProvaMais } from '../../lib/supabaseMais';
+import { useEscolaCsc } from '../../lib/escolaCsc';
+import { SeletorEscola } from '../common/SeletorEscola';
 
 interface FilterPanelProps {
   filters: DashboardFilters;
@@ -30,6 +32,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     habilidades: []
   });
   const [anosProva, setAnosProva] = useState<string[]>([]);
+  const escolaCsc = useEscolaCsc();
 
   useEffect(() => {
     if (searchTerm.length > 0) {
@@ -189,17 +192,21 @@ const habilidadesFiltradas = nivelSelecionado
           </div>
         </div>
 
-        {/* Unidade */}
+        {/* Unidade (fixa para a escola; o CSC escolhe) */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Unidade
           </label>
-          <input
-            type="text"
-            value={userProfile?.unidade || ''}
-            disabled
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-          />
+          {escolaCsc ? (
+            <SeletorEscola className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+          ) : (
+            <input
+              type="text"
+              value={userProfile?.unidade || ''}
+              disabled
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+            />
+          )}
         </div>
 
         {/* Ano Prova */}

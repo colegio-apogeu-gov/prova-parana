@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User } from 'firebase/auth';
 import { auth } from './lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -18,8 +18,10 @@ import Graficos from './components/Graficos/Graficos';
 import ComparacaoProvas from './components/ComparacaoProvas/ComparacaoProvas';
 import ComparativoSemestres from './components/ComparativoSemestres/ComparativoSemestres';
 import ComparacaoAnual from './components/ComparacaoAnual/ComparacaoAnual';
-import { UserProfile } from './types';
+import { EscolhaEscola } from './components/common/SeletorEscola';
+import { UserProfile, isCsc } from './types';
 import { podeAuditar, registrarLogin, registrarInteracao, sistemaLabel } from './lib/auditoria';
+import { EscolaCscProvider } from './lib/escolaCsc';
 
 // Sistemas do Radar APG. 'enem', 'ideb' e 'auditoria' são dashboards próprios (tela cheia).
 type SelectedSystem = 'prova-parana' | 'parceiro' | 'parana-mais' | 'enem' | 'ideb' | 'auditoria';
@@ -27,6 +29,9 @@ type SelectedSystem = 'prova-parana' | 'parceiro' | 'parana-mais' | 'enem' | 'id
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  // Escola escolhida pelo CSC ('' = nenhuma). Vale para todas as abas e sistemas
+  // até trocar de escola ou sair.
+  const [escolaCsc, setEscolaCsc] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedSystem, setSelectedSystem] = useState<SelectedSystem | null>(() => {
     return (localStorage.getItem('selectedSystem') as SelectedSystem) || null;
@@ -103,6 +108,18 @@ function App() {
     };
   }, [user, selectedSystem]);
 
+  // CSC não tem escola fixa: as telas recebem um perfil com a unidade = escola
+  // escolhida, e funcionam exatamente como para um usuário daquela escola.
+  const csc = isCsc(userProfile);
+  const perfilEfetivo = useMemo<UserProfile | null>(
+    () => (csc && userProfile ? { ...userProfile, unidade: escolaCsc } : userProfile),
+    [csc, userProfile, escolaCsc]
+  );
+  const escolaCscCtx = useMemo(
+    () => (csc ? { escola: escolaCsc, setEscola: setEscolaCsc } : null),
+    [csc, escolaCsc]
+  );
+
   const handleLogout = async () => {
     try {
       await auth.signOut();
@@ -110,6 +127,7 @@ function App() {
       localStorage.removeItem('selectedSystem');
       setUser(null);
       setUserProfile(null);
+      setEscolaCsc('');
       setSelectedSystem(null);
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
@@ -164,41 +182,46 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar
-        user={user} 
-        userProfile={userProfile}
-        onLogout={handleLogout}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        selectedSystem={selectedSystem}
-        onSystemSwitch={handleSystemSwitch}
-      />
-      
-      <main className="container mx-auto px-4 py-8">
-        {activeTab === 'dashboard' ? (
-          <Dashboard userProfile={userProfile} selectedSystem={selectedSystem} />
-        ) : activeTab === 'upload' ? (
-          selectedSystem === 'prova-parana' ? (
-            <UploadForm userProfile={userProfile} />
+    <EscolaCscProvider value={escolaCscCtx}>
+      <div className="min-h-screen bg-gray-50">
+        <Navbar
+          user={user}
+          userProfile={userProfile}
+          onLogout={handleLogout}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          selectedSystem={selectedSystem}
+          onSystemSwitch={handleSystemSwitch}
+        />
+
+        {/* key: para o CSC, trocar de escola remonta as telas (filtros e dados recomeçam). */}
+        <main key={escolaCsc} className="container mx-auto px-4 py-8">
+          {csc && !escolaCsc ? (
+            <EscolhaEscola />
+          ) : activeTab === 'dashboard' ? (
+            <Dashboard userProfile={perfilEfetivo} selectedSystem={selectedSystem} />
+          ) : activeTab === 'upload' ? (
+            selectedSystem === 'prova-parana' ? (
+              <UploadForm userProfile={perfilEfetivo} />
+            ) : (
+              <UploadFormParceiro userProfile={perfilEfetivo} selectedSystem={selectedSystem} />
+            )
+          ) : activeTab === 'graficos' ? (
+            <Graficos userProfile={perfilEfetivo} selectedSystem={selectedSystem} />
+          ) : activeTab === 'comparacao' ? (
+            <ComparacaoProvas userProfile={perfilEfetivo} />
+          ) : activeTab === 'semestres' ? (
+            <ComparativoSemestres userProfile={perfilEfetivo} selectedSystem={selectedSystem} />
+          ) : activeTab === 'comparacao-anual' ? (
+            <ComparacaoAnual userProfile={perfilEfetivo} selectedSystem={selectedSystem} />
+          ) : activeTab === 'descritores' ? (
+            <Descritores selectedSystem={selectedSystem} userProfile={perfilEfetivo} />
           ) : (
-            <UploadFormParceiro userProfile={userProfile} selectedSystem={selectedSystem} />
-          )
-        ) : activeTab === 'graficos' ? (
-          <Graficos userProfile={userProfile} selectedSystem={selectedSystem} />
-        ) : activeTab === 'comparacao' ? (
-          <ComparacaoProvas userProfile={userProfile} />
-        ) : activeTab === 'semestres' ? (
-          <ComparativoSemestres userProfile={userProfile} selectedSystem={selectedSystem} />
-        ) : activeTab === 'comparacao-anual' ? (
-          <ComparacaoAnual userProfile={userProfile} selectedSystem={selectedSystem} />
-        ) : activeTab === 'descritores' ? (
-          <Descritores selectedSystem={selectedSystem} userProfile={userProfile} />
-        ) : (
-          <CadastrarAtividades selectedSystem={selectedSystem} />
-        )}
-      </main>
-    </div>
+            <CadastrarAtividades selectedSystem={selectedSystem} />
+          )}
+        </main>
+      </div>
+    </EscolaCscProvider>
   );
 }
 
