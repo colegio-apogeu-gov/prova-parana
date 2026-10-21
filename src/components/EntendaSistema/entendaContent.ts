@@ -1,4 +1,4 @@
-// Conteúdo da aba "Entenda o Sistema", por sistema do Radar APG.
+// Conteúdo da aba "Entenda o Sistema", por sistema do Mapa APG.
 //
 // Este arquivo é a ÚNICA fonte do texto exibido no modal de ajuda. Para
 // replicar/ajustar o conteúdo de um sistema, edite o objeto correspondente em
@@ -33,12 +33,12 @@ export interface EntendaConteudo {
 const MATERIAIS_GERAIS: MaterialLink[] = [
   {
     label: 'Vídeo explicativo do sistema',
-    descricao: 'Apresentação do Radar APG como um todo',
+    descricao: 'Apresentação do Mapa APG como um todo',
     url: 'https://drive.google.com/file/d/14FvdOE4fft4XVk3SqQBVPmFNh9Theonq/view?usp=sharing',
   },
   {
     label: 'Material de explicação do sistema',
-    descricao: 'Guia do Radar APG como um todo',
+    descricao: 'Guia do Mapa APG como um todo',
     url: 'https://drive.google.com/file/d/1zjFGDhlBcA6p6E_aGGaB6l0OVZCOyv3W/view?usp=sharing',
   },
 ];
@@ -79,7 +79,7 @@ export const ENTENDA: Record<EntendaSystemKey, EntendaConteudo> = {
     resumo:
       'Painel de acompanhamento do Paraná Mais, avaliação complementar de desempenho. ' +
       'Organiza os resultados por aluno, turma, componente e habilidade, no mesmo padrão de ' +
-      'análise dos demais sistemas do Radar APG.',
+      'análise dos demais sistemas do Mapa APG.',
     abas: [
       { nome: 'Dashboard', desc: 'visão principal com indicadores, gráficos, salas de aula e a lista de alunos com desempenho por habilidade.' },
       { nome: 'Gráficos', desc: 'gráficos de desempenho por ano, componente, nível, habilidade, turma e participação.' },
