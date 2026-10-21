@@ -148,7 +148,7 @@ export const ENTENDA: Record<EntendaSystemKey, EntendaConteudo> = {
       { nome: 'Radar por área', desc: 'compara o desempenho nas cinco provas de uma só vez.' },
       { nome: 'Mapa do Paraná', desc: 'distribuição geográfica das escolas do grupo por cidade.' },
     ],
-    filtros: ['Ano', 'Busca por escola', 'Regional', 'Cidade', 'Área de conhecimento', 'Escopo (grupo Apogeu ou toda a rede pública)'],
+    filtros: ['Ano', 'Busca por escola', 'Regional', 'Rede (estadual, federal ou privada)', 'Cidade', 'Área de conhecimento', 'Escopo (grupo Apogeu ou todas as escolas do PR)'],
     particularidades: [
       'É um painel próprio, em tela cheia, separado das abas dos demais sistemas.',
       'Compara os grupos parceiros Apogeu, Salta e Tom, sempre destacando as escolas do grupo Apogeu.',
