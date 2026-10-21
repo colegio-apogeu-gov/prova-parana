@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   GraduationCap, Search, Building2, MapPin, TrendingUp, Trophy, Users, Award,
-  RefreshCw, LogOut, Eraser, Medal, ChevronRight, LayoutGrid, LineChart, Handshake, BookOpen, Activity,
+  RefreshCw, LogOut, Eraser, Medal, ChevronRight, LayoutGrid, LineChart, Handshake, BookOpen, Activity, Landmark,
 } from 'lucide-react';
 import EnemHistorico from './EnemHistorico';
 import EnemConsolidado from './EnemConsolidado';
@@ -134,6 +134,8 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
   // Escopo do ranking: só o grupo Apogeu ou todas as públicas do PR na base.
   const [escopo, setEscopo] = useState<'apg' | 'todas'>('apg');
   const [regionalSel, setRegionalSel] = useState('');
+  // Rede da escola (Estadual/Federal/Privada), mesmo filtro "Rede" do IDEB (na base do ENEM a coluna é `dependencia`).
+  const [redeSel, setRedeSel] = useState('');
   const [cidadeSel, setCidadeSel] = useState('');
   const [selectedId, setSelectedId] = useState('');
   const [mapCidade, setMapCidade] = useState('');
@@ -168,6 +170,10 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
     () => Array.from(new Set(dataAno.map((r) => r.regional).filter(Boolean) as string[])).sort(),
     [dataAno]
   );
+  const redes = useMemo(
+    () => Array.from(new Set(dataAno.map((r) => r.dependencia).filter(Boolean) as string[])).sort(),
+    [dataAno]
+  );
   // Só cidades com escola do grupo: a base agora tem ~380 municípios do PR, mas
   // este dashboard é focado no Apogeu (ranking/mapa por escola do grupo).
   const cidades = useMemo(
@@ -175,10 +181,14 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
     [dataAno]
   );
 
-  // Escopo dos cards/ranking: filtros de regional e cidade (a busca só filtra a lista do ranking).
+  // Escopo dos cards/ranking: filtros de regional, rede e cidade (a busca só filtra a lista do ranking).
   const scopeAll = useMemo(
-    () => dataAno.filter((r) => (!regionalSel || r.regional === regionalSel) && (!cidadeSel || r.cidade === cidadeSel)),
-    [dataAno, regionalSel, cidadeSel]
+    () => dataAno.filter((r) =>
+      (!regionalSel || r.regional === regionalSel) &&
+      (!redeSel || r.dependencia === redeSel) &&
+      (!cidadeSel || r.cidade === cidadeSel)
+    ),
+    [dataAno, regionalSel, redeSel, cidadeSel]
   );
   const scopeApg = useMemo(() => scopeAll.filter((r) => r.is_apogeu), [scopeAll]);
 
@@ -253,7 +263,7 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
 
   const mapaSel = cidadesMapa.find((c) => c.cidade === mapCidade);
 
-  const limpar = () => { setBusca(''); setRegionalSel(''); setCidadeSel(''); setEscopo('apg'); };
+  const limpar = () => { setBusca(''); setRegionalSel(''); setRedeSel(''); setCidadeSel(''); setEscopo('apg'); };
 
   const areaLabel = ENEM_AREAS.find((a) => a.key === area)?.label ?? 'Média Geral';
 
@@ -350,6 +360,14 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
                 <select value={regionalSel} onChange={(e) => setRegionalSel(e.target.value)} className="px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 min-w-[120px]">
                   <option value="">Todas</option>
                   {regionais.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Landmark className="w-4 h-4 text-gray-400" />
+                <span className="text-sm text-gray-600">Rede:</span>
+                <select value={redeSel} onChange={(e) => setRedeSel(e.target.value)} className="px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 min-w-[120px]">
+                  <option value="">Todas</option>
+                  {redes.map((r) => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
               <div className="flex items-center gap-2">
@@ -611,7 +629,7 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
             <div className="flex items-center gap-2 text-xs text-gray-400 pt-1">
               <Award className="w-3.5 h-3.5" />
               <span>
-                Base: ENEM {ano || '2025'} · {fmtInt(dataAno.length)} escolas do PR (todas as dependências).
+                Base: ENEM {ano || '2025'} · {fmtInt(dataAno.length)} escolas do PR (todas as redes).
                 "Média nacional" é uma referência fixa do INEP; "Média Paraná" é calculada sobre a base no recorte atual.
               </span>
             </div>

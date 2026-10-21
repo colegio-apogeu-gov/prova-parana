@@ -23,7 +23,7 @@ import { UserProfile, isCsc } from './types';
 import { podeAuditar, registrarLogin, registrarInteracao, sistemaLabel } from './lib/auditoria';
 import { EscolaCscProvider } from './lib/escolaCsc';
 
-// Sistemas do Radar APG. 'enem', 'ideb' e 'auditoria' são dashboards próprios (tela cheia).
+// Sistemas do Mapa APG. 'enem', 'ideb' e 'auditoria' são dashboards próprios (tela cheia).
 type SelectedSystem = 'prova-parana' | 'parceiro' | 'parana-mais' | 'enem' | 'ideb' | 'auditoria';
 
 function App() {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search, Building2, MapPin, TrendingUp, Trophy, Users, Medal, ChevronRight, Eraser, Handshake,
-  TrendingDown, ArrowUpRight, ArrowDownRight, BarChart3, LineChart as LineChartIcon,
+  TrendingDown, ArrowUpRight, ArrowDownRight, BarChart3, LineChart as LineChartIcon, Landmark,
 } from 'lucide-react';
 import { EnemResultado, EnemArea, EnemParceiro } from '../../types';
 import {
@@ -192,6 +192,8 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data, onVerEscola }) 
   const [edicoesSel, setEdicoesSel] = useState<string[]>([]);
   const [busca, setBusca] = useState('');
   const [regionalSel, setRegionalSel] = useState('');
+  // Rede da escola (Estadual/Federal/Privada), mesmo filtro "Rede" do IDEB (na base do ENEM a coluna é `dependencia`).
+  const [redeSel, setRedeSel] = useState('');
   const [cidadeSel, setCidadeSel] = useState('');
   // Padrão: todas as unidades parceiras pré-selecionadas. "Todas selecionadas"
   // (ou vazio) = sem recorte, para os cards de referência (Média Paraná /
@@ -215,6 +217,10 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data, onVerEscola }) 
     () => Array.from(new Set(dataAno.map((r) => r.regional).filter(Boolean) as string[])).sort(),
     [dataAno]
   );
+  const redes = useMemo(
+    () => Array.from(new Set(dataAno.map((r) => r.dependencia).filter(Boolean) as string[])).sort(),
+    [dataAno]
+  );
   // Cidades: só as que têm escola parceira (mantém o dropdown utilizável; a base tem ~380 municípios).
   const cidades = useMemo(
     () => Array.from(new Set(dataAno.filter((r) => r.parceiro).map((r) => r.cidade))).sort(),
@@ -224,14 +230,15 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data, onVerEscola }) 
   const toggleParceiro = (p: EnemParceiro) =>
     setParceirosFiltro((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
 
-  // Escopo dos cards: obedece regional, cidade e o filtro Parceiros.
+  // Escopo dos cards: obedece regional, rede, cidade e o filtro Parceiros.
   const scopeAll = useMemo(
     () => dataAno.filter((r) =>
       (!regionalSel || r.regional === regionalSel) &&
+      (!redeSel || r.dependencia === redeSel) &&
       (!cidadeSel || r.cidade === cidadeSel) &&
       (parceirosFiltro.length === 0 || parceirosFiltro.length === PARCEIROS.length || (r.parceiro != null && parceirosFiltro.includes(r.parceiro)))
     ),
-    [dataAno, regionalSel, cidadeSel, parceirosFiltro]
+    [dataAno, regionalSel, redeSel, cidadeSel, parceirosFiltro]
   );
   const scopeApg = useMemo(() => scopeAll.filter((r) => r.parceiro === 'apg'), [scopeAll]);
   const scopeParceiros = useMemo(() => scopeAll.filter((r) => r.parceiro != null), [scopeAll]);
@@ -256,19 +263,28 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data, onVerEscola }) 
     const q = norm(busca);
     return dataAno
       .filter((r) => (rankGrupo === 'todos' ? r.parceiro != null : r.parceiro === rankGrupo))
-      .filter((r) => (!regionalSel || r.regional === regionalSel) && (!cidadeSel || r.cidade === cidadeSel))
+      .filter((r) =>
+        (!regionalSel || r.regional === regionalSel) &&
+        (!redeSel || r.dependencia === redeSel) &&
+        (!cidadeSel || r.cidade === cidadeSel)
+      )
       .filter((r) => !q || norm(r.escola).includes(q) || norm(r.cidade).includes(q))
       .map((r) => ({ r, v: areaValue(r, area) ?? 0 }))
       .sort((a, b) => b.v - a.v);
-  }, [dataAno, rankGrupo, regionalSel, cidadeSel, busca, area]);
+  }, [dataAno, rankGrupo, regionalSel, redeSel, cidadeSel, busca, area]);
   const maxRank = ranking.length ? ranking[0].v : 1;
 
   // ---- Skills (grupo próprio) ----
   const escolasSkill = useMemo(
-    () => dataAno.filter((r) => r.parceiro === skillGrupo && (!regionalSel || r.regional === regionalSel) && (!cidadeSel || r.cidade === cidadeSel))
+    () => dataAno.filter((r) =>
+      r.parceiro === skillGrupo &&
+      (!regionalSel || r.regional === regionalSel) &&
+      (!redeSel || r.dependencia === redeSel) &&
+      (!cidadeSel || r.cidade === cidadeSel)
+    )
       .map((r) => ({ r, v: areaValue(r, 'media') ?? 0 }))
       .sort((a, b) => b.v - a.v),
-    [dataAno, skillGrupo, regionalSel, cidadeSel]
+    [dataAno, skillGrupo, regionalSel, redeSel, cidadeSel]
   );
   const selectedSkill = useMemo(
     () => escolasSkill.find((x) => x.r.id === selectedSkillId)?.r ?? escolasSkill[0]?.r ?? null,
@@ -305,7 +321,7 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data, onVerEscola }) 
   const mapaSel = cidadesMapa.find((c) => c.cidade === mapCidade);
   const semCoord = cidadesMapa.filter((c) => !CITY_COORDS[c.cidade]).length;
 
-  const limpar = () => { setBusca(''); setRegionalSel(''); setCidadeSel(''); setParceirosFiltro(PARCEIROS.map((p) => p.key)); };
+  const limpar = () => { setBusca(''); setRegionalSel(''); setRedeSel(''); setCidadeSel(''); setParceirosFiltro(PARCEIROS.map((p) => p.key)); };
   const areaLabel = ENEM_AREAS.find((a) => a.key === area)?.label ?? 'Média Geral';
 
   // ---- Comparativo entre edições (métrica fixa = média geral) ----
@@ -384,6 +400,14 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data, onVerEscola }) 
           <select value={regionalSel} onChange={(e) => setRegionalSel(e.target.value)} className="px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 min-w-[100px]">
             <option value="">Todas</option>
             {regionais.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <Landmark className="w-4 h-4 text-gray-400" />
+          <span className="text-sm text-gray-600">Rede:</span>
+          <select value={redeSel} onChange={(e) => setRedeSel(e.target.value)} className="px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 min-w-[100px]">
+            <option value="">Todas</option>
+            {redes.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
         </div>
         <div className="flex items-center gap-2">
@@ -733,7 +757,7 @@ const EnemConsolidado: React.FC<EnemConsolidadoProps> = ({ data, onVerEscola }) 
       <div className="flex items-center gap-2 text-xs text-gray-400 pt-1">
         <Handshake className="w-3.5 h-3.5" />
         <span>
-          Base: ENEM {ano} · {fmtInt(dataAno.length)} escolas do PR (todas as dependências).
+          Base: ENEM {ano} · {fmtInt(dataAno.length)} escolas do PR (todas as redes).
           APG (nosso grupo) sempre destacado em azul. "Média nacional" é referência fixa do INEP.
         </span>
       </div>
