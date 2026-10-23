@@ -19,7 +19,7 @@ import ComparacaoProvas from './components/ComparacaoProvas/ComparacaoProvas';
 import ComparativoSemestres from './components/ComparativoSemestres/ComparativoSemestres';
 import ComparacaoAnual from './components/ComparacaoAnual/ComparacaoAnual';
 import { EscolhaEscola } from './components/common/SeletorEscola';
-import { UserProfile, isCsc } from './types';
+import { UserProfile, isCsc, podeVerComparativos } from './types';
 import { podeAuditar, registrarLogin, registrarInteracao, sistemaLabel } from './lib/auditoria';
 import { EscolaCscProvider } from './lib/escolaCsc';
 
@@ -163,13 +163,26 @@ function App() {
     return <SystemSelection onSystemSelect={handleSystemSelect} canAudit={podeAuditar(userProfile)} />;
   }
 
-  // ENEM, IDEB e Auditoria são dashboards próprios (tela cheia).
+  // ENEM, IDEB e Auditoria são dashboards próprios (tela cheia). A aba de
+  // comparativos dos parceiros só existe para os perfis gestão e total.
   if (selectedSystem === 'enem') {
-    return <EnemDashboard onSystemSwitch={handleSystemSwitch} onLogout={handleLogout} />;
+    return (
+      <EnemDashboard
+        onSystemSwitch={handleSystemSwitch}
+        onLogout={handleLogout}
+        comparativos={podeVerComparativos(userProfile)}
+      />
+    );
   }
 
   if (selectedSystem === 'ideb') {
-    return <IdebDashboard onSystemSwitch={handleSystemSwitch} onLogout={handleLogout} />;
+    return (
+      <IdebDashboard
+        onSystemSwitch={handleSystemSwitch}
+        onLogout={handleLogout}
+        comparativos={podeVerComparativos(userProfile)}
+      />
+    );
   }
 
   if (selectedSystem === 'auditoria') {

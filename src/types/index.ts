@@ -103,8 +103,10 @@ export interface UploadFormParceiro {
 // Tipo de acesso do usuário.
 // - 'admin': dados restritos à unidade (escola) do próprio usuário.
 // - 'gestao': igual ao admin, exceto em "Comparação Anual", onde enxerga
-//   todas as escolas e pode filtrar por múltiplas unidades.
-export type TipoAcesso = 'admin' | 'gestao';
+//   todas as escolas e pode filtrar por múltiplas unidades. Também vê os
+//   comparativos dos parceiros (ver podeVerComparativos).
+// - 'total': igual ao admin em todo o sistema, mais os comparativos dos parceiros.
+export type TipoAcesso = 'admin' | 'gestao' | 'total';
 
 export interface UserProfile {
   id: string;
@@ -115,9 +117,17 @@ export interface UserProfile {
 }
 
 // Perfis antigos (ou criados antes da migration) podem não ter tipo_acesso.
-// Nesse caso o comportamento padrão é o de 'admin'.
+// Nesse caso, e para qualquer valor desconhecido, o comportamento é o de 'admin'.
+export const normalizarTipoAcesso = (valor: unknown): TipoAcesso =>
+  valor === 'gestao' || valor === 'total' ? valor : 'admin';
+
 export const isGestao = (profile: { tipo_acesso?: string | null } | null | undefined): boolean =>
   profile?.tipo_acesso === 'gestao';
+
+// Comparativos dos parceiros: as abas "Consolidado APG-Salta-Tom" do ENEM e do
+// IDEB. Só os perfis gestão e total; o admin não vê as abas nem carrega os dados delas.
+export const podeVerComparativos = (profile: { tipo_acesso?: string | null } | null | undefined): boolean =>
+  profile?.tipo_acesso === 'gestao' || profile?.tipo_acesso === 'total';
 
 // CSC (Centro de Serviços Compartilhados): a parte administrativa da empresa.
 // É cadastrado como uma "unidade", mas não tem escola fixa: vê os resultados de
