@@ -3,7 +3,8 @@ import { School, BarChart3, Upload, LogOut, BookOpen, PieChart, RefreshCw, GitCo
 import { auth } from '../../lib/firebase';
 import { signOut } from 'firebase/auth';
 import { User } from 'firebase/auth';
-import { UserProfile, isGestao, isCsc } from '../../types';
+import { UserProfile, isCsc, normalizarTipoAcesso } from '../../types';
+import { perfilLabel } from '../../lib/auditoria';
 import EntendaSistema from '../EntendaSistema/EntendaSistema';
 import { SeletorEscola } from '../common/SeletorEscola';
 
@@ -174,7 +175,7 @@ const Navbar: React.FC<NavbarProps> = ({
             <div className="text-right">
               <p className="text-sm font-medium text-gray-900">{user.email}</p>
               <p className="text-xs text-gray-500">
-                {isCsc(userProfile) ? 'CSC' : isGestao(userProfile) ? 'Gestão' : 'Administrador'}
+                {isCsc(userProfile) ? 'CSC' : perfilLabel(normalizarTipoAcesso(userProfile?.tipo_acesso))}
               </p>
             </div>
             <button

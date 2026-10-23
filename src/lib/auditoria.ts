@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { supabase } from './supabase';
-import { UNIDADE_MAPEADA, UserProfile } from '../types';
+import { UNIDADE_MAPEADA, UserProfile, TipoAcesso, normalizarTipoAcesso } from '../types';
 
 // Perfis de gestão sempre veem a Auditoria; além deles, esta allowlist de
 // e-mails (definida pelo produto). Comparação sem caixa.
@@ -76,7 +76,7 @@ export interface AuditoriaUsuario {
   id: string;
   email: string;
   unidade: string;
-  tipo_acesso: 'admin' | 'gestao';
+  tipo_acesso: TipoAcesso;
   created_at: string | null;
   last_login_at: string | null;
   login_count: number;
@@ -107,7 +107,7 @@ export const getAuditoriaUsuarios = async (): Promise<AuditoriaUsuario[]> => {
         email: r.email ?? '',
         // Normaliza a unidade (mesmo mapa usado no getUserProfile).
         unidade: UNIDADE_MAPEADA[r.unidade as keyof typeof UNIDADE_MAPEADA] || r.unidade || '',
-        tipo_acesso: r.tipo_acesso === 'gestao' ? 'gestao' : 'admin',
+        tipo_acesso: normalizarTipoAcesso(r.tipo_acesso),
         created_at: r.created_at ?? null,
         last_login_at: r.last_login_at ?? null,
         login_count: typeof r.login_count === 'number' ? r.login_count : 0,
@@ -124,7 +124,8 @@ export const getAuditoriaUsuarios = async (): Promise<AuditoriaUsuario[]> => {
 // ---------------------------------------------------------------------------
 // Formatação (pt-BR)
 // ---------------------------------------------------------------------------
-export const perfilLabel = (t: 'admin' | 'gestao'): string => (t === 'gestao' ? 'Gestão' : 'Administrador');
+export const perfilLabel = (t: TipoAcesso): string =>
+  t === 'gestao' ? 'Gestão' : t === 'total' ? 'Total' : 'Administrador';
 
 export const fmtDataHora = (iso: string | null): string => {
   if (!iso) return '—';

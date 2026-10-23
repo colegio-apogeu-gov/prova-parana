@@ -139,7 +139,7 @@ export const ENTENDA: Record<EntendaSystemKey, EntendaConteudo> = {
       '(Matemática, Linguagens, Ciências da Natureza, Ciências Humanas e Redação).',
     abas: [
       { nome: 'Dashboard', desc: 'ranking das escolas, médias por área, gráfico de radar e mapa do Paraná com a distribuição do grupo.' },
-      { nome: 'Consolidado APG-Salta-Tom', desc: 'comparação entre os grupos parceiros (Apogeu, Salta e Tom).' },
+      { nome: 'Consolidado APG-Salta-Tom', desc: 'comparação entre os grupos parceiros (Apogeu, Salta e Tom). Disponível só para os perfis Gestão e Total.' },
       { nome: 'Histórico', desc: 'evolução do desempenho ao longo dos anos.' },
     ],
     indicadores: [
@@ -166,7 +166,7 @@ export const ENTENDA: Record<EntendaSystemKey, EntendaConteudo> = {
       'cada edição — inclusive as notas do SAEB em Matemática e Língua Portuguesa.',
     abas: [
       { nome: 'Dashboard', desc: 'ranking das escolas, médias por indicador, radar do perfil da escola e mapa do Paraná.' },
-      { nome: 'Consolidado APG-Salta-Tom', desc: 'comparação entre os grupos parceiros (Apogeu, Salta e Tom).' },
+      { nome: 'Consolidado APG-Salta-Tom', desc: 'comparação entre os grupos parceiros (Apogeu, Salta e Tom). Disponível só para os perfis Gestão e Total.' },
       { nome: 'Histórico', desc: 'evolução do IDEB e das notas do SAEB por edição, com metas do INEP e tabela de notas.' },
     ],
     indicadores: [

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { UNIDADE_MAPEADA, ComparacaoAnualAgregado, ComparacaoAnualNivel } from '../types';
+import { UNIDADE_MAPEADA, ComparacaoAnualAgregado, ComparacaoAnualNivel, normalizarTipoAcesso } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -231,7 +231,7 @@ export const getUserProfile = async (userId: string) => {
 
   // Normaliza o tipo de acesso: perfis antigos (antes da migration) não têm a
   // coluna preenchida e devem se comportar como 'admin'.
-  data.tipo_acesso = data.tipo_acesso === 'gestao' ? 'gestao' : 'admin';
+  data.tipo_acesso = normalizarTipoAcesso(data.tipo_acesso);
 
   return data;
 };

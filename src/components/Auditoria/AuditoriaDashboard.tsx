@@ -239,7 +239,7 @@ const AuditoriaDashboard: React.FC<AuditoriaDashboardProps> = ({ userProfile, on
                       <td className={`${td} font-medium text-gray-900`}>{u.email || '—'}</td>
                       <td className={td}>{u.unidade || '—'}</td>
                       <td className={td}>
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full ${u.tipo_acesso === 'gestao' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}>
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full ${u.tipo_acesso === 'gestao' ? 'bg-indigo-100 text-indigo-700' : u.tipo_acesso === 'total' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
                           {perfilLabel(u.tipo_acesso)}
                         </span>
                       </td>

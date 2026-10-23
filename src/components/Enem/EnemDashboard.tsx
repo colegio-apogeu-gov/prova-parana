@@ -15,6 +15,7 @@ import {
 interface EnemDashboardProps {
   onSystemSwitch: () => void;
   onLogout: () => void;
+  comparativos: boolean; // perfis gestão/total: libera a aba "Consolidado APG-Salta-Tom"
 }
 
 const fmt = (v: number | null | undefined, dec = 1) =>
@@ -118,7 +119,7 @@ const SchoolMap: React.FC<{
 
 const cardBase = 'bg-white rounded-xl border border-gray-200 p-4';
 
-const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout }) => {
+const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout, comparativos }) => {
   const [data, setData] = useState<EnemResultado[]>([]);
   const [anos, setAnos] = useState<string[]>([]);
   const [ano, setAno] = useState<string>('');
@@ -126,6 +127,8 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
   const [erro, setErro] = useState('');
 
   const [view, setView] = useState<'dashboard' | 'consolidado' | 'historico' | 'desempenho'>('dashboard');
+  // Sem o perfil, a aba de comparativos não abre de jeito nenhum (cai no Dashboard).
+  const viewAtual = view === 'consolidado' && !comparativos ? 'dashboard' : view;
   // Escola aberta a partir de um clique nas tabelas do Consolidado (abre no Desempenho).
   const [desempenhoEscola, setDesempenhoEscola] = useState<string | undefined>(undefined);
   const verEscolaNoDesempenho = (inep: string) => { setDesempenhoEscola(inep); setView('desempenho'); };
@@ -314,12 +317,12 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
             { k: 'consolidado', label: 'Consolidado APG-Salta-Tom', icon: <Handshake className="w-4 h-4" /> },
             { k: 'historico', label: 'Histórico', icon: <LineChart className="w-4 h-4" /> },
             { k: 'desempenho', label: 'Desempenho', icon: <Activity className="w-4 h-4" /> },
-          ] as const).map((t) => (
+          ] as const).filter((t) => t.k !== 'consolidado' || comparativos).map((t) => (
             <button
               key={t.k}
               onClick={() => setView(t.k)}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                view === t.k ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+                viewAtual === t.k ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
               {t.icon}
@@ -330,11 +333,11 @@ const EnemDashboard: React.FC<EnemDashboardProps> = ({ onSystemSwitch, onLogout 
 
         {erro ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{erro}</div>
-        ) : view === 'desempenho' ? (
+        ) : viewAtual === 'desempenho' ? (
           <EnemDesempenho data={data} anos={anos} escolaInicial={desempenhoEscola} />
-        ) : view === 'historico' ? (
+        ) : viewAtual === 'historico' ? (
           <EnemHistorico data={data} />
-        ) : view === 'consolidado' ? (
+        ) : viewAtual === 'consolidado' ? (
           <EnemConsolidado data={data} onVerEscola={verEscolaNoDesempenho} />
         ) : (
           <>

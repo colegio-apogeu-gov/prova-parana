@@ -18,6 +18,7 @@ import {
 interface IdebDashboardProps {
   onSystemSwitch: () => void;
   onLogout: () => void;
+  comparativos: boolean; // perfis gestão/total: libera a aba "Consolidado APG-Salta-Tom"
 }
 
 const fmtInt = (v: number) => (v || 0).toLocaleString('pt-BR');
@@ -28,7 +29,7 @@ const norm = (s: string) =>
 
 const cardBase = 'bg-white rounded-xl border border-gray-200 p-4';
 
-const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout }) => {
+const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout, comparativos }) => {
   const [data, setData] = useState<IdebResultado[]>([]);
   const [historico, setHistorico] = useState<IdebResultado[]>([]); // série das parceiras (todas as edições)
   const [anos, setAnos] = useState<string[]>([]);
@@ -38,6 +39,8 @@ const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout 
   const [erro, setErro] = useState('');
 
   const [view, setView] = useState<'dashboard' | 'consolidado' | 'historico' | 'desempenho'>('dashboard');
+  // Sem o perfil, a aba de comparativos não abre de jeito nenhum (cai no Dashboard).
+  const viewAtual = view === 'consolidado' && !comparativos ? 'dashboard' : view;
   // Escola aberta a partir de um clique nas tabelas do Consolidado (abre no Desempenho).
   const [desempenhoEscola, setDesempenhoEscola] = useState<string | undefined>(undefined);
   const verEscolaNoDesempenho = (inep: string) => { setDesempenhoEscola(inep); setView('desempenho'); };
@@ -97,7 +100,9 @@ const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout 
 
   // Série histórica das escolas parceiras (todas as edições) — base do comparativo
   // no Consolidado. Carregada uma vez; independe da etapa/edição selecionada.
+  // Sem o perfil de comparativos ela nem é buscada.
   useEffect(() => {
+    if (!comparativos) return;
     let cancelado = false;
     (async () => {
       try {
@@ -108,7 +113,7 @@ const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout 
       }
     })();
     return () => { cancelado = true; };
-  }, []);
+  }, [comparativos]);
 
   const redes = useMemo(
     () => Array.from(new Set(data.map((r) => r.rede).filter(Boolean) as string[])).sort(),
@@ -228,12 +233,12 @@ const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout 
               { k: 'consolidado', label: 'Consolidado APG-Salta-Tom', icon: <Handshake className="w-4 h-4" /> },
               { k: 'historico', label: 'Histórico', icon: <LineChart className="w-4 h-4" /> },
               { k: 'desempenho', label: 'Desempenho', icon: <Activity className="w-4 h-4" /> },
-            ] as const).map((t) => (
+            ] as const).filter((t) => t.k !== 'consolidado' || comparativos).map((t) => (
               <button
                 key={t.k}
                 onClick={() => setView(t.k)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  view === t.k ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+                  viewAtual === t.k ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
                 {t.icon}
@@ -261,11 +266,11 @@ const IdebDashboard: React.FC<IdebDashboardProps> = ({ onSystemSwitch, onLogout 
 
         {erro ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{erro}</div>
-        ) : view === 'desempenho' ? (
+        ) : viewAtual === 'desempenho' ? (
           <IdebDesempenho escolaInicial={desempenhoEscola} />
-        ) : view === 'historico' ? (
+        ) : viewAtual === 'historico' ? (
           <IdebHistorico etapa={etapa} />
-        ) : view === 'consolidado' ? (
+        ) : viewAtual === 'consolidado' ? (
           <IdebConsolidado
             data={data} historico={historico} etapa={etapa} ano={ano} anos={anos}
             onAnoChange={setAno} onVerEscola={verEscolaNoDesempenho} loading={loading}
