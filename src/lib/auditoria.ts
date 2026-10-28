@@ -41,11 +41,15 @@ export const sistemaLabel = (id: string | null | undefined): string =>
 // ---------------------------------------------------------------------------
 // Só enviamos o id (não o email): as RPCs de auditoria não tocam em campos de
 // identidade, então não há como um chamador adulterar o e-mail de um perfil.
+// O supabase-js não lança exceção quando a RPC falha (devolve `error`), então é
+// preciso olhar o retorno: sem isso, uma função ausente ou com assinatura antiga
+// no banco falha em silêncio e a Auditoria fica vazia sem ninguém perceber.
 export const registrarLogin = async (id: string, lastSignInTime: string | null): Promise<void> => {
   try {
     // Firebase entrega lastSignInTime como string de data (UTC). Convertemos.
     const iso = lastSignInTime ? new Date(lastSignInTime).toISOString() : new Date().toISOString();
-    await supabase.rpc('auditoria_registrar_login', { p_id: id, p_last_sign_in: iso });
+    const { error } = await supabase.rpc('auditoria_registrar_login', { p_id: id, p_last_sign_in: iso });
+    if (error) console.warn('auditoria: falha ao registrar login (ignorado)', error);
   } catch (e) {
     console.warn('auditoria: falha ao registrar login (ignorado)', e);
   }
@@ -63,7 +67,8 @@ export const registrarInteracao = async (id: string, system: string): Promise<vo
   ultimoRegistro = agora;
   ultimoSistema = system;
   try {
-    await supabase.rpc('auditoria_registrar_interacao', { p_id: id, p_system: system });
+    const { error } = await supabase.rpc('auditoria_registrar_interacao', { p_id: id, p_system: system });
+    if (error) console.warn('auditoria: falha ao registrar interação (ignorado)', error);
   } catch (e) {
     console.warn('auditoria: falha ao registrar interação (ignorado)', e);
   }
